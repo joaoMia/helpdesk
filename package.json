@@ -1,0 +1,10 @@
+{
+  "name": "helpdesk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HelpDesk — monorepositório (npm workspaces). Aplicações ainda não inicializadas (marco M1).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

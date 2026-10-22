@@ -1,0 +1,18 @@
+# Normalização de finais de linha (HD-009)
+# Padrão: arquivos de texto com LF, conforme .editorconfig.
+* text=auto eol=lf
+
+# backlog.csv é mantido em CRLF (com BOM UTF-8) para compatibilidade com planilhas.
+*.csv text eol=crlf
+
+# Binários
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.woff binary
+*.woff2 binary

@@ -8,3 +8,12 @@ coverage/
 .DS_Store
 Thumbs.db
 .vscode/settings.json
+
+# Logs e artefatos de build TypeScript
+*.log
+npm-debug.log*
+*.tsbuildinfo
+
+# Configurações locais do Claude Code (não versionar)
+.claude/settings.local.json
+CLAUDE.local.md
