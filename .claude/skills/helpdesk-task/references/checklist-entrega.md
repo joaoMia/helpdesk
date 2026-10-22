@@ -11,4 +11,4 @@
 - [ ] O relatório contém arquivos alterados, comandos e resultados verificáveis.
 - [ ] A próxima tarefa foi somente recomendada, nunca iniciada por iniciativa própria.
 
-**HD-009 tem escopo especial:** não instalar dependências nem criar frontend/backend funcionais; verificar o prompt detalhado em `prompts/HD-009-primeira-tarefa-claude.md`.
+**HD-009 tem escopo especial:** não instalar dependências nem criar frontend/backend funcionais; verificar o escopo em `docs/15-m1-plano-de-execucao.md` e a instrução explícita da tarefa na conversa ou issue aprovada.
