@@ -26,3 +26,28 @@ O responsável aprovou a **estrutura para início**. Isso autoriza somente o mar
 
 ## Skill do Claude Code
 A Skill do projeto está em `.claude/skills/helpdesk-task/SKILL.md`, com invocação manual `/helpdesk-task HD-009`. O `CLAUDE.md` da raiz contém as regras permanentes.
+
+## Workspace local (HD-009)
+Estrutura do monorepositório preparada com **npm workspaces** (`apps/*` e `packages/*`). Nenhuma dependência foi instalada e nenhuma aplicação funciona ainda.
+
+| Pasta | Finalidade | Estado |
+|---|---|---|
+| `apps/frontend/` | Interface React/Vite/TypeScript/Tailwind | reservada (README) |
+| `apps/backend/` | API Express/TypeScript/Zod/Jest | reservada (README) |
+| `packages/contracts/` | Contratos Zod e tipos compartilhados | reservada (README) |
+| `infra/` | PostgreSQL local via Docker Compose | reservada (README) |
+| `docs/`, `planning/`, `prompts/` | Documentação, backlog e prompts originais | preservados |
+
+Padronização: `.editorconfig` (LF/UTF-8; `*.csv` em CRLF com BOM) e `.gitattributes` com a mesma política. O `package.json` raiz ainda não tem scripts, pois `npm run ... --workspaces` falha enquanto nenhuma pasta possuir `package.json`; os scripts serão adicionados com HD-010/HD-011.
+
+## Comandos planejados para HD-010 a HD-015 (não executados)
+Referência para as próximas tarefas, **cada uma sujeita a aprovação própria**. Versões exatas dependem da ADR-10 / HD-008 e não devem ser instaladas sem fixação explícita.
+
+| Tarefa | Comandos previstos (indicativos) | Observações |
+|---|---|---|
+| HD-010 | `npm create vite@<versão> apps/frontend -- --template react-ts`; `npm install -w apps/frontend tailwindcss @tailwindcss/vite` | Preservar ou mesclar o README existente na pasta |
+| HD-011 | `npm init -w apps/backend`; `npm install -w apps/backend express zod`; `npm install -D -w apps/backend typescript jest supertest` (+ integração TS para Jest) | Fixar TypeScript compatível com ts-jest/typescript-eslint |
+| HD-012 | `docker compose -f infra/docker-compose.yml up -d` | Requer Docker Desktop em execução; tag fixa do PostgreSQL; segredos só em `.env` |
+| HD-013 | `npm install -w apps/backend prisma@<major> @prisma/client@<major>` | Fixar a major; não misturar CLI e client de majors diferentes; sem migrations de domínio |
+| HD-014 | `npm run lint --workspaces --if-present`; `npm run typecheck --workspaces --if-present`; `npm test --workspaces --if-present` | CI depende de autorização para GitHub |
+| HD-015 | (sem comandos de instalação) | Formato padrão de erro e `requestId`; alinhar com HD-006 |

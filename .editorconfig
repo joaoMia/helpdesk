@@ -9,3 +9,7 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+[*.csv]
+charset = utf-8-bom
+end_of_line = crlf
