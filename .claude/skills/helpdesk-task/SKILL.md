@@ -12,7 +12,7 @@ Tarefa solicitada: **$ARGUMENTS**.
 ## Regras gerais
 - Siga `CLAUDE.md` e a documentação em `docs/`; não substitua decisões aprovadas por suposições.
 - Confirme pelo caminho real que está no diretório `helpdesk`, diretamente dentro da pasta `dev` existente. Sem confirmação, não escreva arquivos.
-- Leia a entrada correspondente em `planning/backlog.csv`, o prompt específico em `prompts/` se existir e os documentos relevantes.
+- Leia a entrada correspondente em `planning/backlog.csv`, a instrução explícita da tarefa na conversa ou issue aprovada e os documentos relevantes.
 - Não interprete a presença desta Skill como autorização para implementar outras tarefas.
 - Não altere arquivos fora de `dev/helpdesk`, segredos, credenciais, configurações do SO ou outros projetos.
 - Não use GitHub ou Miro, não faça push, commit, deploy, instalação de pacotes ou operações destrutivas sem autorização específica.

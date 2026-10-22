@@ -9,8 +9,8 @@
 3. Descompactar **o conteúdo** deste ZIP na raiz de `dev/helpdesk` (não criar outra pasta aninhada chamada `HelpDesk_Inicio_M1_v1_4`).
 4. Abrir exatamente `dev/helpdesk` no VS Code ou no Claude Code Desktop (ambiente local) e verificar o caminho.
 5. Ler `docs/15-m1-plano-de-execucao.md`, `docs/16-decisoes-para-proximos-modulos.md` e `CLAUDE.md`.
-6. Na primeira sessão, enviar `prompts/00-primeira-conversa-com-claude.md` ao Claude Code para diagnóstico e plano, sem edições.
-7. Após revisar e aprovar o plano, iniciar HD-009 com a Skill `/helpdesk-task HD-009` e o prompt `prompts/HD-009-primeira-tarefa-claude.md`.
+6. No início de uma sessão, solicitar diagnóstico e plano, sem edições, conforme `docs/17-guia-de-inicializacao-do-claude.md`.
+7. Após revisar e aprovar o plano da tarefa atual, usar a Skill `/helpdesk-task HD-XXX`, a instrução explícita na conversa ou issue aprovada e os documentos relevantes. O escopo da fundação está em `docs/15-m1-plano-de-execucao.md`.
 8. Revisar o resultado do Claude, comandos executados, testes e arquivos antes de commitar ou publicar. Confira `docs/17-guia-de-inicializacao-do-claude.md`.
 
 **Limites:** este pacote contém documentos, backlog e diagramas conceituais; não contém aplicação funcional. Não há acesso ao computador do usuário, nem repositório/board remoto criado.
@@ -18,7 +18,6 @@
 ## Pastas
 - `docs/`: requisitos, decisões, arquitetura, regras e diagramas Mermaid.
 - `planning/backlog.csv`: 64 tarefas com rastreabilidade e estados iniciais.
-- `prompts/`: primeiro prompt para Claude Code (somente preparação técnica).
 - `CLAUDE.md`: política do agente para esta fase.
 
 ## Estado da aprovação
@@ -36,7 +35,7 @@ Estrutura do monorepositório preparada com **npm workspaces** (`apps/*` e `pack
 | `apps/backend/` | API Express/TypeScript/Zod/Jest | reservada (README) |
 | `packages/contracts/` | Contratos Zod e tipos compartilhados | reservada (README) |
 | `infra/` | PostgreSQL local via Docker Compose | reservada (README) |
-| `docs/`, `planning/`, `prompts/` | Documentação, backlog e prompts originais | preservados |
+| `docs/`, `planning/` | Documentação e backlog | preservados |
 
 Padronização: `.editorconfig` (LF/UTF-8; `*.csv` em CRLF com BOM) e `.gitattributes` com a mesma política. O `package.json` raiz ainda não tem scripts, pois `npm run ... --workspaces` falha enquanto nenhuma pasta possuir `package.json`; os scripts serão adicionados com HD-010/HD-011.
 

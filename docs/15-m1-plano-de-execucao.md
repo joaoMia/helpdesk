@@ -15,7 +15,7 @@
 - Layout e dados de negócio não são implementados no M1.
 
 ## Sequência de tarefas independentes dentro de M1
-A primeira execução é **somente HD-009 (workspace Git e READMEs)**; o prompt em `prompts/HD-009-primeira-tarefa-claude.md` proíbe a criação de aplicação nesta tarefa. A sequência abaixo representa o marco inteiro, distribuído pelas tarefas HD-009 a HD-015, e **não** deve ser realizada toda de uma vez.
+A primeira execução é **somente HD-009 (workspace Git e READMEs)**, sem instalar dependências nem criar aplicações, serviços de infraestrutura ou modelos de domínio. O escopo é preparar os diretórios, o `package.json` raiz com npm workspaces, as configurações de Git/editor e os READMEs, além de documentar os próximos comandos sem executá-los. A sequência abaixo representa o marco inteiro, distribuído pelas tarefas HD-009 a HD-015, e **não** deve ser realizada toda de uma vez.
 
 1. Confirmar diretório de trabalho correto e auditar arquivos existentes.
 2. Identificar versões de Node/npm/Git/Docker e eventuais conflitos de portas. Se faltar componente, reportar e solicitar ação do usuário.

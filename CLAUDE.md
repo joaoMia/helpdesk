@@ -10,7 +10,7 @@ O responsável autorizou **somente a fundação do marco M1**, mediante instruç
 
 ## Fonte de verdade
 1. Requisitos e regras em `docs/`, decisões explicitamente aprovadas e limitações desta fase.
-2. Tarefa atual no arquivo `prompts/` ou issue aprovada.
+2. Instrução explícita da tarefa atual na conversa ou issue aprovada.
 3. Contratos e testes versionados.
 4. Figma como referência visual, apenas depois de validar seus quadros.
 
@@ -36,4 +36,4 @@ Frontend React/Vite/TypeScript/Tailwind; backend Node.js/Express/TypeScript/JWT/
 6. Fornecer resumo, arquivos modificados, comandos, testes, limitações e pendências ao terminar.
 
 ## Skill de trabalho supervisionado
-As tarefas aprovadas podem usar `.claude/skills/helpdesk-task/SKILL.md` (invocação manual `/helpdesk-task HD-XXX`). A Skill complementa estas regras; não concede autorizações adicionais. Para começar, use `prompts/00-primeira-conversa-com-claude.md`, somente diagnóstico.
+As tarefas aprovadas podem usar `.claude/skills/helpdesk-task/SKILL.md` (invocação manual `/helpdesk-task HD-XXX`). A Skill complementa estas regras; não concede autorizações adicionais. Para começar uma sessão, siga `docs/17-guia-de-inicializacao-do-claude.md`, com diagnóstico antes de qualquer edição.
