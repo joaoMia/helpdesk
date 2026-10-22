@@ -1,0 +1,16 @@
+erDiagram
+  USER ||--o{ TICKET : abre
+  USER o|--o{ TICKET : atende
+  TICKET ||--|{ TICKET_SERVICE : contem
+  SERVICE ||--o{ TICKET_SERVICE : origem
+  TICKET ||--o{ TICKET_COMMENT : possui
+  USER ||--o{ TICKET_COMMENT : escreve
+  TICKET ||--o{ TICKET_ATTACHMENT : possui
+  TICKET ||--o{ TICKET_EVENT : audita
+  TICKET ||--o{ TICKET_PENDING_PERIOD : historico
+  PENDING_REASON ||--o{ TICKET_PENDING_PERIOD : motiva
+  WORK_SCHEDULE ||--o{ WORK_SCHEDULE_VERSION : versiona
+  WORK_SCHEDULE_VERSION ||--o{ WORK_SCHEDULE_INTERVAL : define
+  TICKET ||--o{ TICKET_SCHEDULE_SEGMENT : usa
+  WORK_SCHEDULE_VERSION ||--o{ TICKET_SCHEDULE_SEGMENT : aplica
+  TICKET ||--o| TICKET_METRIC : registra

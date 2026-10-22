@@ -1,0 +1,12 @@
+flowchart TD
+  A[Solicitante abre chamado] --> B[OPEN / sem prioridade / sem técnico]
+  B --> C[Fila Não classificados]
+  C --> D[Técnico classifica LOW/MEDIUM/HIGH]
+  D --> E[Fila Classificados / sem atribuição]
+  E --> F[Técnico assume atomicamente]
+  F --> G[IN_PROGRESS]
+  G -->|Concluído| Z[CLOSED]
+  G -->|Motivo obrigatório| H[PENDING]
+  H -->|Retomada manual| G
+  H -->|Interação do solicitante se regra permitir| G
+  H -->|Interação sem regra de retomada| H
