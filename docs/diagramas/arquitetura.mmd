@@ -1,0 +1,8 @@
+flowchart TD
+  User[Solicitante / Técnico / Admin] --> FE[React + Vite + TypeScript]
+  FE -->|HTTPS / REST em produção| API[Node.js + Express]
+  API --> AUTH[JWT / Autorização]
+  API --> SERVICES[Casos de uso e validações Zod]
+  SERVICES --> PRISMA[Prisma]
+  PRISMA --> PG[(PostgreSQL)]
+  API --> FILES[Armazenamento de anexos protegido]

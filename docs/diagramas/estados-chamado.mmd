@@ -1,0 +1,7 @@
+stateDiagram-v2
+  [*] --> OPEN: criar
+  OPEN --> IN_PROGRESS: classificado + assumir
+  IN_PROGRESS --> PENDING: motivo ativo + justificativa
+  PENDING --> IN_PROGRESS: manual ou auto-retomada válida
+  IN_PROGRESS --> CLOSED: encerrar
+  CLOSED --> [*]
