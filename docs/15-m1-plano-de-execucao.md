@@ -1,6 +1,6 @@
 # 15 — Plano de execução M1: Fundação do HelpDesk
 
-**Estado:** liberado para preparar a fundação local; features de negócio permanecem bloqueadas até as decisões correspondentes.
+**Estado:** fundação local implementada para revisão em HD-008/HD-010/HD-011/HD-012, conforme a [ADR-10 aprovada](18-adr10-stack-e-fundacao.md). Features de negócio permanecem bloqueadas até as decisões correspondentes; a HD-003 e os demais ADRs não foram encerrados.
 
 ## Pré-condições
 - Diretório correto `<PASTA_DEV_EXISTENTE>/helpdesk` confirmado; sem apagar arquivos pré-existentes.
