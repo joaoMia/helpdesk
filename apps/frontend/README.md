@@ -1,18 +1,23 @@
-# HelpDesk — Frontend (`apps/frontend`)
+# HelpDesk — Frontend
 
-**Estado:** pasta reservada. Nenhuma aplicação foi criada ainda; não há código executável nem dependências instaladas.
+Fundação React 19.3.1, Vite 8.3.5, TypeScript 5.9.3 e Tailwind CSS 4.3.3. A tela atual é uma validação técnica responsiva e provisória, sem login, dashboards, chamados, usuários, GSAP ou ECharts.
 
-## Objetivo
-Interface web responsiva (mobile first) do HelpDesk, com rotas e layouts por papel (Solicitante, Técnico e Admin), consumindo exclusivamente a API própria.
+## Execução
 
-## Stack prevista
-React + Vite + TypeScript + Tailwind CSS. ECharts e GSAP somente quando houver telas funcionais (M8). Versões serão fixadas na decisão ADR-10 / HD-008.
+Na raiz, após `npm ci`:
 
-## Organização prevista
-Conforme `docs/04-arquitetura.md`: `src/app`, `src/assets`, `src/components`, `src/features`, `src/hooks`, `src/layouts`, `src/lib`, `src/routes`, `src/styles` e `tests/`.
+- `npm run dev:frontend`: [http://127.0.0.1:5173](http://127.0.0.1:5173), com porta estrita e bind em loopback.
+- `npm run build --workspace @helpdesk/frontend`.
+- `npm run typecheck --workspace @helpdesk/frontend`.
+- `npm run lint --workspace @helpdesk/frontend`.
+- `npm run preview --workspace @helpdesk/frontend`: preview local do build em 4173.
 
-## Próximos passos
-- **HD-010** — inicializar React/Vite/TypeScript/Tailwind nesta pasta (mediante aprovação). Atenção: o gerador do Vite pode recusar uma pasta não vazia; este README deve ser preservado ou mesclado.
-- **HD-014** — lint, formatação e testes do frontend.
+O endpoint `/api/health` é encaminhado pelo proxy Vite à API em 3001. Inicie o backend para ver seu estado real; uma falha não é apresentada como sucesso. O build/preview estático não incorpora esse proxy: na futura implantação, o proxy da TI deverá encaminhar `/api` à API, sem alterar o contrato do endpoint.
 
-Referências: `docs/04-arquitetura.md`, `docs/07-telas-e-design.md`, `docs/15-m1-plano-de-execucao.md`.
+## Organização
+
+`src/main.tsx` inicializa React; `src/app/app.tsx` contém a tela técnica; `src/styles.css` importa Tailwind. `tsconfig.json` usa strict e resolução Bundler. Não há diretórios vazios de módulos futuros nem suíte de testes de UI nesta fase.
+
+O produto final será mobile first, com rotas e layouts por papel e consumo da API própria. O Figma e o design definitivo continuam sujeitos à validação. Tailwind 4 requer navegadores modernos; conferir a base corporativa antes da implantação.
+
+Referências: [arquitetura](../../docs/04-arquitetura.md), [telas](../../docs/07-telas-e-design.md) e [ADR-10](../../docs/18-adr10-stack-e-fundacao.md).

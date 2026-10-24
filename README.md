@@ -1,52 +1,77 @@
-# HelpDesk — Início do marco M1 (pacote v1.5 com Skill Claude)
+# HelpDesk — Fundação técnica local
 
-**Etapa:** fundação técnica em ambiente local. **Código da aplicação:** ainda não criado.
-**Diretório obrigatório do projeto:** pasta `helpdesk` **dentro** da pasta existente `dev` do proprietário. O caminho absoluto depende do sistema operacional.
+Monorepositório existente em npm workspaces para uma aplicação de suporte de TI. A fundação contém uma interface técnica React, uma API Express e PostgreSQL local em Docker. Autenticação, usuários, chamados e dashboards ainda não foram implementados.
 
-## Como começar
-1. No computador, localizar a pasta `dev` já existente.
-2. Criar uma pasta vazia `helpdesk` dentro dela, caso ainda não exista. Verificar antes para não sobrescrever nada.
-3. Descompactar **o conteúdo** deste ZIP na raiz de `dev/helpdesk` (não criar outra pasta aninhada chamada `HelpDesk_Inicio_M1_v1_4`).
-4. Abrir exatamente `dev/helpdesk` no VS Code ou no Claude Code Desktop (ambiente local) e verificar o caminho.
-5. Ler `docs/15-m1-plano-de-execucao.md`, `docs/16-decisoes-para-proximos-modulos.md` e `CLAUDE.md`.
-6. No início de uma sessão, solicitar diagnóstico e plano, sem edições, conforme `docs/17-guia-de-inicializacao-do-claude.md`.
-7. Após revisar e aprovar o plano da tarefa atual, usar a Skill `/helpdesk-task HD-XXX`, a instrução explícita na conversa ou issue aprovada e os documentos relevantes. O escopo da fundação está em `docs/15-m1-plano-de-execucao.md`.
-8. Revisar o resultado do Claude, comandos executados, testes e arquivos antes de commitar ou publicar. Confira `docs/17-guia-de-inicializacao-do-claude.md`.
+O projeto oficial fica em `C:\dev\helpdesk`. As instruções permanentes estão em [AGENTS.md](AGENTS.md) e [CLAUDE.md](CLAUDE.md). As Skills de Codex e Claude usam o [procedimento compartilhado](skills/helpdesk-task/procedimento.md); sua presença não concede autorização para novas tarefas, commits ou publicações.
 
-**Limites:** este pacote contém documentos, backlog e diagramas conceituais; não contém aplicação funcional. Não há acesso ao computador do usuário, nem repositório/board remoto criado.
+## Pré-requisitos
 
-## Pastas
-- `docs/`: requisitos, decisões, arquitetura, regras e diagramas Mermaid.
-- `planning/backlog.csv`: 64 tarefas com rastreabilidade e estados iniciais.
-- `CLAUDE.md`: política do agente para esta fase.
+- Node.js 24 LTS e npm 11. A fundação reaproveita Node 24.21.0 e npm 11.19.0 instalados, sem atualizações globais.
+- Docker Engine e plugin Docker Compose funcionando com Linux containers. Ambiente auditado: Docker Desktop 4.93.0, Engine 29.8.1 e Compose 5.5.1.
+- Portas locais 5173 (frontend), 3001 (API) e 5432 (PostgreSQL) livres. Os serviços fazem bind apenas em loopback.
 
-## Estado da aprovação
-O responsável aprovou a **estrutura para início**. Isso autoriza somente o marco M1. As decisões funcionais ainda pendentes ficam registradas em `docs/16-decisoes-para-proximos-modulos.md` e não autorizam implementar regras ambíguas.
+Versões fixadas e decisões estão na [ADR-10](docs/18-adr10-stack-e-fundacao.md). Requisitos funcionais e decisões ainda pendentes continuam em [docs/](docs/) e no [backlog](planning/backlog.csv). HD-003 permanece pendente.
 
-## Skill do Claude Code
-A Skill do projeto está em `.claude/skills/helpdesk-task/SKILL.md`, com invocação manual `/helpdesk-task HD-009`. O `CLAUDE.md` da raiz contém as regras permanentes.
+## Instalação reproduzível
 
-## Workspace local (HD-009)
-Estrutura do monorepositório preparada com **npm workspaces** (`apps/*` e `packages/*`). Nenhuma dependência foi instalada e nenhuma aplicação funciona ainda.
+Na raiz do repositório:
 
-| Pasta | Finalidade | Estado |
-|---|---|---|
-| `apps/frontend/` | Interface React/Vite/TypeScript/Tailwind | reservada (README) |
-| `apps/backend/` | API Express/TypeScript/Zod/Jest | reservada (README) |
-| `packages/contracts/` | Contratos Zod e tipos compartilhados | reservada (README) |
-| `infra/` | PostgreSQL local via Docker Compose | reservada (README) |
-| `docs/`, `planning/` | Documentação e backlog | preservados |
+```text
+npm ci
+npm run env:setup
+npm run db:config
+npm run db:up
+npm run db:check
+```
 
-Padronização: `.editorconfig` (LF/UTF-8; `*.csv` em CRLF com BOM) e `.gitattributes` com a mesma política. O `package.json` raiz ainda não tem scripts, pois `npm run ... --workspaces` falha enquanto nenhuma pasta possuir `package.json`; os scripts serão adicionados com HD-010/HD-011.
+O único lockfile é `package-lock.json`, na raiz. Não é necessário instalar TypeScript, Prisma ou outras ferramentas globalmente. O script de ambiente cria `.env` com credencial local aleatória somente se esse arquivo não existir; nunca o sobrescreve nem mostra os valores. [.env.example](.env.example) contém somente os nomes e valores não sensíveis. Não use as credenciais locais em produção.
 
-## Comandos planejados para HD-010 a HD-015 (não executados)
-Referência para as próximas tarefas, **cada uma sujeita a aprovação própria**. Versões exatas dependem da ADR-10 / HD-008 e não devem ser instaladas sem fixação explícita.
+Se já houver `.env`, confira os nomes e URLs sem publicar seu conteúdo. Alterar nomes de bancos/usuários no arquivo não modifica automaticamente um volume PostgreSQL já inicializado.
 
-| Tarefa | Comandos previstos (indicativos) | Observações |
-|---|---|---|
-| HD-010 | `npm create vite@<versão> apps/frontend -- --template react-ts`; `npm install -w apps/frontend tailwindcss @tailwindcss/vite` | Preservar ou mesclar o README existente na pasta |
-| HD-011 | `npm init -w apps/backend`; `npm install -w apps/backend express zod`; `npm install -D -w apps/backend typescript jest supertest` (+ integração TS para Jest) | Fixar TypeScript compatível com ts-jest/typescript-eslint |
-| HD-012 | `docker compose -f infra/docker-compose.yml up -d` | Requer Docker Desktop em execução; tag fixa do PostgreSQL; segredos só em `.env` |
-| HD-013 | `npm install -w apps/backend prisma@<major> @prisma/client@<major>` | Fixar a major; não misturar CLI e client de majors diferentes; sem migrations de domínio |
-| HD-014 | `npm run lint --workspaces --if-present`; `npm run typecheck --workspaces --if-present`; `npm test --workspaces --if-present` | CI depende de autorização para GitHub |
-| HD-015 | (sem comandos de instalação) | Formato padrão de erro e `requestId`; alinhar com HD-006 |
+## Executar as aplicações
+
+Em dois terminais separados, a partir da raiz:
+
+```text
+npm run dev:backend
+npm run dev:frontend
+```
+
+- Frontend: [http://127.0.0.1:5173](http://127.0.0.1:5173).
+- API: [http://127.0.0.1:3001/health](http://127.0.0.1:3001/health).
+- Resposta de integridade: `{"status":"ok","service":"helpdesk-api"}`.
+
+O frontend consulta a API por `/api/health`, usando o proxy de desenvolvimento do Vite. A API inicia e responde ao healthcheck mesmo sem banco configurado/disponível. A verificação da persistência é feita separadamente por `npm run db:check`.
+
+## Qualidade e build
+
+```text
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run format:check
+```
+
+Jest + Supertest estão no backend, com transformação TypeScript em ESM. O comando de teste usa a opção `--experimental-vm-modules`; as limitações estão na ADR-10. O frontend tem typecheck, lint e build; não há ainda suíte de testes de interface. Prisma está instalado para preparação futura, sem schema de domínio, migrations ou Client gerado.
+
+`npm run format` aplica Prettier aos aplicativos, infraestrutura, scripts, configurações e ADR desta fundação. A configuração preserva os documentos funcionais históricos e o CSV do backlog e ignora segredos, caches e artefatos.
+
+## Organização
+
+| Pasta                                              | Conteúdo                                                        |
+| -------------------------------------------------- | --------------------------------------------------------------- |
+| [apps/frontend](apps/frontend/README.md)           | React/TypeScript, Vite e Tailwind; tela técnica provisória      |
+| [apps/backend](apps/backend/README.md)             | Express/Zod, configuração de ambiente, healthcheck e testes ESM |
+| [packages/contracts](packages/contracts/README.md) | Reservado; sem contratos artificiais de negócio                 |
+| [infra](infra/README.md)                           | PostgreSQL de desenvolvimento e banco de testes isolado         |
+| `docs/`, `planning/`                               | Requisitos, arquitetura, decisões, diagramas e backlog          |
+| `skills/helpdesk-task/`                            | Procedimento e checklist compartilhados pelos agentes           |
+
+## Infraestrutura e limites
+
+O Compose cria somente os recursos com projeto `helpdesk`, sem utilizar containers, redes ou bancos de outros projetos. O volume PostgreSQL é persistente; não execute `down -v` nem prune. Para verificar o estado, use `npm run db:status`.
+
+A implantação futura é no Server 10 Linux da empresa, pela rede interna, com DNS, certificados e backups gerenciados pela TI. Nenhum deploy é feito nesta fundação. O servidor Vite de desenvolvimento não é servidor de produção. GSAP e ECharts serão incorporados quando houver tarefas de telas funcionais autorizadas.
+
+Respeite UTF-8/LF e a política específica do CSV em `.editorconfig` e `.gitattributes`. Alterações e próximas tarefas precisam de autorização própria; não há publicação automática.

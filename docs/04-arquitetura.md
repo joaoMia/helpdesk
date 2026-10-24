@@ -69,10 +69,12 @@ helpdesk/
 Na fundação M1, utilizar `npm workspaces` para manter um único lockfile e minimizar a preparação do ambiente.
 
 ## Compatibilidade de versões
-A documentação consultada em outubro de 2026 descreve Prisma ORM 8, com novos arquivos de contrato e fluxo de migrations; tutoriais anteriores podem usar schema.prisma e prisma migrate dev. **Antes do bootstrap**, escolher e fixar a major do Prisma conforme compatibilidade com Node e material de estudo. Não combinar CLI e snippets de majors diferentes. Recomendar Node LTS compatível verificado e lockfile commitado.
+Stack da fundação aprovada na [ADR-10](18-adr10-stack-e-fundacao.md): Node 24 LTS, TypeScript 5.9.3, React 19.3.1, Vite 8.3.5, Tailwind 4.3.3, Express 5.3.0, Zod 4.6.7, Prisma 7.10.1 e PostgreSQL 18.6. Manter versões exatas nos manifests e um único lockfile raiz. Prisma 8 RC não faz parte desta base. Não combinar snippets ou CLI de majors diferentes.
+
+Backend em ESM/NodeNext; frontend com resolução Bundler. Jest e Supertest permanecem no backend, com a limitação de ESM documentada na ADR-10. As camadas do diagrama são arquitetura-alvo: a fundação contém somente configuração, app/server e healthcheck, sem classes ou módulos vazios. `packages/contracts` permanece reservado até sua tarefa de uso.
 
 ## Regras de frontend
 Rotas por papel e layouts distintos, mas componentes e tokens compartilhados. API Client centralizado; estados loading/empty/error; feedback visual não deve mascarar falha de requisição. GSAP com `@gsap/react`, suporte a reduced motion. ECharts com importação modular; não usar ScrollSmoother em tabelas/filas por padrão.
 
 ## Infraestrutura futura
-Deploy somente depois de homologação local: frontend em Vercel/Netlify, API Render, PostgreSQL gerenciado, armazenamento externo para anexos. Sem acoplar localização dos arquivos ao disco do serviço de hospedagem.
+Destino atual definido pelo responsável: Server 10 Linux da empresa, containers Linux e acesso apenas pela rede interna; DNS, certificados e backups administrados pela TI. Deploy somente depois da homologação local e de autorização própria. Render/Vercel/Netlify permanecem referências históricas da entrega educacional, não destinos desta implantação corporativa. A persistência e o armazenamento de anexos serão planejados sem acoplamento ao disco efêmero da aplicação.

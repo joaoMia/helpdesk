@@ -2,7 +2,7 @@
 
 ## Contexto e limite de atuação
 
-Continue o HelpDesk existente: aplicação web responsiva de suporte de TI para solicitantes, técnicos e administradores. A fundação do monorepositório está preparada; frontend, API e banco ainda não foram inicializados. A liberação do marco M1 exige autorização por tarefa e não libera funcionalidades de negócio automaticamente.
+Continue o HelpDesk existente: aplicação web responsiva de suporte de TI para solicitantes, técnicos e administradores. A fundação local possui frontend técnico, API com healthcheck e PostgreSQL em Docker; módulos de negócio ainda não foram implementados. A liberação do marco M1 exige autorização por tarefa e não libera funcionalidades de negócio automaticamente.
 
 Trabalhe exclusivamente em `C:\dev\helpdesk`. Confirme o diretório real antes de qualquer alteração. Não modifique projetos irmãos, configurações do sistema ou arquivos fora dessa raiz. Se o caminho ou o estado do repositório divergir das pré-condições da tarefa, interrompa e informe.
 

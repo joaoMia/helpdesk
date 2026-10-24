@@ -17,3 +17,7 @@ npm-debug.log*
 # Configurações locais do Claude Code (não versionar)
 .claude/settings.local.json
 CLAUDE.local.md
+
+# Cache de instalação e evidências locais da fundação (não versionar)
+.npm-cache/
+.local/

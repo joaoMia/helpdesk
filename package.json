@@ -2,9 +2,39 @@
   "name": "helpdesk",
   "version": "0.0.0",
   "private": true,
-  "description": "HelpDesk — monorepositório (npm workspaces). Aplicações ainda não inicializadas (marco M1).",
+  "description": "HelpDesk — fundação técnica local em npm workspaces.",
+  "engines": {
+    "node": ">=24.0.0 <25",
+    "npm": ">=11.0.0 <12"
+  },
+  "packageManager": "npm@11.19.0",
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace @helpdesk/frontend",
+    "dev:backend": "npm run dev --workspace @helpdesk/backend",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint . --max-warnings 0",
+    "test": "npm run test --workspaces --if-present",
+    "format": "prettier --write apps infra scripts package.json eslint.config.mjs .prettierrc.json README.md docs/18-adr10-stack-e-fundacao.md --ignore-unknown",
+    "format:check": "prettier --check apps infra scripts package.json eslint.config.mjs .prettierrc.json README.md docs/18-adr10-stack-e-fundacao.md --ignore-unknown",
+    "env:setup": "node scripts/setup-local-env.mjs",
+    "db:config": "docker compose --env-file .env -f infra/docker-compose.yml config --quiet",
+    "db:up": "docker compose --env-file .env -f infra/docker-compose.yml up -d --wait",
+    "db:status": "docker compose --env-file .env -f infra/docker-compose.yml ps",
+    "db:check": "node scripts/check-database.mjs"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.7",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.0"
+  }
 }

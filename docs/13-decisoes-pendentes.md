@@ -1,6 +1,6 @@
 # 13 — Registro de decisões a validar (ADRs em aberto)
 
-As decisões abaixo foram resolvidas por **proposta padrão**, quando possível, mas não foram explicitamente aprovadas pelo responsável. Devem ser confirmadas antes de desenvolver o módulo correspondente.
+As decisões abaixo permanecem propostas e devem ser confirmadas antes do módulo correspondente, exceto a ADR-10, aprovada especificamente para a fundação técnica. Sua aprovação não encerra a HD-003 nem aprova os outros ADRs.
 
 | ID | Prioridade | Decisão | Proposta padrão |
 |---|---|---|---|
@@ -13,7 +13,7 @@ As decisões abaixo foram resolvidas por **proposta padrão**, quando possível,
 | ADR-07 | Alta | Admin pode classificar/iniciar/chamar pendência? | Classificar e editar status sob mesmas invariantes; 'assumir' somente técnico |
 | ADR-08 | Alta | Calendário de feriados e exceções | Tabela prevista; considerar UI de exceções em M7, não presumir calendário de feriados |
 | ADR-09 | Alta | Momento e condição de encerramento | Somente IN_PROGRESS -> CLOSED; exige responsável; sem reabertura |
-| ADR-10 | Alta | Versão do Prisma/Node e forma dos migrations | Escolher major compatível antes do bootstrap, não misturar exemplos |
+| ADR-10 | Alta | Versão do Prisma/Node e forma dos migrations | Aprovada: Node 24 LTS, Prisma 7.10.1, ESM e stack detalhada em [18-adr10-stack-e-fundacao.md](18-adr10-stack-e-fundacao.md); sem migrations de domínio nesta fundação |
 | ADR-11 | Média | Monorepo ou dois repositórios | Monorepo com dois READMEs e GitHub Project; split se necessário na entrega |
 | ADR-12 | Média | Política de token JWT | JWT curto e sessão renovável protegida; decidir mecanismo contra CSRF e XSS |
 | ADR-13 | Média | Motivos de pendência são editáveis enquanto ativos? | Alterações só valem em períodos futuros via snapshot |

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+package-lock.json
+planning/backlog.csv
+.env
+.env.*
+!.env.example
+.npm-cache/
+.local/
