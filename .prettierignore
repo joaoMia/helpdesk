@@ -8,3 +8,4 @@ planning/backlog.csv
 !.env.example
 .npm-cache/
 .local/
+apps/backend/src/generated/prisma/

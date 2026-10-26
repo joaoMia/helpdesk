@@ -9,6 +9,7 @@ const schema = z.object({
   HOST: z.string().min(1).default('127.0.0.1'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   DATABASE_URL: z.url().optional(),
+  TEST_DATABASE_URL: z.url().optional(),
 });
 
 export function parseEnvironment(input: Record<string, string | undefined>) {

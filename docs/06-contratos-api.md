@@ -1,6 +1,6 @@
 # 06 — Contratos REST preliminares
 
-Prefixo sugerido `/api/v1`. JSON com paginação, filtros, erros padronizados (`code`, `message`, `details`, `requestId`); timestamps ISO-8601 UTC, valores monetários em centavos, enums públicos documentados.
+Prefixo sugerido `/api/v1`. JSON com paginação, filtros, erros padronizados (`code`, `message`, `details`, `requestId`); timestamps ISO-8601 UTC e enums públicos documentados. Sem campos de preço/cobrança (RN-006 revisada na DEV-001).
 
 | Método       | Rota                       | Quem pode                             | Observações                                                       |
 | ------------ | -------------------------- | ------------------------------------- | ----------------------------------------------------------------- |
@@ -16,7 +16,7 @@ Prefixo sugerido `/api/v1`. JSON com paginação, filtros, erros padronizados (`
 | PATCH/DELETE | `/requesters/:id`          | Admin                                 | exclusão cascata                                                  |
 | DELETE       | `/users/me`                | Solicitante                           | remove própria conta e dados conforme RN                          |
 | GET/POST     | `/services`                | GET autenticado; POST Admin           | catálogo filtrável                                                |
-| PATCH        | `/services/:id`            | Admin                                 | preço/descrição/ativo                                             |
+| PATCH        | `/services/:id`            | Admin                                 | descrição/ativo/formulário                                        |
 | GET/POST     | `/pending-reasons`         | GET autenticado; POST Admin           | motivos                                                           |
 | PATCH        | `/pending-reasons/:id`     | Admin                                 | regras, ativo/inativo                                             |
 | GET/POST     | `/schedules`               | Admin                                 | empresa e personalizado                                           |
@@ -47,7 +47,7 @@ Prefixo sugerido `/api/v1`. JSON com paginação, filtros, erros padronizados (`
 }
 ```
 
-Retorno esperado: identificador, número público, status `OPEN`, prioridade `null`, `assignedTechnicianId: null`, snapshot do serviço (política de preço ainda a conciliar) e timestamps.
+Retorno esperado: identificador, número público, status `OPEN`, prioridade `null`, `assignedTechnicianId: null`, snapshot do serviço (nomes, categoria e formulário; sem cobrança) e timestamps.
 
 A revisão VIS-003 substitui `serviceIds[]` por uma referência única no exemplo preliminar. Categoria é usada para navegar no catálogo; o serviço determina a categoria. Contratos de campos, categorias e versões ainda serão formalizados na HD-006; nenhum endpoint foi criado nesta prévia.
 
@@ -58,3 +58,28 @@ A revisão VIS-003 substitui `serviceIds[]` por uma referência única no exempl
 - Comentário/anexo e retomada automática precisam ser transacionais no nível de estado da aplicação, evitando dois eventos de retomada pela mesma interação.
 
 **Atenção:** endpoints e nomes são propostas de contrato. Formalizar com OpenAPI antes de codificar, especialmente autenticação, uploads, visibilidade de filas e retorno de erros.
+
+## DEV-001 — Contratos internos, sem rotas funcionais expostas
+
+packages/contracts é workspace ESM compilado com Zod 4 e tipos derivados. Contém papéis/status/prioridades oficiais, UUIDs, definições técnicas de campos, entrada interna de abertura e snapshot/saída. Não depende de Prisma, não exporta hashes/credenciais e não foi conectado ao frontend demonstrativo.
+
+Formato interno em revisão da HD-006, **não uma rota HTTP liberada**:
+
+```json
+{
+  "subject": "Solicitação",
+  "description": "Contexto da necessidade",
+  "serviceId": "<uuid-do-servico>",
+  "answers": { "<chave-do-campo>": "<resposta>" }
+}
+```
+
+- serviceId é escalar. serviceIds, estado, prioridade, técnico, solicitante, perfil e snapshot enviados pelo cliente são recusados. Identidade deverá vir da autenticação real futura.
+- Backend confere solicitante ativo, categoria/serviço ativos, versão/definição dos campos e respostas. Snapshot é construído no servidor, sem importar regras dos mocks.
+- Condições pendentes resultam em FORM_RULES_PENDING; respostas de arquivo dependem do upload autenticado (UPLOAD_PENDING). Não ignorar regras ou emitir falso sucesso.
+- Sem supervisão administrativa, classificação, assumir, pendência, encerramento ou recálculo implementados. Não criar routes/controllers vazios nem liberar escrita sem autenticação.
+- API continua com /health e 404 para rotas ausentes, inclusive login e escrita de chamados. O seletor demonstrativo não é autenticação.
+
+Erros HTTP existentes recebem error.code, error.message, error.requestId e header X-Request-Id gerado no servidor. JSON inválido: 400; corpo acima do limite existente: 413; rota ausente: 404; falhas internas: mensagem genérica. Erros de persistência são mapeados sem expor SQL, parâmetros ou mensagens do driver. Códigos das futuras rotas e OpenAPI definitivo ainda dependem da HD-006.
+
+A [modelagem](05-modelagem-de-dados.md) registra a primeira migration mínima autorizada na DEV-002 e os pontos ainda pendentes. A criação das tabelas não libera estes endpoints. HD-003/004/006 permanecem pendentes de aprovação; telas demonstrativas não são aceite funcional.

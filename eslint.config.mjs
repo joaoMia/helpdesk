@@ -11,6 +11,7 @@ export default [
       '**/coverage/**',
       '.npm-cache/**',
       '.local/**',
+      'apps/backend/src/generated/prisma/**',
     ],
   },
   js.configs.recommended,

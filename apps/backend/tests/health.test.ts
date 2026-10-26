@@ -24,9 +24,13 @@ describe('fundação da API em ESM', () => {
       .set('Content-Type', 'application/json')
       .send('{invalido');
     expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      error: { code: 'INVALID_JSON', message: 'JSON inválido.' },
+    expect(response.body.error).toMatchObject({
+      code: 'INVALID_JSON',
+      message: 'JSON inválido.',
     });
+    expect(response.body.error.requestId).toBe(
+      response.headers['x-request-id'],
+    );
   });
 
   it('valida porta e permite ambiente sem DATABASE_URL', () => {

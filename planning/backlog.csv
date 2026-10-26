@@ -30,7 +30,7 @@ HD-028;M3;Associar padrão/personalizado ao técnico;Alta;"HD-027;HD-021";RN-021
 HD-029;M3;Cadastrar motivos e regras de pendência;Alta;HD-013;RF-PEN-01;CRUD com flags e ativação/desativação;Feature;Backlog
 HD-030;M3;Criar seeds de ≥5 serviços e motivos exemplo;Média;"HD-025;HD-029";;Dados fictícios e parametrizados;Feature;Backlog
 HD-031;M3;Telas admin de serviços, motivos e jornada;Alta;"HD-025;HD-027;HD-029";;Validação e responsividade das telas;UI;Backlog
-HD-032;M4;Modelar chamados, itens e snapshots de preço;Crítica;"HD-025;HD-013";RN-006;≥1 serviço, preço histórico congelado;Feature;Backlog
+HD-032;M4;Modelar chamados, serviço único e snapshots;Crítica;"HD-025;HD-013";RN-006;Um serviço ativo e snapshots de nomes, categoria e formulário sem cobrança;Feature;Backlog
 HD-033;M4;API para abrir chamado sem técnico;Crítica;"HD-032;HD-018";RF-TCK-01;OPEN, NULL prioridade, NULL técnico;Feature;Backlog
 HD-034;M4;API histórico/consulta com escopo por papel;Crítica;"HD-033;HD-018";RF-TCK-02;Solicitante vê apenas próprios chamados;Feature;Backlog
 HD-035;M4;Filas Não classificados e Classificados;Alta;HD-034;RF-TCK-03;Consulta usa prioridade, não status;Feature;Backlog
@@ -38,7 +38,7 @@ HD-036;M4;Ação de classificar prioridade sem atribuir;Crítica;HD-035;RF-TCK-0
 HD-037;M4;Telas abertura, histórico e filas de triagem;Alta;"HD-033;HD-035;HD-036";;UI testável desktop/mobile e filtros;UI;Backlog
 HD-038;M5;Iniciar atendimento com atribuição atômica;Crítica;HD-036;RF-TCK-05;Concorrência: 1 sucesso e 1 erro 409;Feature;Backlog
 HD-039;M5;Mudanças de status e regras de transição;Alta;HD-038;RF-TCK-07;Regras e permissão verificadas;Feature;Backlog
-HD-040;M5;Adicionar serviços ao atendimento;Alta;"HD-038;HD-032";RF-TCK-06;Só dono em IN_PROGRESS, preço snapshot;Feature;Backlog
+HD-040;M5;Proteger serviço único e snapshots no atendimento;Alta;"HD-038;HD-032";RF-TCK-06;Sem adição ou troca de serviço e histórico preservado;Feature;Backlog
 HD-041;M5;Histórico auditável de eventos do chamado;Alta;"HD-038;HD-039";RF-AUD-01;Quem/quando/o que registrado;Feature;Backlog
 HD-042;M5;Telas técnico para assumir, tratar, encerrar;Alta;"HD-038;HD-040;HD-041";;Fluxo completo e responsivo;UI;Backlog
 HD-043;M6;Comentários por ticket e autorização;Alta;"HD-034;HD-018";RF-COM-01;Autoria, data e escopo validados;Feature;Backlog

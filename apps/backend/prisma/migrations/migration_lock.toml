@@ -1,0 +1,2 @@
+# Managed with the local Prisma 7 CLI. Do not change providers between migrations.
+provider = "postgresql"

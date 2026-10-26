@@ -9,7 +9,7 @@
 - **RN-003**: Na v1 não há exclusão de técnico; sua conta pode ser desativada caso aprovado. Técnico edita dados do próprio perfil e avatar.
 - **RN-004**: Solicitante edita/exclui exclusivamente sua conta. Admin edita/exclui solicitante. Exclusão remove também chamados, itens, comentários, anexos e eventos do solicitante conforme obrigação original; arquivos físicos devem ser saneados.
 - **RN-005**: Apenas admin cadastra/edita/desativa serviços. Serviço inativo não é selecionável em nova abertura e permanece histórico.
-- **RN-006**: Preços são BRL em centavos inteiros; cada item do chamado preserva preço e nome do serviço no instante da adição. Alterar catálogo não atualiza itens antigos.
+- **RN-006** (substituída por aprovação explícita na DEV-001, 26/10/2026): Serviços de TI não têm preço nem cobrança. Cada chamado preserva snapshots dos nomes, categoria e formulário do serviço no momento da abertura. Alterar o catálogo não modifica as informações históricas. A regra financeira anterior está revogada.
 
 ## Abertura, triagem e atendimento
 
@@ -50,4 +50,4 @@
 
 - Uma conta admin inicial, com credencial segura parametrizada no ambiente de desenvolvimento.
 - Três contas de técnicos com jornadas configuráveis. Para compatibilidade do desafio, seeds demonstrativas podem reproduzir: T1 08–12/14–18, T2 10–14/16–20, T3 12–16/18–22.
-- Ao menos cinco serviços de exemplo com preços fictícios; sem dados sensíveis reais.
+- Ao menos cinco serviços de exemplo, sem preço ou cobrança e sem dados sensíveis reais; somente quando a tarefa de seed for autorizada.

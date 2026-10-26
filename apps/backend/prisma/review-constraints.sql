@@ -1,0 +1,3 @@
+-- DEV-001 compatibility note: checks/indexes were moved into the canonical
+-- DEV-002 migration 20261026222500_fundacao_nucleo/migration.sql.
+-- Do not apply this file separately. Integration tests read the migration itself.

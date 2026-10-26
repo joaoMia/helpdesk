@@ -35,4 +35,6 @@ As decisões abaixo permanecem propostas e devem ser confirmadas antes do módul
 - Dois indicadores de solução: desde criação e desde início de atendimento.
 - Três dashboards por papel; Apache ECharts e GSAP no frontend.
 
-A aprovação parcial da ADR-01 na VIS-003 não encerra a HD-003 nem aprova automaticamente campos, permissões administrativas, preço ou modelagem de projetos.
+A aprovação parcial da ADR-01 na VIS-003 não encerra a HD-003 nem aprova automaticamente campos, permissões administrativas ou modelagem de projetos. Na DEV-001, o responsável aprovou separadamente serviços sem preço/cobrança e substituiu a RN-006, preservando snapshots de nomes, categoria e formulário.
+
+Na DEV-002 (26/10/2026), foi autorizada a primeira migration do núcleo mínimo validado, conforme [modelagem](05-modelagem-de-dados.md#dev-002--primeira-migration-do-núcleo-mínimo). A proteção técnica de versões usadas e snapshots não aprova um fluxo administrativo de publicação nem as regras condicionais. As ADRs restantes mantêm seus limites; esta autorização não equivale à aprovação integral das HD-003/004/005/006.

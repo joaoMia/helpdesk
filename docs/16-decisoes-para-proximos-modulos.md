@@ -12,7 +12,7 @@ A estrutura geral foi aprovada para início do M1. **Nenhuma destas pendências 
 
 - **D4 — Campos do chamado:** VIS-003 aprovou serviço único; assunto e descrição após seleção, anexos conforme formulário; conferir os frames reais do Figma antes de fixar formulários.
 - **D5 — Serviço versus categoria:** VIS-003 aprovou categorias separadas e exatamente um serviço por chamado. Detalhamento relacional, versões e migração permanecem na HD-005/013.
-- **D6 — Preço:** manter preço histórico em centavos, inclusive para itens adicionados pelo técnico, segundo especificação já aprovada.
+- **D6 — Resolvida na DEV-001:** serviços sem preço ou cobrança. A RN-006 foi substituída por aprovação explícita; preservar snapshots de nomes, categoria e formulário. Não há adição de serviços pelo técnico, conforme VIS-003.
 
 ## Antes de M5/M6 (atendimento e pendências)
 
@@ -43,20 +43,20 @@ A estrutura geral foi aprovada para início do M1. **Nenhuma destas pendências 
 Esta prévia antecipa experiência e navegação, sem homologar novos requisitos de produção, concluir tarefas funcionais ou encerrar a HD-003. Todos os dados são fictícios e permanecem em memória; somente a preferência de tema é armazenada localmente.
 
 - **Catálogo e formulários:** criação de usuário (TOTVS, Spark e Portal Permetal), instalação Windows e problema TOTVS têm definições tipadas no frontend. A seleção de múltiplos sistemas, campos condicionais, obrigatoriedade de anexo TOTVS, formatos e validações ainda precisam de aprovação definitiva. Spark usa somente dados gerais. Não solicitar senhas. Anexos guardam apenas nomes, sem upload.
-- **Preços:** a VIS-002 retira valores e cobrança do modelo e das telas demonstrativas. Isso não revoga RN-006 nem aprova a retirada de preços/snapshots da especificação funcional. Resolver essa diferença antes da modelagem definitiva de serviços e itens.
+- **Preços — registro histórico:** a VIS-002 retirou cobrança apenas da prévia. A divergência foi posteriormente resolvida na DEV-001: RN-006 substituída, sem preço/cobrança no modelo real; snapshots de nomes, categoria e formulário preservados.
 - **Referência TOTVS:** número externo opcional, distinto do identificador HelpDesk, demonstrativamente editável pelo técnico responsável e visível ao solicitante. Definir formato, possibilidade de alteração após encerramento, permissões e auditoria antes da API. Não há integração real nem mudança automática de status ou pendência.
 - **Triagem:** abas Não classificados, Classificados e Todos reorganizam a navegação. Todos combina a fila livre com os próprios atendimentos do técnico, sem ampliar acesso a terceiros enquanto ADR-03/HD-004 estiverem pendentes. Não é autorização real aplicada no cliente.
 - **Projetos:** tipos e dados separados de chamados; assunto e descrição obrigatórios na prévia. Estados visuais, visibilidade por perfil, aprovação, responsáveis, histórico e ciclo de vida são provisórios. Não herdar status, SLA, pendências ou transições de chamados por inferência. Ainda não há tarefa funcional específica de projetos no backlog; sua criação requer autorização.
 - **Tema:** preferência inicial do sistema e escolha light/dark no localStorage. Avaliar armazenamento por usuário após autenticação real, com comportamento local de fallback.
 
-| Frente                     | Impacto a aprovar posteriormente                                                                                 |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| HD-003                     | Formalização das decisões de catálogo, cardinalidades, projetos e divergência sobre preços                       |
-| HD-004                     | Visibilidade, responsáveis e edição da referência externa; ações de projetos                                     |
-| HD-005                     | Respostas por serviço, versões/snapshots de formulários, anexos e entidade de projeto                            |
-| HD-006                     | Contratos e validações definitivas dos serviços, referência externa e projetos                                   |
-| HD-013                     | Configuração Prisma e migrations somente com requisitos/modelos aprovados                                        |
-| HD-025/031/032/037/042/048 | Evolução real de catálogo, formulários, chamados e acompanhamento, sem considerar a prévia como aceite funcional |
+| Frente                     | Impacto a aprovar posteriormente                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| HD-003                     | Formalização das decisões ainda pendentes de catálogo e projetos; categorias/serviço único e ausência de cobrança já aprovados |
+| HD-004                     | Visibilidade, responsáveis e edição da referência externa; ações de projetos                                                   |
+| HD-005                     | Respostas por serviço, versões/snapshots de formulários, anexos e entidade de projeto                                          |
+| HD-006                     | Contratos e validações definitivas dos serviços, referência externa e projetos                                                 |
+| HD-013                     | Configuração Prisma e migrations somente com requisitos/modelos aprovados                                                      |
+| HD-025/031/032/037/042/048 | Evolução real de catálogo, formulários, chamados e acompanhamento, sem considerar a prévia como aceite funcional               |
 
 ## VIS-003 — Revisão aprovada e propostas em validação
 
@@ -67,7 +67,7 @@ Esta prévia antecipa experiência e navegação, sem homologar novos requisitos
 - **Dashboards:** contagens derivadas da amostra fictícia da sessão. Tempos A (abertura–encerramento) e B (primeiro início–encerramento) são amostras fixas fictícias apenas de chamados encerrados, sem cálculo de calendário ou SLA. Jornadas, pausas e flags de pendência continuam requisitos da futura API.
 - **Visualização:** ECharts modular local, temas, tabela alternativa de dados e limpeza de instâncias. GSAP local para entradas e trocas de contexto com limpeza e preferência de movimento reduzido. Rolagem CSS; ScrollSmoother global não adotado para preservar foco, formulários longos, sticky e tabelas.
 - **Impactos:** HD-003/004 para ADRs e autorização; HD-005 para categorias, serviço único, snapshots e projetos; HD-006 para contratos; HD-013 para Prisma/migrations somente após aprovação. HD-025/031/032/037/042/048 permanecem funcionais futuras. HD-032 e HD-040 no backlog ainda descrevem a regra antiga e exigem conciliação específica; o CSV e seu estado não foram alterados nesta prévia.
-- **Preço:** permanece a divergência da VIS-002 com RN-006. Ausência de cobrança na prévia não revoga a política de preço da documentação.
+- **Preço — resolvido na DEV-001:** a ausência de preço/cobrança foi aprovada para o sistema real. A RN-006 financeira foi substituída; não reabrir essa decisão.
 
 Nenhuma simulação conclui HD-003, HD-004, HD-005, HD-006 ou HD-013. Configurações e respostas desaparecem ao recarregar; somente o tema usa localStorage.
 
