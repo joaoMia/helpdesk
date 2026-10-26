@@ -1,27 +1,28 @@
 # 14 — Matriz Rocketseat x HelpDesk personalizado
 
-| Tema | Desafio original fornecido | HelpDesk personalizado | Observação |
-|---|---|---|---|
-| Seleção de técnico | Cliente escolhe técnico na abertura | Não escolhe; técnico assume depois | Divergência funcional explícita |
-| Disponibilidade | Horários de técnicos para seleção | Expediente de empresa/personalizado para métricas | Substituição intencional |
-| Status | Aberto, Em atendimento, Encerrado | + Pendente | Novo status e transições |
-| Prioridade | Não especificada | Baixa, Média, Alta | Nova triagem |
-| Filas | Não especificadas | Não classificados e Classificados | Novas regras |
-| Pendências | Não especificadas | Motivos e comportamento configurável | Nova funcionalidade |
-| Comentários/anexos | Foto de perfil especificada; não há regra detalhada para comentários/anexos | Histórico e comunicação no chamado | Nova funcionalidade |
-| Tempo útil | Não especificado | 2 indicadores, expediente e pendências | Nova funcionalidade crítica |
-| Dashboards | Não detalhados | 3 por papel | Novo escopo |
-| Admin | Gerir técnicos, serviços, clientes, chamados/status | Preservado e ampliado | Compatível com personalização |
-| Técnico | Perfil, imagem, chamados atribuídos, adicionar serviços/status | Preservado e ampliado | Compatível com personalização |
-| Cliente | Conta, avatar, abrir/histórico, não alterar chamado | Preservado salvo seleção de técnico | Comentários/anexos não alteram dados estruturais |
-| Serviços | Admin gerencia, preços e soft delete; ≥1 em chamado | Preservado, com snapshot de preço | Valor histórico garantido |
-| Usuário excluído | Apaga chamados do cliente | Preservado | Precaução empresarial LGPD |
-| Contas iniciais | 1 Admin e ≥3 técnicos com horários de exemplo | Seed ≥1 Admin + 3 técnicos; jornadas configuráveis | Seed pode simular horários originais |
-| Catálogo | ≥5 serviços | Preservado | Seed |
-| Autenticação | JWT | Preservado e endurecido | Testes de RBAC |
-| Frontend | Mobile First seguindo Figma | Preservado com GSAP/ECharts | Exige revisão dos frames |
-| API | Frontend consome própria API | Preservado | Express/Prisma |
-| Deploy | Render + Vercel/Netlify | Adiado até homologação local | Obrigatório apenas para entrega do desafio |
+| Tema               | Desafio original fornecido                                                  | HelpDesk personalizado                                                                 | Observação                                                      |
+| ------------------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Seleção de técnico | Cliente escolhe técnico na abertura                                         | Não escolhe; técnico assume depois                                                     | Divergência funcional explícita                                 |
+| Disponibilidade    | Horários de técnicos para seleção                                           | Expediente de empresa/personalizado para métricas                                      | Substituição intencional                                        |
+| Status             | Aberto, Em atendimento, Encerrado                                           | + Pendente                                                                             | Novo status e transições                                        |
+| Prioridade         | Não especificada                                                            | Baixa, Média, Alta                                                                     | Nova triagem                                                    |
+| Filas              | Não especificadas                                                           | Não classificados e Classificados                                                      | Novas regras                                                    |
+| Pendências         | Não especificadas                                                           | Motivos e comportamento configurável                                                   | Nova funcionalidade                                             |
+| Comentários/anexos | Foto de perfil especificada; não há regra detalhada para comentários/anexos | Histórico e comunicação no chamado                                                     | Nova funcionalidade                                             |
+| Tempo útil         | Não especificado                                                            | 2 indicadores, expediente e pendências                                                 | Nova funcionalidade crítica                                     |
+| Dashboards         | Não detalhados                                                              | 3 por papel                                                                            | Novo escopo                                                     |
+| Admin              | Gerir técnicos, serviços, clientes, chamados/status                         | Preservado e ampliado                                                                  | Compatível com personalização                                   |
+| Técnico            | Perfil, imagem, chamados atribuídos, adicionar serviços/status              | Perfil e atendimento preservados; sem adicionar outros serviços                        | Serviço único aprovado na VIS-003                               |
+| Cliente            | Conta, avatar, abrir/histórico, não alterar chamado                         | Preservado salvo seleção de técnico                                                    | Comentários/anexos não alteram dados estruturais                |
+| Serviços           | Admin gerencia, preços e soft delete; ≥1 em chamado                         | Um serviço por chamado, sem preço/cobrança; snapshots de nomes, categoria e formulário | Divergências aprovadas na VIS-003 e DEV-001; RN-006 substituída |
+| Usuário excluído   | Apaga chamados do cliente                                                   | Preservado                                                                             | Precaução empresarial LGPD                                      |
+| Contas iniciais    | 1 Admin e ≥3 técnicos com horários de exemplo                               | Seed ≥1 Admin + 3 técnicos; jornadas configuráveis                                     | Seed pode simular horários originais                            |
+| Catálogo           | ≥5 serviços                                                                 | Preservado                                                                             | Seed                                                            |
+| Autenticação       | JWT                                                                         | Preservado e endurecido                                                                | Testes de RBAC                                                  |
+| Frontend           | Mobile First seguindo Figma                                                 | Preservado com GSAP/ECharts                                                            | Exige revisão dos frames                                        |
+| API                | Frontend consome própria API                                                | Preservado                                                                             | Express/Prisma                                                  |
+| Deploy             | Render + Vercel/Netlify                                                     | Adiado até homologação local                                                           | Obrigatório apenas para entrega do desafio                      |
 
 ## Atenção para avaliação
+
 Não garantir aprovação do desafio educacional com regras alteradas. Se a plataforma verificar estritamente a escolha de técnico na abertura e status únicos, pode ser necessário preservar uma variante alinhada ao original, por branch ou modo de compatibilidade.

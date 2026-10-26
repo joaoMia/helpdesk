@@ -8,4 +8,5 @@ export default {
   },
   moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
   clearMocks: true,
+  testPathIgnorePatterns: ['/node_modules/', '/tests/integration/'],
 };

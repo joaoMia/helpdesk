@@ -12,8 +12,8 @@ O Figma referenciado é **base visual**, mas os frames completos ainda não fora
 
 - Dashboard com meus criados no mês, abertos, em atendimento, pendentes, encerrados e distribuição por status.
 - Meus chamados (lista com filtros, busca e paginação).
-- Abrir chamado (assunto, descrição, exatamente um serviço, preços, anexos opcionais). **Sem escolha de técnico**.
-- Detalhe do chamado (timeline, status, prioridade, técnico, preço total, comentários/anexos, dois tempos).
+- Abrir chamado (assunto, descrição, exatamente um serviço, formulário específico e anexos). Sem preço/cobrança (DEV-001). **Sem escolha de técnico**.
+- Detalhe do chamado (timeline, status, prioridade, técnico, snapshot do serviço/categoria/formulário, comentários/anexos e dois tempos).
 - Meu perfil e avatar.
 
 ### Técnico
@@ -21,7 +21,7 @@ O Figma referenciado é **base visual**, mas os frames completos ainda não fora
 - Dashboard (meus atribuídos, meus pendentes, meus encerrados, tempo útil médio, fila a classificar).
 - Filas Não classificados e Classificados, com busca, filtros e prioridade.
 - Meus atendimentos (em andamento, pendentes e finalizados).
-- Detalhe do chamado com ações: classificar, assumir, adicionar serviço, pendência, retomada, fechamento, mensagens.
+- Detalhe com ações: classificar, assumir, pendência, retomada, fechamento e mensagens. Não adicionar outro serviço (VIS-003).
 - Meu perfil/alteração de senha/avatar.
 
 ### Admin

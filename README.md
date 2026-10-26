@@ -1,6 +1,6 @@
 # HelpDesk — Fundação técnica local
 
-Monorepositório existente em npm workspaces para uma aplicação de suporte de TI. A fundação contém uma interface técnica React, uma API Express e PostgreSQL local em Docker. Autenticação, usuários, chamados e dashboards ainda não foram implementados.
+Monorepositório em npm workspaces para suporte de TI. A prévia React navegável está consolidada, com dados/operações demonstrativos. DEV-001 introduziu contratos Zod e núcleo interno transacional; DEV-002 criou a primeira migration real em PostgreSQL de desenvolvimento. Autenticação e endpoints funcionais ainda não estão disponíveis. PostgreSQL local permanece em Docker.
 
 O projeto oficial fica em `C:\dev\helpdesk`. As instruções permanentes estão em [AGENTS.md](AGENTS.md) e [CLAUDE.md](CLAUDE.md). As Skills de Codex e Claude usam o [procedimento compartilhado](skills/helpdesk-task/procedimento.md); sua presença não concede autorização para novas tarefas, commits ou publicações.
 
@@ -28,6 +28,8 @@ O único lockfile é `package-lock.json`, na raiz. Não é necessário instalar 
 
 Se já houver `.env`, confira os nomes e URLs sem publicar seu conteúdo. Alterar nomes de bancos/usuários no arquivo não modifica automaticamente um volume PostgreSQL já inicializado.
 
+Para preparar a base mínima local autorizada na DEV-002: `npm run db:migrate:dev --workspace @helpdesk/backend` aplica somente a migration inicial revisada, recusando destinos diferentes de helpdesk_dev local e histórico/objetos inesperados. Não executa reset, seed ou migration de testes. `npm run prisma:generate --workspace @helpdesk/backend` gera o Client explicitamente; `npm run db:migrate:status --workspace @helpdesk/backend` consulta o histórico. Futuras migrations exigem revisão própria; não editar uma migration já aplicada.
+
 ## Executar as aplicações
 
 Em dois terminais separados, a partir da raiz:
@@ -53,25 +55,27 @@ npm run build
 npm run format:check
 ```
 
-Jest + Supertest estão no backend, com transformação TypeScript em ESM. O comando de teste usa a opção `--experimental-vm-modules`; as limitações estão na ADR-10. O frontend tem typecheck, lint e build; não há ainda suíte de testes de interface. Prisma está instalado para preparação futura, sem schema de domínio, migrations ou Client gerado.
+Jest/Supertest permanecem no backend em ESM, com `--experimental-vm-modules`. Testes dos modelos demonstrativos frontend: `node --import tsx --test apps/frontend/tests/*.test.ts`. Contratos compartilhados são compilados e Prisma Client gerado na preparação dos comandos do backend; artefatos não são versionados.
+
+`npm run test:db --workspace @helpdesk/backend` executa a migration canônica e integração real somente em helpdesk_test local, com DDL/dados em transações integralmente desfeitas. `npm run db:prisma:check --workspace @helpdesk/backend` confere por SELECT. A migration inicial DEV-002 contém oito tabelas fundamentais e proteções de histórico; não há seed ou credencial funcional criada. Regras/ADRs restantes não foram aprovadas por consequência dessa entrega. Serviço interno não está exposto sem autenticação.
 
 `npm run format` aplica Prettier aos aplicativos, infraestrutura, scripts, configurações e ADR desta fundação. A configuração preserva os documentos funcionais históricos e o CSV do backlog e ignora segredos, caches e artefatos.
 
 ## Organização
 
-| Pasta                                              | Conteúdo                                                        |
-| -------------------------------------------------- | --------------------------------------------------------------- |
-| [apps/frontend](apps/frontend/README.md)           | React/TypeScript, Vite e Tailwind; tela técnica provisória      |
-| [apps/backend](apps/backend/README.md)             | Express/Zod, configuração de ambiente, healthcheck e testes ESM |
-| [packages/contracts](packages/contracts/README.md) | Reservado; sem contratos artificiais de negócio                 |
-| [infra](infra/README.md)                           | PostgreSQL de desenvolvimento e banco de testes isolado         |
-| `docs/`, `planning/`                               | Requisitos, arquitetura, decisões, diagramas e backlog          |
-| `skills/helpdesk-task/`                            | Procedimento e checklist compartilhados pelos agentes           |
+| Pasta                                              | Conteúdo                                                      |
+| -------------------------------------------------- | ------------------------------------------------------------- |
+| [apps/frontend](apps/frontend/README.md)           | Prévia React/Tailwind navegável, mocks isolados, GSAP/ECharts |
+| [apps/backend](apps/backend/README.md)             | Express/Zod, healthcheck e núcleo Prisma interno em revisão   |
+| [packages/contracts](packages/contracts/README.md) | Zod e tipos compartilhados ESM para a base em revisão         |
+| [infra](infra/README.md)                           | PostgreSQL de desenvolvimento e banco de testes isolado       |
+| `docs/`, `planning/`                               | Requisitos, arquitetura, decisões, diagramas e backlog        |
+| `skills/helpdesk-task/`                            | Procedimento e checklist compartilhados pelos agentes         |
 
 ## Infraestrutura e limites
 
 O Compose cria somente os recursos com projeto `helpdesk`, sem utilizar containers, redes ou bancos de outros projetos. O volume PostgreSQL é persistente; não execute `down -v` nem prune. Para verificar o estado, use `npm run db:status`.
 
-A implantação futura é no Server 10 Linux da empresa, pela rede interna, com DNS, certificados e backups gerenciados pela TI. Nenhum deploy é feito nesta fundação. O servidor Vite de desenvolvimento não é servidor de produção. GSAP e ECharts serão incorporados quando houver tarefas de telas funcionais autorizadas.
+A implantação futura é no Server 10 Linux da empresa, pela rede interna, com DNS, certificados e backups gerenciados pela TI. Nenhum deploy foi realizado. Vite não é servidor de produção; a prévia não representa autenticação/autorização. Próximos módulos seguem backlog e aprovações próprias.
 
 Respeite UTF-8/LF e a política específica do CSV em `.editorconfig` e `.gitattributes`. Alterações e próximas tarefas precisam de autorização própria; não há publicação automática.
