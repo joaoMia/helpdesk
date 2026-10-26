@@ -11,6 +11,9 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
+    "@gsap/react": "2.1.2",
+    "echarts": "6.1.0",
+    "gsap": "3.15.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },

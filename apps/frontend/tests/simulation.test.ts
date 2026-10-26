@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { initialTickets, reasons, services } from '../src/mocks/fixtures';
+import { initialCatalog } from '../src/mocks/catalog';
 import { simulate } from '../src/mocks/simulation';
 
-test('abertura local começa OPEN, sem prioridade ou técnico e captura serviços', () => {
+test('abertura local começa OPEN, sem prioridade ou técnico e captura um serviço', () => {
   const previous = initialTickets();
   const next = simulate(
     previous,
@@ -11,7 +12,9 @@ test('abertura local começa OPEN, sem prioridade ou técnico e captura serviço
       type: 'create',
       subject: 'Teste fictício',
       description: 'Descrição de teste',
-      services: [services[0]!, services[1]!],
+      service: services[0]!,
+      category: initialCatalog().categories.find((c) => c.id === 'accounts')!,
+      answers: { systems: ['Spark'], fullName: 'Demo', department: 'Demo' },
       attachment: 'exemplo.txt',
     },
     'requester',
@@ -21,9 +24,10 @@ test('abertura local começa OPEN, sem prioridade ou técnico e captura serviço
     [next[0]!.status, next[0]!.priority, next[0]!.technicianId],
     ['OPEN', null, null],
   );
-  assert.equal(next[0]!.services.length, 2);
-  assert.notEqual(next[0]!.services[0], services[0]);
-  assert.equal(previous.length, 6);
+  assert.equal(next[0]!.service.id, 's1');
+  assert(!('services' in next[0]!));
+  assert.notEqual(next[0]!.service, services[0]);
+  assert.equal(next.length, previous.length + 1);
 });
 test('recusa abertura vazia, serviço inativo e abertura por administrador', () => {
   const before = initialTickets();
@@ -31,11 +35,13 @@ test('recusa abertura vazia, serviço inativo e abertura por administrador', () 
     type: 'create' as const,
     subject: 'Teste',
     description: 'Teste',
-    services: [services[0]!],
+    service: services[0]!,
+    category: initialCatalog().categories.find((c) => c.id === 'accounts')!,
+    answers: { systems: ['Spark'], fullName: 'Demo', department: 'Demo' },
     attachment: null,
   };
   assert.equal(
-    simulate(before, { ...action, services: [] }, 'requester'),
+    simulate(before, { ...action, description: '' }, 'requester'),
     before,
   );
   assert.equal(
@@ -43,7 +49,7 @@ test('recusa abertura vazia, serviço inativo e abertura por administrador', () 
     before,
   );
   assert.equal(
-    simulate(before, { ...action, services: [services[5]!] }, 'requester'),
+    simulate(before, { ...action, service: services[5]! }, 'requester'),
     before,
   );
   assert.equal(simulate(before, action, 'admin'), before);

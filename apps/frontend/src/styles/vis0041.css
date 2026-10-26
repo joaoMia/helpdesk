@@ -1,0 +1,43 @@
+/* One scroll owner; GSAP owns smooth navigation, never CSS smooth at the same time. */
+html,
+body,
+#smooth-wrapper,
+#smooth-content,
+.table-scroll {
+  scroll-behavior: auto !important;
+}
+#smooth-content {
+  width: 100%;
+  overflow: visible;
+}
+html {
+  scrollbar-gutter: stable;
+}
+html:has(body > dialog[open]) {
+  overflow: hidden;
+}
+.demo-dialog {
+  overscroll-behavior: contain;
+}
+.workspace-body {
+  min-width: 0;
+  min-height: 100vh;
+}
+.chart-canvas[hidden] {
+  display: none !important;
+}
+@media (min-width: 1024px) {
+  .workspace {
+    margin-left: 0;
+  }
+  .workspace-body {
+    margin-left: 16rem;
+    padding-top: 72px;
+  }
+  .topbar {
+    position: fixed;
+    inset: 0 0 auto 16rem;
+    height: 72px;
+    z-index: 25;
+  }
+}

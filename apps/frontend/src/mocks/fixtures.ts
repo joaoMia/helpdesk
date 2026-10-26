@@ -1,3 +1,4 @@
+import { initialCatalog } from './catalog';
 import type { DemoReason, DemoService, DemoTicket, Role } from '../types/demo';
 
 export const roles: Record<
@@ -23,50 +24,7 @@ export const roles: Record<
     id: 'a1',
   },
 };
-export const services: DemoService[] = [
-  {
-    id: 's1',
-    name: 'Suporte a computadores',
-    description: 'Equipamentos, periféricos e desempenho.',
-    cents: 9000,
-    active: true,
-  },
-  {
-    id: 's2',
-    name: 'Rede e conectividade',
-    description: 'Conexão à rede interna e acesso à internet.',
-    cents: 12000,
-    active: true,
-  },
-  {
-    id: 's3',
-    name: 'Sistemas e aplicativos',
-    description: 'Instalação e suporte de aplicativos.',
-    cents: 8000,
-    active: true,
-  },
-  {
-    id: 's4',
-    name: 'Impressoras',
-    description: 'Configuração e suporte de impressão.',
-    cents: 6000,
-    active: true,
-  },
-  {
-    id: 's5',
-    name: 'Acesso e contas',
-    description: 'Orientação para problemas de acesso.',
-    cents: 5000,
-    active: true,
-  },
-  {
-    id: 's6',
-    name: 'Equipamentos legados',
-    description: 'Serviço indisponível para novas solicitações.',
-    cents: 7000,
-    active: false,
-  },
-];
+export const services: DemoService[] = initialCatalog().services;
 export const reasons: DemoReason[] = [
   { id: 'p1', name: 'Aguardando solicitante', counts: false, autoResume: true },
   { id: 'p2', name: 'Aguardando fornecedor', counts: false, autoResume: false },
@@ -98,26 +56,26 @@ export function initialTickets(): DemoTicket[] {
     string,
     number,
   ][] = [
-    [
-      '1048',
-      'Notebook não conecta à rede interna',
-      'OPEN',
-      null,
-      null,
-      'r1',
-      1,
-    ],
+    ['1048', 'Instalar aplicativo de trabalho', 'OPEN', null, null, 'r1', 1],
     ['1047', 'Configurar impressora do setor', 'OPEN', 'MEDIUM', null, 'r2', 3],
     [
       '1046',
-      'Aplicativo fecha ao iniciar',
+      'Falha ao acessar módulo do TOTVS',
       'IN_PROGRESS',
       'HIGH',
       't1',
       'r1',
       2,
     ],
-    ['1045', 'Monitor sem imagem', 'IN_PROGRESS', 'MEDIUM', 't2', 'r2', 0],
+    [
+      '1045',
+      'Criar acessos de novo colaborador',
+      'IN_PROGRESS',
+      'MEDIUM',
+      't2',
+      'r2',
+      0,
+    ],
     [
       '1044',
       'Acesso à pasta compartilhada',
@@ -137,7 +95,7 @@ export function initialTickets(): DemoTicket[] {
       3,
     ],
   ];
-  return rows.map(
+  const current = rows.map<DemoTicket>(
     ([id, subject, status, priority, technicianId, requesterId, index]) => ({
       id,
       subject,
@@ -147,7 +105,45 @@ export function initialTickets(): DemoTicket[] {
       requesterId,
       description: `Preciso de apoio com esta solicitação: ${subject.toLocaleLowerCase('pt-BR')}. O problema foi identificado durante a rotina de trabalho. Este conteúdo é inteiramente fictício.`,
       createdAt: `2026-10-${id === '1041' ? '21' : '24'}T09:30:00-03:00`,
-      services: [{ ...services[index]! }],
+      service: structuredClone(services[index]!),
+      category: structuredClone(
+        initialCatalog().categories.find(
+          (c) => c.id === services[index]!.categoryId,
+        )!,
+      ),
+      answers: {},
+      firstStartedAt: technicianId
+        ? `2026-10-${id === '1041' ? '21' : '24'}T10:00:00-03:00`
+        : undefined,
+      closedAt: status === 'CLOSED' ? '2026-10-21T10:30:00-03:00' : undefined,
+      closedBy: status === 'CLOSED' ? (technicianId ?? undefined) : undefined,
+      serviceAnswers:
+        index === 2
+          ? {
+              s3: {
+                systemUser: 'usuario.demo',
+                module: 'Estoque (fictício)',
+                problem: 'Falha fictícia na abertura do módulo.',
+                evidence: 'evidencia-demo.txt',
+              },
+            }
+          : index === 1
+            ? {
+                s2: {
+                  application: 'Aplicativo de exemplo',
+                  website: 'https://example.invalid',
+                  windowsUser: 'pessoa.demo',
+                },
+              }
+            : index === 0
+              ? {
+                  s1: {
+                    systems: ['Spark'],
+                    fullName: 'Pessoa Exemplo',
+                    department: 'Setor demonstrativo',
+                  },
+                }
+              : {},
       attachment: null,
       pending: status === 'PENDING' ? { ...reasons[0]! } : null,
       events: [
@@ -200,4 +196,42 @@ export function initialTickets(): DemoTicket[] {
       ],
     }),
   );
+  const original = current.map((t) => ({
+    ...t,
+    answers: structuredClone(t.serviceAnswers?.[t.service.id] ?? {}),
+  }));
+  const history: DemoTicket[] = Array.from({ length: 12 }, (_, i) => {
+    const month = String(4 + Math.floor(i / 2)).padStart(2, '0');
+    const day = i % 2 ? '18' : '06';
+    const service = structuredClone(services[(i + 6) % services.length]!);
+    const owner = i % 3 ? 't1' : 't2';
+    return {
+      ...structuredClone(original[5]!),
+      id: String(1000 + i),
+      subject: 'Histórico demonstrativo · ' + service.name,
+      description:
+        'Registro fictício para avaliar gráficos e filtros; não contém dados de produção.',
+      requesterId: i % 2 ? 'r1' : 'r2',
+      technicianId: owner,
+      closedBy: owner,
+      service,
+      category: structuredClone(
+        initialCatalog().categories.find((c) => c.id === service.categoryId)!,
+      ),
+      answers: {},
+      serviceAnswers: undefined,
+      createdAt: '2026-' + month + '-' + day + 'T09:00:00Z',
+      firstStartedAt: '2026-' + month + '-' + day + 'T10:00:00Z',
+      closedAt: '2026-' + month + '-' + day + 'T16:00:00Z',
+      events: [
+        {
+          id: 'history-' + i,
+          actor: 'Equipe demonstrativa',
+          text: 'Atendimento fictício encerrado. Amostra para visualização.',
+          at: '2026-' + month + '-' + day + 'T16:00:00Z',
+        },
+      ],
+    };
+  });
+  return [...original, ...history];
 }

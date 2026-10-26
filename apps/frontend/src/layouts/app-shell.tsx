@@ -1,3 +1,7 @@
+import { SmoothWorkspace } from '../components/smooth-workspace';
+import { scrollToContent } from '../lib/motion';
+import { BackToTop } from '../components/back-to-top';
+import { ThemeToggle } from '../components/theme-toggle';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Role } from '../types/demo';
@@ -23,7 +27,7 @@ export function AppShell({
   const actor = roles[role];
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !document.querySelector('dialog[open]')) {
         setMenu(false);
         menuButton.current?.focus();
       }
@@ -38,7 +42,7 @@ export function AppShell({
         href="#main-content"
         onClick={(event) => {
           event.preventDefault();
-          document.getElementById('main-content')?.focus();
+          scrollToContent(document.getElementById('main-content'), true);
         }}
       >
         Ir para o conteúdo
@@ -133,61 +137,70 @@ export function AppShell({
               {actor.label}
             </span>
           </div>
-          <span
-            className={`api-indicator ${health === 'available' ? 'text-teal-700' : 'text-amber-700'}`}
-          >
-            <span className="size-1.5 rounded-full bg-current" />
-            {health === 'available'
-              ? 'API disponível'
-              : health === 'checking'
-                ? 'Verificando API'
-                : 'API indisponível'}
-          </span>
-        </header>
-        <div className="demo-bar">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="demo-label">MODO DEMONSTRAÇÃO</span>
-            <span className="text-xs leading-5 text-slate-600">
-              Dados fictícios. Alterações só nesta sessão.
+          <div className="flex items-center gap-2 sm:gap-4">
+            <ThemeToggle />
+            <span
+              className={`api-indicator ${health === 'available' ? 'text-teal-700' : 'text-amber-700'}`}
+            >
+              <span className="size-1.5 rounded-full bg-current" />
+              {health === 'available'
+                ? 'API disponível'
+                : health === 'checking'
+                  ? 'Verificando API'
+                  : 'API indisponível'}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
-              Visualizar como
-              <select
-                className="profile-select"
-                value={role}
-                onChange={(event) => {
-                  setMenu(false);
-                  window.location.hash = href(
-                    event.target.value as Role,
-                    'painel',
-                  );
-                }}
-              >
-                <option value="requester">Solicitante</option>
-                <option value="technician">Técnico</option>
-                <option value="admin">Administrador</option>
-              </select>
-            </label>
-            <button className="text-button text-xs" onClick={onReset}>
-              Reiniciar prévia
-            </button>
+        </header>
+        <SmoothWorkspace>
+          <div className="demo-bar">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="demo-label">MODO DEMONSTRAÇÃO</span>
+              <span className="text-xs leading-5 text-slate-600">
+                Dados fictícios. Alterações só nesta sessão.
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                Visualizar como
+                <select
+                  className="profile-select"
+                  value={role}
+                  onChange={(event) => {
+                    setMenu(false);
+                    window.location.hash = href(
+                      event.target.value as Role,
+                      'painel',
+                    );
+                  }}
+                >
+                  <option value="requester">Solicitante</option>
+                  <option value="technician">Técnico</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </label>
+              <a className="text-button text-xs" href="#/login">
+                Prévia de login
+              </a>
+              <button className="text-button text-xs" onClick={onReset}>
+                Reiniciar prévia
+              </button>
+            </div>
           </div>
-        </div>
-        <main
-          id="main-content"
-          tabIndex={-1}
-          className="page-content"
-          key={`${role}-${page}`}
-        >
-          {children}
-        </main>
-        <footer className="workspace-footer">
-          <span>HelpDesk · Prévia visual 001</span>
-          <span>Seletor de perfil para avaliação · Sem autenticação</span>
-        </footer>
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="page-content"
+            key={`${role}-${page}`}
+          >
+            {children}
+          </main>
+          <footer className="workspace-footer">
+            <span>HelpDesk · VIS-004</span>
+            <span>Seletor de perfil para avaliação · Sem autenticação</span>
+          </footer>
+        </SmoothWorkspace>
       </div>
+      <BackToTop />
     </div>
   );
 }

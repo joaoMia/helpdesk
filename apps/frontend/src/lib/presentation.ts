@@ -11,12 +11,6 @@ export const priorityLabels: Record<Priority, string> = {
   MEDIUM: 'Média',
   HIGH: 'Alta',
 };
-export function money(cents: number) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(cents / 100);
-}
 export function date(value: string) {
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
