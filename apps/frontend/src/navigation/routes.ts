@@ -11,17 +11,19 @@ export const navigation: Record<
 > = {
   requester: [
     { path: 'painel', label: 'Visão geral', icon: 'grid' },
+    { path: 'projetos', label: 'Projetos', icon: 'grid' },
     { path: 'chamados', label: 'Meus chamados', icon: 'ticket' },
     { path: 'novo', label: 'Abrir chamado', icon: 'plus' },
   ],
   technician: [
     { path: 'painel', label: 'Visão geral', icon: 'grid' },
-    { path: 'nao-classificados', label: 'Não classificados', icon: 'ticket' },
-    { path: 'classificados', label: 'Classificados', icon: 'ticket' },
+    { path: 'projetos', label: 'Projetos', icon: 'grid' },
+    { path: 'chamados', label: 'Chamados', icon: 'ticket' },
     { path: 'atendimentos', label: 'Meus atendimentos', icon: 'tool' },
   ],
   admin: [
     { path: 'painel', label: 'Visão geral', icon: 'grid' },
+    { path: 'projetos', label: 'Projetos', icon: 'grid' },
     { path: 'chamados', label: 'Todos os chamados', icon: 'ticket' },
     { path: 'usuarios', label: 'Usuários', icon: 'users' },
     { path: 'tecnicos', label: 'Técnicos', icon: 'users' },
@@ -37,12 +39,21 @@ function currentRoute() {
   const [candidate, page = 'painel', id] = window.location.hash
     .slice(2)
     .split('/');
+  if (candidate === 'login')
+    return { role: 'requester' as Role, page: 'login', id: undefined };
   const role: Role =
     candidate === 'technician' || candidate === 'admin'
       ? candidate
       : 'requester';
   const valid =
-    navigation[role].some((item) => item.path === page) || page === 'chamado';
+    navigation[role].some((item) => item.path === page) ||
+    [
+      'chamado',
+      'projeto',
+      'projeto-novo',
+      'nao-classificados',
+      'classificados',
+    ].includes(page);
   return { role, page: valid ? page : 'not-found', id };
 }
 export function useRoute() {

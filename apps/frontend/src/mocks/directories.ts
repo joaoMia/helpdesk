@@ -1,4 +1,3 @@
-import { money } from '../lib/presentation';
 import { reasons, services } from './fixtures';
 
 export const directoryExamples = {
@@ -28,12 +27,12 @@ export const directoryExamples = {
   },
   servicos: {
     title: 'Serviços',
-    subtitle: 'Catálogo demonstrativo de suporte, com valores fictícios.',
-    columns: ['Serviço', 'Descrição', 'Valor ilustrativo', 'Situação'],
+    subtitle: 'Catálogo de serviços e formulários em validação.',
+    columns: ['Serviço', 'Descrição', 'Categoria / sistema', 'Situação'],
     rows: services.map((s) => [
       s.name,
       s.description,
-      money(s.cents),
+      s.categoryId,
       s.active ? 'Ativo' : 'Inativo',
     ]),
   },

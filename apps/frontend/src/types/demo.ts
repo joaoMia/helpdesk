@@ -2,12 +2,25 @@
 export type Role = 'requester' | 'technician' | 'admin';
 export type Status = 'OPEN' | 'IN_PROGRESS' | 'PENDING' | 'CLOSED';
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
+export interface DemoCategory {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+  order: number;
+}
 export interface DemoService {
   id: string;
   name: string;
   description: string;
-  cents: number;
+  categoryId: string;
   active: boolean;
+  order: number;
+  fields: import('../forms/service-definitions').ServiceField[];
+}
+export interface DemoCatalog {
+  categories: DemoCategory[];
+  services: DemoService[];
 }
 export interface DemoReason {
   id: string;
@@ -30,20 +43,43 @@ export interface DemoTicket {
   priority: Priority | null;
   technicianId: string | null;
   createdAt: string;
-  services: DemoService[];
+  service: DemoService;
+  category: DemoCategory;
+  answers: import('../forms/service-definitions').ServiceAnswers;
+  legacyServices?: DemoService[];
   attachment: string | null;
   pending: DemoReason | null;
   events: DemoEvent[];
+  serviceAnswers?: import('../forms/service-definitions').AnswersByService;
+  externalTotvs?: string;
+  firstStartedAt?: string;
+  closedAt?: string;
+  closedBy?: string;
+  effectiveCompletedAt?: string;
+  completionRecordedAt?: string;
+  completionJustification?: string;
+  completionCorrections?: import('../mocks/completion').CompletionCorrection[];
 }
 export type DemoAction =
   | {
       type: 'create';
       subject: string;
       description: string;
-      services: DemoService[];
+      service: DemoService;
+      category: DemoCategory;
+      answers: import('../forms/service-definitions').ServiceAnswers;
       attachment: string | null;
+      serviceAnswers?: import('../forms/service-definitions').AnswersByService;
     }
   | { type: 'classify'; id: string; priority: Priority }
-  | { type: 'start' | 'resume' | 'close'; id: string }
+  | { type: 'start' | 'resume'; id: string }
+  | { type: 'close'; id: string; effectiveAt?: string; justification?: string }
+  | {
+      type: 'request-completion-correction';
+      id: string;
+      effectiveAt: string;
+      justification: string;
+    }
   | { type: 'pending'; id: string; reason: DemoReason; explanation: string }
-  | { type: 'comment'; id: string; text: string };
+  | { type: 'comment'; id: string; text: string }
+  | { type: 'external-totvs'; id: string; value: string };

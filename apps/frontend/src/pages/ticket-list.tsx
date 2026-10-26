@@ -1,3 +1,4 @@
+import { ticketScope } from '../mocks/ticket-visibility';
 import { statusLabels } from '../lib/presentation';
 import { useState } from 'react';
 import type { DemoTicket, Role, Status } from '../types/demo';
@@ -9,25 +10,24 @@ export function TicketList({
   role,
   page,
   tickets,
+  tab = 'nao-classificados',
 }: {
   role: Role;
   page: string;
   tickets: DemoTicket[];
+  tab?: string;
 }) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
-  const base = tickets.filter((t) =>
-    role === 'requester'
-      ? t.requesterId === 'r1'
-      : role === 'admin'
-        ? true
-        : page === 'atendimentos'
-          ? t.technicianId === 't1'
-          : t.status === 'OPEN' &&
-            !t.technicianId &&
-            (page === 'nao-classificados' ? !t.priority : !!t.priority),
-  );
+  const [owner, setOwner] = useState('');
+  const activeTab =
+    page === 'classificados'
+      ? 'classificados'
+      : page === 'nao-classificados'
+        ? 'nao-classificados'
+        : tab;
+  const base = ticketScope(tickets, role, page, activeTab);
   const normalize = (text: string) =>
     text
       .normalize('NFD')
@@ -35,23 +35,27 @@ export function TicketList({
       .toLowerCase();
   const filtered = base.filter(
     (t) =>
-      normalize(
-        `HD-${t.id} ${t.subject} ${t.services.map((s) => s.name).join(' ')}`,
-      ).includes(normalize(query)) &&
+      normalize(`HD-${t.id} ${t.subject} ${t.service.name}`).includes(
+        normalize(query),
+      ) &&
       (!status || t.status === status) &&
+      (!owner ||
+        (owner === 'none' ? !t.technicianId : t.technicianId === owner)) &&
       (!priority ||
         (priority === 'NONE' ? !t.priority : t.priority === priority)),
   );
   const title =
-    page === 'nao-classificados'
-      ? 'Não classificados'
-      : page === 'classificados'
-        ? 'Classificados'
-        : page === 'atendimentos'
-          ? 'Meus atendimentos'
-          : role === 'admin'
-            ? 'Todos os chamados'
-            : 'Meus chamados';
+    role === 'technician' && page !== 'atendimentos'
+      ? 'Chamados'
+      : page === 'nao-classificados'
+        ? 'Não classificados'
+        : page === 'classificados'
+          ? 'Classificados'
+          : page === 'atendimentos'
+            ? 'Meus atendimentos'
+            : role === 'admin'
+              ? 'Todos os chamados'
+              : 'Meus chamados';
   return (
     <>
       <PageHeading
@@ -72,7 +76,34 @@ export function TicketList({
           </a>
         )}
       </PageHeading>
+      {role === 'technician' && page !== 'atendimentos' && (
+        <nav className="tab-bar" aria-label="Filas de chamados">
+          {[
+            ['nao-classificados', 'Não classificados'],
+            ['classificados', 'Classificados'],
+            ['todos', 'Todos'],
+          ].map(([key, label]) => (
+            <a
+              key={key}
+              className={activeTab === key ? 'tab-active' : ''}
+              aria-current={activeTab === key ? 'page' : undefined}
+              href={href(role, 'chamados/' + key)}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      )}
       <section className="panel">
+        {role === 'technician' &&
+          activeTab === 'todos' &&
+          page !== 'atendimentos' && (
+            <p className="info-note m-5 mb-0">
+              Triagem e atendimentos de Lucas Ferreira. Outros responsáveis não
+              são expostos nesta prévia enquanto a visibilidade aguarda
+              homologação.
+            </p>
+          )}
         <div className="filter-bar">
           <label className="search-field">
             <Icon name="search" />
@@ -112,13 +143,28 @@ export function TicketList({
               <option value="HIGH">Alta</option>
             </select>
           </label>
-          {(query || status || priority) && (
+          {role === 'technician' && (
+            <label>
+              <span className="sr-only">Filtrar por responsável</span>
+              <select
+                className="field"
+                value={owner}
+                onChange={(e) => setOwner(e.target.value)}
+              >
+                <option value="">Todos os responsáveis permitidos</option>
+                <option value="none">Sem responsável</option>
+                <option value="t1">Lucas Ferreira</option>
+              </select>
+            </label>
+          )}
+          {(query || status || priority || owner) && (
             <button
               className="text-button text-xs"
               onClick={() => {
                 setQuery('');
                 setStatus('');
                 setPriority('');
+                setOwner('');
               }}
             >
               Limpar filtros

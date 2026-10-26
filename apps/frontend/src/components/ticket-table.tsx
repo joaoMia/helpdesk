@@ -50,7 +50,7 @@ export function TicketTable({
                   <span className="ticket-subject">{ticket.subject}</span>
                 </a>
                 <p className="mt-1 text-xs text-slate-500">
-                  {ticket.services.map((s) => s.name).join(' · ')}
+                  {ticket.service.name}
                 </p>
               </td>
               <td>

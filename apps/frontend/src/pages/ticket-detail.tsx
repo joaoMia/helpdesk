@@ -1,8 +1,10 @@
-import { date, money } from '../lib/presentation';
+import { TicketActions } from '../components/ticket-actions';
+import { ServiceAnswerSummary } from '../components/service-fields';
+import { ExternalTotvs } from '../components/external-totvs';
+import { date } from '../lib/presentation';
 import { useState } from 'react';
-import type { FormEvent } from 'react';
-import type { DemoAction, DemoTicket, Priority, Role } from '../types/demo';
-import { reasons, requesterName, technicianName } from '../mocks/fixtures';
+import type { DemoAction, DemoTicket, Role } from '../types/demo';
+import { requesterName, technicianName } from '../mocks/fixtures';
 import { href } from '../navigation/routes';
 import {
   EmptyState,
@@ -20,12 +22,8 @@ export function TicketDetail({
 }: {
   ticket: DemoTicket | undefined;
   role: Role;
-  onAction: (action: DemoAction) => void;
+  onAction: (action: DemoAction) => boolean;
 }) {
-  const [priority, setPriority] = useState<Priority>('MEDIUM');
-  const [reasonId, setReasonId] = useState('p1');
-  const [showPending, setShowPending] = useState(false);
-  const [confirmClose, setConfirmClose] = useState(false);
   const [message, setMessage] = useState('');
   const allowed =
     ticket &&
@@ -42,18 +40,7 @@ export function TicketDetail({
         </a>
       </EmptyState>
     );
-  const owns = role === 'technician' && ticket.technicianId === 't1';
   const triage = role === 'technician' && !ticket.technicianId;
-  const reason = reasons.find((r) => r.id === reasonId)!;
-  const pend = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const explanation = String(
-      new FormData(event.currentTarget).get('explanation') ?? '',
-    ).trim();
-    if (!explanation) return;
-    onAction({ type: 'pending', id: ticket.id, reason, explanation });
-    setShowPending(false);
-  };
   return (
     <>
       <a
@@ -64,8 +51,8 @@ export function TicketDetail({
             ? ticket.technicianId
               ? 'atendimentos'
               : ticket.priority
-                ? 'classificados'
-                : 'nao-classificados'
+                ? 'chamados/classificados'
+                : 'chamados/nao-classificados'
             : 'chamados',
         )}
       >
@@ -110,28 +97,33 @@ export function TicketDetail({
             </div>
           </Panel>
           <Panel
-            title="Serviços solicitados"
-            subtitle="Nome e valor capturados na amostra; sem cobrança real"
+            title="Serviço solicitado"
+            subtitle="Formulário e respostas preservados na abertura"
           >
-            <div className="form-body space-y-4">
-              {ticket.services.map((s) => (
-                <div key={s.id} className="flex justify-between gap-4 text-sm">
-                  <span className="text-slate-700">{s.name}</span>
-                  <strong className="whitespace-nowrap font-medium">
-                    {money(s.cents)}
-                  </strong>
-                </div>
-              ))}
-              <div className="flex justify-between border-t border-slate-100 pt-4 text-sm font-semibold">
-                <span>Total ilustrativo</span>
-                <span>
-                  {money(
-                    ticket.services.reduce((total, s) => total + s.cents, 0),
-                  )}
-                </span>
-              </div>
+            <div className="form-body space-y-6">
+              <section>
+                <p className="eyebrow">{ticket.category.name}</p>
+                <h3 className="mb-4 font-semibold">{ticket.service.name}</h3>
+                {!triage && (
+                  <ServiceAnswerSummary
+                    serviceId={ticket.service.id}
+                    fields={ticket.service.fields}
+                    answers={ticket.answers}
+                  />
+                )}
+              </section>
+              {ticket.legacyServices && (
+                <p className="info-note">
+                  Registro histórico anterior à VIS-003:{' '}
+                  {ticket.legacyServices.map((s) => s.name).join(', ')}.
+                  Preservado somente para consulta.
+                </p>
+              )}
             </div>
           </Panel>
+          {!triage && (
+            <ExternalTotvs ticket={ticket} role={role} onAction={onAction} />
+          )}
           {!triage && (
             <Panel
               title="Acompanhamento"
@@ -161,8 +153,14 @@ export function TicketDetail({
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!message.trim()) return;
-                    onAction({ type: 'comment', id: ticket.id, text: message });
-                    setMessage('');
+                    if (
+                      onAction({
+                        type: 'comment',
+                        id: ticket.id,
+                        text: message,
+                      })
+                    )
+                      setMessage('');
                   }}
                 >
                   <label className="form-label">
@@ -223,161 +221,11 @@ export function TicketDetail({
               </p>
             </section>
           )}
-          {role === 'technician' && ticket.status !== 'CLOSED' && (
-            <Panel
-              title="Próximo passo"
-              subtitle="Ações simuladas · sem persistência"
-            >
-              <div className="form-body space-y-4">
-                {triage && !ticket.priority && (
-                  <>
-                    <p className="text-sm leading-6 text-slate-500">
-                      Defina a prioridade. Isso mantém o chamado aberto e não
-                      atribui um técnico.
-                    </p>
-                    <label className="form-label">
-                      Prioridade
-                      <select
-                        className="field"
-                        value={priority}
-                        onChange={(e) =>
-                          setPriority(e.target.value as Priority)
-                        }
-                      >
-                        <option value="LOW">Baixa</option>
-                        <option value="MEDIUM">Média</option>
-                        <option value="HIGH">Alta</option>
-                      </select>
-                    </label>
-                    <button
-                      className="button-primary w-full justify-center"
-                      onClick={() =>
-                        onAction({ type: 'classify', id: ticket.id, priority })
-                      }
-                    >
-                      Simular classificação
-                    </button>
-                  </>
-                )}
-                {triage && ticket.priority && (
-                  <>
-                    <p className="text-sm leading-6 text-slate-500">
-                      A prioridade está definida. Assumir atribui este
-                      atendimento a Lucas Ferreira.
-                    </p>
-                    <button
-                      className="button-primary w-full justify-center"
-                      onClick={() => onAction({ type: 'start', id: ticket.id })}
-                    >
-                      Simular assumir atendimento
-                    </button>
-                  </>
-                )}
-                {owns && ticket.status === 'IN_PROGRESS' && (
-                  <>
-                    {!showPending && !confirmClose && (
-                      <>
-                        <button
-                          className="button-secondary w-full justify-center"
-                          onClick={() => setShowPending(true)}
-                        >
-                          <Icon name="pause" />
-                          Adicionar pendência
-                        </button>
-                        <button
-                          className="button-primary w-full justify-center"
-                          onClick={() => setConfirmClose(true)}
-                        >
-                          <Icon name="check" />
-                          Encerrar atendimento
-                        </button>
-                      </>
-                    )}
-                    {showPending && (
-                      <form className="space-y-4" onSubmit={pend}>
-                        <label className="form-label">
-                          Motivo
-                          <select
-                            className="field"
-                            value={reasonId}
-                            onChange={(e) => setReasonId(e.target.value)}
-                          >
-                            {reasons.map((r) => (
-                              <option key={r.id} value={r.id}>
-                                {r.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <p className="text-xs leading-5 text-slate-500">
-                          Conta tempo útil: {reason.counts ? 'sim' : 'não'} ·
-                          Retoma por resposta:{' '}
-                          {reason.autoResume ? 'sim' : 'não'}
-                        </p>
-                        <label className="form-label">
-                          Justificativa *
-                          <textarea
-                            className="field"
-                            name="explanation"
-                            required
-                            maxLength={1000}
-                          />
-                        </label>
-                        <button
-                          className="button-primary w-full justify-center"
-                          type="submit"
-                        >
-                          Simular pendência
-                        </button>
-                        <button
-                          className="text-button text-xs"
-                          type="button"
-                          onClick={() => setShowPending(false)}
-                        >
-                          Cancelar
-                        </button>
-                      </form>
-                    )}
-                    {confirmClose && (
-                      <div className="space-y-4">
-                        <p className="text-sm leading-6 text-slate-600">
-                          Encerrar este atendimento na prévia? O chamado ficará
-                          somente para leitura, sem cálculo de métricas.
-                        </p>
-                        <button
-                          className="button-primary w-full justify-center"
-                          onClick={() => {
-                            onAction({ type: 'close', id: ticket.id });
-                            setConfirmClose(false);
-                          }}
-                        >
-                          Confirmar encerramento simulado
-                        </button>
-                        <button
-                          className="text-button text-xs"
-                          onClick={() => setConfirmClose(false)}
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-                {owns && ticket.status === 'PENDING' && (
-                  <button
-                    className="button-primary w-full justify-center"
-                    onClick={() => onAction({ type: 'resume', id: ticket.id })}
-                  >
-                    Simular retomada manual
-                  </button>
-                )}
-              </div>
-            </Panel>
-          )}
+          <TicketActions ticket={ticket} role={role} onAction={onAction} />
           {(role === 'admin' || ticket.status === 'CLOSED') && (
             <p className="info-note">
               {ticket.status === 'CLOSED'
-                ? 'Chamado encerrado: somente leitura. Reabertura não está disponível.'
+                ? 'Chamado encerrado: dados históricos preservados. Solicitações de correção não reabrem o atendimento nem alteram métricas.'
                 : 'Visão administrativa somente para consulta. Poderes de supervisão aguardam decisão nas ADRs.'}
             </p>
           )}
