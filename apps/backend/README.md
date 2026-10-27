@@ -1,10 +1,10 @@
 # HelpDesk — Backend
 
-Express 5.3.0, TypeScript 5.9.3, Zod 4.6.7 e Prisma 7.10.1, com ESM/NodeNext. DEV-001 acrescentou contratos e abertura interna transacional; DEV-002 aplicou a primeira migration mínima em desenvolvimento. Sem autenticação ou endpoints de negócio implementados.
+Express 5.3.0, TypeScript 5.9.3, Zod 4.6.7 e Prisma 7.10.1, com ESM/NodeNext. DEV-003 acrescenta autenticação real em modules/auth seguindo routes → controller → service → repository. Chamados continuam internos e sem endpoint funcional.
 
 ## Execução
 
-Na raiz, após `npm ci` e `npm run env:setup`:
+Na raiz, após `npm ci`, `npm run env:setup`, `npm run auth:env:setup`, PostgreSQL disponível e migrations locais revisadas aplicadas:
 
 - `npm run dev:backend`: watcher tsx em [http://127.0.0.1:3001](http://127.0.0.1:3001).
 - `npm run build --workspace @helpdesk/backend`.
@@ -17,7 +17,7 @@ A configuração carrega o `.env` raiz explicitamente e permite sobrescrever pel
 
 ## Endpoint e testes
 
-`GET /health` responde status 200 e `{"status":"ok","service":"helpdesk-api"}`. É liveness, independente do PostgreSQL. Erros usam JSON sem stack e requestId gerado pelo servidor. Login/escrita de chamados continuam inexistentes (404), aguardando autenticação real e contratos aprovados.
+`GET /health` responde status 200 e `{"status":"ok","service":"helpdesk-api"}`. É liveness, independente da disponibilidade do PostgreSQL. Erros usam JSON sanitizado/requestId. /auth/register, /auth/login, /auth/refresh, /auth/logout, /auth/me, /auth/change-password e /auth/csrf estão implementados; escrita de chamados continua inexistente (404). /auth exige runtime configurado no server; createApp sem injeção continua útil aos testes isolados do healthcheck.
 
 `createApp()` não abre porta, facilitando testes por Supertest. `server.ts` carrega ambiente, inicia o listener e trata encerramento. Não há camadas vazias: futuros módulos seguirão routes → controller → service → repository conforme necessidade real.
 
@@ -41,11 +41,15 @@ prepare:core compila contratos e gera Client antes de typecheck/build/testes. N�
 
 Na DEV-002, a base mínima foi autorizada e aplicada em helpdesk_dev por `20261026222500_fundacao_nucleo`. São oito tabelas, enums, FKs/índices, checks e triggers de histórico. O SQL da migration é a fonte canônica, incluindo recursos não expressos no PSL; review-constraints.sql permanece apenas como nota de compatibilidade da DEV-001.
 
-db:migrate:dev é um executor restrito à primeira migration revisada: exige NODE_ENV=development, helpdesk_dev local/public e banco de testes distinto; confere banco efetivo, ausência de objetos desconhecidos ou checksum/histórico aplicado. Invoca migrate deploy sem reset/shadow database e sem credenciais na linha de comando/log. Não é um runner de produção nem autoriza migrations futuras. SQL inicial foi gerado sem aplicação por migrate diff --from-empty --script, revisado e testado antes do deploy. Não se usou db push ou resolve para simular aplicação.
+db:migrate:dev é um executor restrito às migrations revisadas DEV-002/003: exige NODE_ENV=development, helpdesk_dev local/public e testes separados; verifica histórico/checksums e prefixo já aplicado. A primeira migration tem checksum publicado protegido. Invoca migrate deploy sem reset/shadow database ou credenciais na linha de comando/log; não autoriza migrations futuras. Geração SQL por migrate diff sem aplicação, revisão e testes precedem o deploy local.
 
 test:db lê os próprios arquivos de migration (não uma cópia derivada do schema), confirma helpdesk_test local e distinto do desenvolvimento, cria namespace exclusivo dentro de transação e força rollback de DDL/dados. As fronteiras statement-breakpoint preservam corpos SQL de funções; BEGIN/COMMIT da migration são substituídos pela transação de teste. Não há migration persistente em testes. Desenvolvimento é conferido antes/depois por conexão somente leitura, incluindo contagem de registros.
 
 npm test executa unitários/HTTP sem depender do Docker. test:db é opt-in e falha se banco/isolamento não estiverem disponíveis; não usa skipped para aparentar validação.
+
+Auth adiciona testes HTTP com PostgreSQL real em namespace exclusivo de helpdesk_test para transações/conexões concorrentes. Migrations canônicas criam esse namespace recém-gerado; sua limpeza verifica nome/posse e descarta somente esse namespace, nunca public ou bancos atuais. Desenvolvimento é apenas conferido em leitura. Nenhum seed administrativo é executado.
+
+Autenticação usa Argon2id, jose, csrf-csrf, cookie, cors e express-rate-limit locais, com contratos Zod compartilhados. JWT 15 min e refresh absoluto de sete dias ficam em cookies HttpOnly/Strict, Secure em HTTPS; banco guarda apenas hash do refresh. Middleware valida JWT e consulta revogação/atividade/flag. Política estrita de replay e concorrência, limites, configuração e pendências em [ADR-12](../../docs/20-adr12-autenticacao.md). Senha atual é exigida na troca, que revoga todas as sessões. Sem RBAC completo, recuperação por e-mail ou seed HD-019.
 
 modules/tickets contém serviço e repositório Prisma transacional: solicitante ativo real, um serviço, respostas, snapshot e evento juntos. Sem rota/controller de escrita vazio, autenticação improvisada ou regras de supervisão, tempos úteis e projetos. Condições e upload aguardam seus módulos/aprovações.
 

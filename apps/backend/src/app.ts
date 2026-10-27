@@ -1,8 +1,9 @@
 import express from 'express';
 import { randomUUID } from 'node:crypto';
 import { errorHandler } from './middlewares/error-handler.js';
+import type { AuthRuntime } from './modules/auth/auth.routes.js';
 
-export function createApp() {
+export function createApp(auth?: AuthRuntime) {
   const app = express();
   app.disable('x-powered-by');
   app.use((_request, response, next) => {
@@ -15,6 +16,8 @@ export function createApp() {
   app.get('/health', (_request, response) => {
     response.json({ status: 'ok', service: 'helpdesk-api' });
   });
+
+  if (auth) app.use('/auth', auth.router);
 
   app.use((_request, response) => {
     response.status(404).json({

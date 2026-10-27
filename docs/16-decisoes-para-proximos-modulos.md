@@ -4,7 +4,7 @@ A estrutura geral foi aprovada para início do M1. **Nenhuma destas pendências 
 
 ## Antes de M2 (contas e segurança)
 
-- **D1 — Sessão JWT:** definir armazenamento, renovação e revogação; proposta: cookies HttpOnly/Secure e proteção CSRF adequada, token de curta duração; documentar fluxos e testes.
+- **D1 — Sessão JWT resolvida na DEV-003:** [ADR-12](20-adr12-autenticacao.md) aprovada e implementada: cookies HttpOnly/Strict/Secure, CSRF vinculado à sessão, JWT 15 min, refresh absoluto de sete dias, rotação e revogação com política estrita de replay. Homologação de produção ainda não realizada.
 - **D2 — Credencial provisória:** exigir troca no primeiro login; determinar se Admin redefine senha e como recuperar contas sem e-mail.
 - **D3 — Perfis e visibilidade:** o que cada técnico vê em chamados não atribuídos? Recomendação: ler descrição e anexos necessários à triagem, mas bloquear edição fora das ações de classificação/assunção.
 

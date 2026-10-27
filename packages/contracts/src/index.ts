@@ -1,4 +1,5 @@
 import { z } from 'zod';
+export * from './auth.js';
 
 export const userRoleSchema = z.enum(['ADMIN', 'TECHNICIAN', 'REQUESTER']);
 export const ticketStatusSchema = z.enum([

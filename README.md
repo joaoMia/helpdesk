@@ -1,6 +1,6 @@
 # HelpDesk — Fundação técnica local
 
-Monorepositório em npm workspaces para suporte de TI. A prévia React navegável está consolidada, com dados/operações demonstrativos. DEV-001 introduziu contratos Zod e núcleo interno transacional; DEV-002 criou a primeira migration real em PostgreSQL de desenvolvimento. Autenticação e endpoints funcionais ainda não estão disponíveis. PostgreSQL local permanece em Docker.
+Monorepositório em npm workspaces para suporte de TI. DEV-001/002 consolidaram contratos, núcleo interno e migration inicial; DEV-003 implementa cadastro de solicitante, login, sessão, troca de senha e logout reais em PostgreSQL. Chamados/projetos/dashboards continuam demonstrativos e separados da autenticação.
 
 O projeto oficial fica em `C:\dev\helpdesk`. As instruções permanentes estão em [AGENTS.md](AGENTS.md) e [CLAUDE.md](CLAUDE.md). As Skills de Codex e Claude usam o [procedimento compartilhado](skills/helpdesk-task/procedimento.md); sua presença não concede autorização para novas tarefas, commits ou publicações.
 
@@ -19,6 +19,7 @@ Na raiz do repositório:
 ```text
 npm ci
 npm run env:setup
+npm run auth:env:setup
 npm run db:config
 npm run db:up
 npm run db:check
@@ -28,7 +29,9 @@ O único lockfile é `package-lock.json`, na raiz. Não é necessário instalar 
 
 Se já houver `.env`, confira os nomes e URLs sem publicar seu conteúdo. Alterar nomes de bancos/usuários no arquivo não modifica automaticamente um volume PostgreSQL já inicializado.
 
-Para preparar a base mínima local autorizada na DEV-002: `npm run db:migrate:dev --workspace @helpdesk/backend` aplica somente a migration inicial revisada, recusando destinos diferentes de helpdesk_dev local e histórico/objetos inesperados. Não executa reset, seed ou migration de testes. `npm run prisma:generate --workspace @helpdesk/backend` gera o Client explicitamente; `npm run db:migrate:status --workspace @helpdesk/backend` consulta o histórico. Futuras migrations exigem revisão própria; não editar uma migration já aplicada.
+`npm run auth:env:setup` acrescenta apenas chaves AUTH_* ausentes, aleatórias e distintas, sem mostrar valores nem sobrescrever credenciais do banco. Configuração local HTTP é explícita; não copiar essa exceção para produção.
+
+`npm run db:migrate:dev --workspace @helpdesk/backend` aplica somente as migrations revisadas DEV-002/003, recusando destinos diferentes de helpdesk_dev local e histórico/objetos inesperados. Não executa reset ou seed administrativo. `npm run prisma:generate --workspace @helpdesk/backend` gera o Client; `npm run db:migrate:status --workspace @helpdesk/backend` consulta o histórico. Futuras migrations exigem revisão própria; não editar migrations aplicadas.
 
 ## Executar as aplicações
 
@@ -40,10 +43,14 @@ npm run dev:frontend
 ```
 
 - Frontend: [http://127.0.0.1:5173](http://127.0.0.1:5173).
+- Conta real: [login](http://127.0.0.1:5173/#/login) e [cadastro](http://127.0.0.1:5173/#/register). Cadastre um solicitante fictício com senha própria de 12–128 caracteres; nenhum usuário/senha padrão é fornecido.
+- Laboratório visual isolado: [prévia sem autenticação](http://127.0.0.1:5173/#/demo/requester/painel). Seu seletor de perfis não altera a identidade real da API.
 - API: [http://127.0.0.1:3001/health](http://127.0.0.1:3001/health).
 - Resposta de integridade: `{"status":"ok","service":"helpdesk-api"}`.
 
-O frontend consulta a API por `/api/health`, usando o proxy de desenvolvimento do Vite. A API inicia e responde ao healthcheck mesmo sem banco configurado/disponível. A verificação da persistência é feita separadamente por `npm run db:check`.
+O frontend consulta a API por `/api/health`, usando o proxy de desenvolvimento do Vite. Com configuração válida, o processo responde ao healthcheck mesmo com PostgreSQL indisponível. A verificação da persistência é feita separadamente por `npm run db:check`.
+
+Na DEV-003, o bootstrap exige DATABASE_URL e configuração AUTH_* válidas; não exige conexão com o banco para servir /health. O formulário real usa cookies HttpOnly e CSRF. Logout revoga sessão no servidor; troca de senha revoga todas e exige novo login. E-mail ainda não é verificado por envio. Recuperação de acesso e seed administrativo são pendentes; consulte a [ADR-12](docs/20-adr12-autenticacao.md).
 
 ## Qualidade e build
 
