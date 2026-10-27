@@ -178,8 +178,11 @@ export function AppShell({
                   <option value="admin">Administrador</option>
                 </select>
               </label>
+              <a className="text-button text-xs" href="#/demo/login">
+                Laboratório de login
+              </a>
               <a className="text-button text-xs" href="#/login">
-                Prévia de login
+                Voltar à área real
               </a>
               <button className="text-button text-xs" onClick={onReset}>
                 Reiniciar prévia

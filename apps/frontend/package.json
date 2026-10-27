@@ -11,6 +11,7 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
+    "@helpdesk/contracts": "0.0.0",
     "@gsap/react": "2.1.2",
     "echarts": "6.1.0",
     "gsap": "3.15.0",

@@ -1,5 +1,23 @@
 # 06 — Contratos REST preliminares
 
+## DEV-003 — Autenticação real disponível
+
+As rotas abaixo estão implementadas em `/auth`, sem o prefixo preliminar `/api/v1`. O frontend local usa `/api/auth` pelo proxy Vite. Corpos/saídas são contratos Zod em packages/contracts; nada autoriza endpoints dos módulos de negócio seguintes.
+
+| Método/rota                 | Entrada e comportamento                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| GET /auth/csrf              | Fornece token anti-CSRF e contexto em cookie; não é credencial de sessão                                            |
+| POST /auth/register         | name, email, password; somente REQUESTER; 201 com user público, 400 inválido, 409 conflito genérico                 |
+| POST /auth/login            | email/password reais; 200 com user público e cookies; 401 genérico para credenciais/conta indisponíveis             |
+| POST /auth/refresh          | Cookies + CSRF; rotação, mesmo prazo absoluto da sessão; 401 para token inválido/expirado/reutilizado               |
+| POST /auth/logout           | Revoga sessão e limpa cookies; 204; não apenas remoção visual                                                       |
+| GET /auth/me                | JWT e sessão/usuário vigentes; user público ou 401                                                                  |
+| PATCH /auth/change-password | currentPassword/newPassword; senha atual obrigatória, revoga todas as sessões e responde 204; novo login necessário |
+
+User público: id, name, email, role e mustChangePassword. Não retorna hash, JWT ou refresh em JSON. POST/PATCH exigem Origin permitida, cookies e X-CSRF-Token; 403 em violação e 429 em excesso. Login não cria permissões de negócio; middleware padrão bloqueia uso comum até troca de senha inicial. Detalhes em [ADR-12](20-adr12-autenticacao.md). Sem verificação ou recuperação por e-mail implementadas.
+
+## Contratos preliminares dos demais módulos
+
 Prefixo sugerido `/api/v1`. JSON com paginação, filtros, erros padronizados (`code`, `message`, `details`, `requestId`); timestamps ISO-8601 UTC e enums públicos documentados. Sem campos de preço/cobrança (RN-006 revisada na DEV-001).
 
 | Método       | Rota                       | Quem pode                             | Observações                                                       |

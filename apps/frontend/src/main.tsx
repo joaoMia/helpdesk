@@ -2,7 +2,7 @@ import { MotionProvider } from './components/motion-preference';
 import { NotificationProvider } from './components/notifications';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './app/app';
+import { AuthEntry } from './app/auth-entry';
 import './styles.css';
 import './styles/vis004.css';
 import './styles/vis0041.css';
@@ -14,7 +14,7 @@ createRoot(root).render(
   <StrictMode>
     <MotionProvider>
       <NotificationProvider>
-        <App />
+        <AuthEntry />
       </NotificationProvider>
     </MotionProvider>
   </StrictMode>,

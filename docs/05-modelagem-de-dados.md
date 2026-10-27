@@ -1,5 +1,7 @@
 # 05 — Modelo relacional proposto (conceitual)
 
+**DEV-003:** users foi preservada. A migration aditiva `20261026234800_auth_sessions` cria AuthSession (usuário, datas, expiração absoluta, revogação/motivo) e AuthRefreshToken (hash único, sessão, criação, expiração e consumo). Tokens em claro não são persistidos. FKs com cascata preservam RN-004; sessões e histórico de hashes permitem revogação/replay conforme [ADR-12](20-adr12-autenticacao.md). Nenhum modelo de chamados, catálogo ou projetos foi recriado.
+
 **Situação DEV-002:** o núcleo mínimo de oito tabelas foi migrado em desenvolvimento conforme autorização específica; veja o registro ao final. A tabela conceitual ampla abaixo inclui módulos futuros e não autoriza sua implementação.
 
 | Tabela                     | Campos centrais                                                                                                                                                                    | Regras e índices                                                                     |

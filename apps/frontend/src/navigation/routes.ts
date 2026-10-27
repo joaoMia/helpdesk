@@ -33,11 +33,12 @@ export const navigation: Record<
   ],
 };
 export function href(role: Role, page: string) {
-  return `#/${role}/${page}`;
+  return `#/demo/${role}/${page}`;
 }
 function currentRoute() {
   const [candidate, page = 'painel', id] = window.location.hash
     .slice(2)
+    .replace(/^demo\//, '')
     .split('/');
   if (candidate === 'login')
     return { role: 'requester' as Role, page: 'login', id: undefined };

@@ -10,6 +10,11 @@ const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   DATABASE_URL: z.url().optional(),
   TEST_DATABASE_URL: z.url().optional(),
+  AUTH_JWT_SECRET: z.string().optional(),
+  AUTH_CSRF_SECRET: z.string().optional(),
+  AUTH_ORIGINS: z.string().optional(),
+  AUTH_COOKIE_SECURE: z.string().optional(),
+  AUTH_ALLOW_LOCAL_HTTP: z.string().optional(),
 });
 
 export function parseEnvironment(input: Record<string, string | undefined>) {

@@ -364,7 +364,7 @@ describe('isolamento e superfície HTTP', () => {
       }).status,
     ).toBe(500);
   });
-  it('não expõe login nem rotas de escrita de chamados; perfil demonstrativo não autoriza', async () => {
+  it('sem runtime de autenticação, o app de healthcheck não libera login/escrita por perfil demonstrativo', async () => {
     for (const path of ['/api/v1/tickets', '/tickets', '/auth/login']) {
       const response = await request(createApp())
         .post(path)

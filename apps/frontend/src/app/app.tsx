@@ -26,7 +26,7 @@ import { EmptyState } from '../components/ui';
 import { Dashboard } from '../pages/dashboard';
 import { Projects } from '../pages/projects';
 import { People } from '../pages/people';
-import { Login } from '../pages/login';
+import { Login as DemoLogin } from '../pages/login';
 import { ServiceCatalog } from '../pages/service-catalog';
 import { TicketList } from '../pages/ticket-list';
 import { NewTicket } from '../pages/new-ticket';
@@ -145,7 +145,7 @@ export function App() {
     notify('success', 'Situação do cadastro alterada somente na amostra.');
     return true;
   }
-  if (page === 'login') return <Login />;
+  if (page === 'login') return <DemoLogin />;
   return (
     <AppShell
       role={role}

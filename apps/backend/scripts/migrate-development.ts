@@ -7,9 +7,12 @@ import pg from 'pg';
 import { loadEnvironment } from '../src/config/env.js';
 import { developmentMigrationTarget } from '../src/database/test-target.js';
 
-// Only the reviewed initial development migration. This is not a production runner.
-const migration = '20261026222500_fundacao_nucleo';
-const expectedTables = [
+// Only migrations explicitly reviewed for local development. Not a production runner.
+const reviewed = [
+  '20261026222500_fundacao_nucleo',
+  '20261026234800_auth_sessions',
+];
+const coreTables = [
   '_prisma_migrations',
   'service_categories',
   'service_form_fields',
@@ -25,14 +28,21 @@ async function migrate() {
   const config = loadEnvironment();
   const target = developmentMigrationTarget(config, config.NODE_ENV);
   const directory = new URL('../prisma/migrations/', import.meta.url);
-  const migrations = readdirSync(directory).filter((name) =>
-    /^\d{14}_/.test(name),
+  const migrations = readdirSync(directory)
+    .filter((name) => /^\d{14}_/.test(name))
+    .sort();
+  if (JSON.stringify(migrations) !== JSON.stringify(reviewed))
+    throw new Error('Migration não revisada.');
+  const checksums = migrations.map((migration) =>
+    createHash('sha256')
+      .update(readFileSync(new URL(`${migration}/migration.sql`, directory)))
+      .digest('hex'),
   );
-  if (migrations.length !== 1 || migrations[0] !== migration)
-    throw new Error('Histórico diferente da migration inicial revisada.');
-  const checksum = createHash('sha256')
-    .update(readFileSync(new URL(`${migration}/migration.sql`, directory)))
-    .digest('hex');
+  if (
+    checksums[0] !==
+    'c8edf2262a591804c4d8f3f66b07479039c71f209e5b5dd9fe5c0ce1022a6e17'
+  )
+    throw new Error('Migration publicada alterada.');
 
   async function inspect() {
     const db = new pg.Client({
@@ -66,34 +76,40 @@ async function migrate() {
         );
         if (Number(objects.rows[0]?.count))
           throw new Error('Objetos preexistentes: operação recusada.');
-        return false;
+        return 0;
       }
-      if (JSON.stringify(tables) !== JSON.stringify(expectedTables))
-        throw new Error(
-          'Tabelas preexistentes inesperadas: operação recusada.',
-        );
+      if (!tables.includes('_prisma_migrations'))
+        throw new Error('Histórico ausente.');
       const rows = await db.query(
-        'SELECT migration_name, checksum, finished_at, rolled_back_at FROM public._prisma_migrations',
+        'SELECT migration_name, checksum, finished_at, rolled_back_at FROM public._prisma_migrations ORDER BY migration_name',
       );
-      const row = rows.rows[0];
+      const count = rows.rows.length;
       if (
-        rows.rowCount !== 1 ||
-        row?.migration_name !== migration ||
-        row?.checksum !== checksum ||
-        !row?.finished_at ||
-        row?.rolled_back_at
+        count > migrations.length ||
+        !count ||
+        rows.rows.some(
+          (row, i) =>
+            row.migration_name !== migrations[i] ||
+            row.checksum !== checksums[i] ||
+            !row.finished_at ||
+            row.rolled_back_at,
+        )
       )
-        throw new Error(
-          'Migration ausente, divergente ou incompleta: operação recusada.',
-        );
-      return true;
+        throw new Error('Histórico divergente ou incompleto.');
+      const expectedTables = [
+        ...coreTables,
+        ...(count >= 2 ? ['auth_sessions', 'auth_refresh_tokens'] : []),
+      ].sort();
+      if (JSON.stringify(tables) !== JSON.stringify(expectedTables))
+        throw new Error('Objetos inesperados.');
+      return count;
     } finally {
       await db.end();
     }
   }
 
   const applied = await inspect();
-  if (!applied) {
+  if (applied < migrations.length) {
     const require = createRequire(import.meta.url);
     // No credentials in command-line arguments or output; failure is not retried.
     execFileSync(
@@ -105,15 +121,17 @@ async function migrate() {
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
-    if (!(await inspect())) throw new Error('Aplicação não confirmada.');
+    if ((await inspect()) !== migrations.length)
+      throw new Error('Aplicação não confirmada.');
   }
   console.log({
     database: target.database,
-    migration,
-    state: applied
-      ? 'já aplicada, checksum confirmado'
-      : 'aplicada e verificada',
-    tables: expectedTables,
+    migrations,
+    state:
+      applied === migrations.length
+        ? 'já aplicada, checksum confirmado'
+        : 'aplicada e verificada',
+    migrationsVerified: migrations.length,
   });
 }
 
