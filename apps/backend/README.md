@@ -1,5 +1,7 @@
 # HelpDesk — Backend
 
+DEV-004 adiciona guards tipados por operação/papel e ownership com filtros/projeções Prisma em modules/authorization. Não expõe novas rotas de negócio; probes existem somente nos testes. Veja [autorização e limites](../../docs/21-autorizacao-backend.md), incluindo triagem mínima, negação por padrão e precondições que precisam ser revalidadas na futura transação de assunção.
+
 Express 5.3.0, TypeScript 5.9.3, Zod 4.6.7 e Prisma 7.10.1, com ESM/NodeNext. DEV-003 acrescenta autenticação real em modules/auth seguindo routes → controller → service → repository. Chamados continuam internos e sem endpoint funcional.
 
 ## Execução
