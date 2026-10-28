@@ -1,5 +1,9 @@
 # HelpDesk — Backend
 
+DEV-005 / HD-019: provisionamento manual com `npm run provision:dev` na raiz. Cria somente os slots locais de administrador/três técnicos, com senha própria oculta e troca inicial obrigatória; reexecuções preservam as contas. Não há seed automático ou endpoint de provisionamento. [Procedimento seguro](../../docs/22-provisionamento-desenvolvimento.md).
+
+DEV-005.1: `npm run provision:dev:auto` gera quatro senhas distintas e cria Admin/Murilo/Gabriel/João, somente quando nenhum slot/e-mail está ocupado. Entrega em arquivo local fora do Git, com ACL Windows validada antes dos INSERTs. Não roda na inicialização, não sobrescreve arquivos nem contas e preserva o modo manual. Veja o mesmo procedimento.
+
 DEV-004 adiciona guards tipados por operação/papel e ownership com filtros/projeções Prisma em modules/authorization. Não expõe novas rotas de negócio; probes existem somente nos testes. Veja [autorização e limites](../../docs/21-autorizacao-backend.md), incluindo triagem mínima, negação por padrão e precondições que precisam ser revalidadas na futura transação de assunção.
 
 Express 5.3.0, TypeScript 5.9.3, Zod 4.6.7 e Prisma 7.10.1, com ESM/NodeNext. DEV-003 acrescenta autenticação real em modules/auth seguindo routes → controller → service → repository. Chamados continuam internos e sem endpoint funcional.
@@ -51,7 +55,7 @@ npm test executa unitários/HTTP sem depender do Docker. test:db é opt-in e fal
 
 Auth adiciona testes HTTP com PostgreSQL real em namespace exclusivo de helpdesk_test para transações/conexões concorrentes. Migrations canônicas criam esse namespace recém-gerado; sua limpeza verifica nome/posse e descarta somente esse namespace, nunca public ou bancos atuais. Desenvolvimento é apenas conferido em leitura. Nenhum seed administrativo é executado.
 
-Autenticação usa Argon2id, jose, csrf-csrf, cookie, cors e express-rate-limit locais, com contratos Zod compartilhados. JWT 15 min e refresh absoluto de sete dias ficam em cookies HttpOnly/Strict, Secure em HTTPS; banco guarda apenas hash do refresh. Middleware valida JWT e consulta revogação/atividade/flag. Política estrita de replay e concorrência, limites, configuração e pendências em [ADR-12](../../docs/20-adr12-autenticacao.md). Senha atual é exigida na troca, que revoga todas as sessões. Sem RBAC completo, recuperação por e-mail ou seed HD-019.
+Autenticação usa Argon2id, jose, csrf-csrf, cookie, cors e express-rate-limit locais, com contratos Zod compartilhados. JWT 15 min e refresh absoluto de sete dias ficam em cookies HttpOnly/Strict, Secure em HTTPS; banco guarda apenas hash do refresh. Middleware valida JWT e consulta revogação/atividade/flag. Política estrita de replay e concorrência, limites, configuração e pendências em [ADR-12](../../docs/20-adr12-autenticacao.md). Senha atual é exigida na troca, que revoga todas as sessões. Recuperação por e-mail permanece pendente. O provisionamento HD-019 é manual e separado da inicialização da API.
 
 modules/tickets contém serviço e repositório Prisma transacional: solicitante ativo real, um serviço, respostas, snapshot e evento juntos. Sem rota/controller de escrita vazio, autenticação improvisada ou regras de supervisão, tempos úteis e projetos. Condições e upload aguardam seus módulos/aprovações.
 

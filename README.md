@@ -50,7 +50,13 @@ npm run dev:frontend
 
 O frontend consulta a API por `/api/health`, usando o proxy de desenvolvimento do Vite. Com configuração válida, o processo responde ao healthcheck mesmo com PostgreSQL indisponível. A verificação da persistência é feita separadamente por `npm run db:check`.
 
-Na DEV-003, o bootstrap exige DATABASE_URL e configuração AUTH_* válidas; não exige conexão com o banco para servir /health. O formulário real usa cookies HttpOnly e CSRF. Logout revoga sessão no servidor; troca de senha revoga todas e exige novo login. E-mail ainda não é verificado por envio. Recuperação de acesso e seed administrativo são pendentes; consulte a [ADR-12](docs/20-adr12-autenticacao.md).
+Na DEV-003, o bootstrap exige DATABASE_URL e configuração AUTH_* válidas; não exige conexão com o banco para servir /health. O formulário real usa cookies HttpOnly e CSRF. Logout revoga sessão no servidor; troca de senha revoga todas e exige novo login. E-mail ainda não é verificado por envio. Recuperação de acesso permanece pendente; consulte a [ADR-12](docs/20-adr12-autenticacao.md). O provisionamento local manual da HD-019 está descrito abaixo.
+
+## Provisionamento de desenvolvimento
+
+`npm run provision:dev` prepara um administrador inicial e três técnicos mediante credenciais informadas diretamente em terminal seguro, sem senha padrão. Não roda automaticamente nem altera contas preservadas. Os quatro exigem troca da senha inicial. Consulte o [procedimento HD-019](docs/22-provisionamento-desenvolvimento.md) antes de executar; não compartilhe senhas no chat ou na linha de comando.
+
+`npm run provision:dev:auto` é a alternativa Windows autorizada pela DEV-005.1: gera senhas aleatórias próprias e entrega os acessos em `%LOCALAPPDATA%\HelpDesk\credenciais-iniciais-dev.txt`, com ACL exclusiva do usuário atual. Recusa contas ou arquivo já existentes; não redefine senhas. Consulte o mesmo procedimento e apague o arquivo após a troca das senhas.
 
 ## Qualidade e build
 
@@ -64,7 +70,7 @@ npm run format:check
 
 Jest/Supertest permanecem no backend em ESM, com `--experimental-vm-modules`. Testes dos modelos demonstrativos frontend: `node --import tsx --test apps/frontend/tests/*.test.ts`. Contratos compartilhados são compilados e Prisma Client gerado na preparação dos comandos do backend; artefatos não são versionados.
 
-`npm run test:db --workspace @helpdesk/backend` executa a migration canônica e integração real somente em helpdesk_test local, com DDL/dados em transações integralmente desfeitas. `npm run db:prisma:check --workspace @helpdesk/backend` confere por SELECT. A migration inicial DEV-002 contém oito tabelas fundamentais e proteções de histórico; não há seed ou credencial funcional criada. Regras/ADRs restantes não foram aprovadas por consequência dessa entrega. Serviço interno não está exposto sem autenticação.
+`npm run test:db --workspace @helpdesk/backend` executa a migration canônica e integração real somente em helpdesk_test local, com DDL/dados em transações integralmente desfeitas. `npm run db:prisma:check --workspace @helpdesk/backend` confere por SELECT. A migration inicial DEV-002 contém oito tabelas fundamentais e proteções de histórico; migrations não criam credenciais ou executam provisionamento. Regras/ADRs restantes não foram aprovadas por consequência dessa entrega. Serviço interno não está exposto sem autenticação.
 
 `npm run format` aplica Prettier aos aplicativos, infraestrutura, scripts, configurações e ADR desta fundação. A configuração preserva os documentos funcionais históricos e o CSV do backlog e ignora segredos, caches e artefatos.
 

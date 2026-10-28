@@ -191,6 +191,15 @@ export class AuthService {
       ))
     )
       throw invalidLogin();
+    if (
+      user.mustChangePassword &&
+      parsed.data.currentPassword === parsed.data.newPassword
+    )
+      throw new ApplicationError(
+        'INVALID_INPUT',
+        400,
+        'Escolha uma senha diferente da credencial provisória.',
+      );
     const passwordHash = await hashPassword(parsed.data.newPassword);
     if (
       !(await this.repo.changePassword(
