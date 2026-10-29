@@ -1,4 +1,5 @@
-import { publicUserSchema } from '@helpdesk/contracts';
+import { publicUserSchema, profileResultSchema } from '@helpdesk/contracts';
+import type { UpdateProfile } from '@helpdesk/contracts';
 import type { PublicUser } from '@helpdesk/contracts';
 
 export class AuthError extends Error {
@@ -16,9 +17,9 @@ export function createAuthClient(
   base = '/api/auth',
 ) {
   let refreshing: Promise<void> | undefined;
-  async function request(path: string, options: RequestInit) {
+  async function request(path: string, options: RequestInit, target = base) {
     try {
-      return await transport(base + path, options);
+      return await transport(target + path, options);
     } catch {
       throw new AuthError(
         0,
@@ -54,19 +55,28 @@ export function createAuthClient(
   }
   const get = (path: string) =>
     request(path, { credentials: 'include', cache: 'no-store' });
-  async function mutate(path: string, body: unknown = {}, method = 'POST') {
+  async function mutate(
+    path: string,
+    body: unknown = {},
+    method = 'POST',
+    target = base,
+  ) {
     const { csrfToken } = await decode(await get('/csrf'));
     return decode(
-      await request(path, {
-        method,
-        credentials: 'include',
-        cache: 'no-store',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
+      await request(
+        path,
+        {
+          method,
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken,
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
-      }),
+        target,
+      ),
     );
   }
   async function refresh() {
@@ -98,6 +108,38 @@ export function createAuthClient(
   }
   return {
     me,
+    async profile() {
+      const target = base.replace(/\/auth$/, '/users');
+      let response = await request(
+        '/me',
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+      if (response.status === 401) {
+        await refresh();
+        response = await request(
+          '/me',
+          { credentials: 'include', cache: 'no-store' },
+          target,
+        );
+      }
+      return publicUserSchema.parse((await decode(response)).user);
+    },
+    async updateProfile(input: UpdateProfile) {
+      const target = base.replace(/\/auth$/, '/users');
+      try {
+        return profileResultSchema.parse(
+          await mutate('/me', input, 'PATCH', target),
+        );
+      } catch (error) {
+        if (!(error instanceof AuthError) || error.code !== 'SESSION_INVALID')
+          throw error;
+        await refresh();
+        return profileResultSchema.parse(
+          await mutate('/me', input, 'PATCH', target),
+        );
+      }
+    },
     async register(input: { name: string; email: string; password: string }) {
       await mutate('/register', input);
     },

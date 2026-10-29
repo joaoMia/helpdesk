@@ -102,6 +102,7 @@ export class AuthService {
     const current = await this.repo.createSession(
       user.id,
       user.passwordHash,
+      user.email,
       sessionId,
       refreshHash(refreshToken),
       expiresAt,

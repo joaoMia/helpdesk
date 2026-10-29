@@ -1,5 +1,6 @@
 import type { PublicUser } from '@helpdesk/contracts';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { ThemeToggle } from '../components/theme-toggle';
 import { useApiHealth } from '../hooks/use-api-health';
 import { Icon, PageHeading } from '../components/ui';
@@ -9,11 +10,13 @@ export function Account({
   logout,
   busy,
   error,
+  children,
 }: {
   user: PublicUser;
   logout: () => void;
   busy: boolean;
   error: string;
+  children?: ReactNode;
 }) {
   const health = useApiHealth();
   const [menu, setMenu] = useState(false);
@@ -53,8 +56,8 @@ export function Account({
         <div className="workspace-label">{area.label}</div>
         <nav className="mt-6">
           <a
-            className="nav-item nav-active"
-            aria-current="page"
+            className={`nav-item ${children ? '' : 'nav-active'}`}
+            aria-current={children ? undefined : 'page'}
             href={authenticatedHome(user)}
             onClick={() => setMenu(false)}
           >
@@ -65,6 +68,17 @@ export function Account({
             <Icon name="users" />
             Alterar senha
           </a>
+          {user.role === 'REQUESTER' && (
+            <a
+              className={`nav-item ${children ? 'nav-active' : ''}`}
+              aria-current={children ? 'page' : undefined}
+              href="#/requester/perfil"
+              onClick={() => setMenu(false)}
+            >
+              <Icon name="users" />
+              Meu perfil
+            </a>
+          )}
         </nav>
         <div className="sidebar-bottom">
           <p className="text-sm font-medium text-white break-words">
@@ -115,58 +129,62 @@ export function Account({
             tabIndex={-1}
             className="page-content space-y-6"
           >
-            <PageHeading
-              eyebrow={`ÁREA DO ${area.label.toUpperCase()}`}
-              title={`Bem-vindo, ${user.name}`}
-              description="Este é o seu início no HelpDesk. Sua conta e sessão são reais."
-            />
-            {error && (
-              <p role="alert" className="form-error">
-                {error}
-              </p>
-            )}
-            <section
-              className="info-note"
-              aria-label="Disponibilidade dos módulos"
-            >
-              Os módulos de chamados e projetos estão em desenvolvimento. Nenhum
-              chamado, projeto ou indicador fictício é apresentado como dado da
-              sua conta.
-            </section>
-            <div className="grid gap-4 md:grid-cols-3">
-              {modules.map((name) => (
-                <section key={name} className="panel p-5">
-                  <h2 className="font-semibold">{name}</h2>
-                  <p className="mt-3 text-sm text-slate-500">
-                    Em desenvolvimento
+            {children ?? (
+              <>
+                <PageHeading
+                  eyebrow={`ÁREA DO ${area.label.toUpperCase()}`}
+                  title={`Bem-vindo, ${user.name}`}
+                  description="Este é o seu início no HelpDesk. Sua conta e sessão são reais."
+                />
+                {error && (
+                  <p role="alert" className="form-error">
+                    {error}
                   </p>
-                  <button
-                    className="button-secondary mt-4"
-                    disabled
-                    aria-label={`${name} — em desenvolvimento`}
-                  >
-                    Indisponível nesta etapa
-                  </button>
+                )}
+                <section
+                  className="info-note"
+                  aria-label="Disponibilidade dos módulos"
+                >
+                  Os módulos de chamados e projetos estão em desenvolvimento.
+                  Nenhum chamado, projeto ou indicador fictício é apresentado
+                  como dado da sua conta.
                 </section>
-              ))}
-            </div>
-            <section className="panel p-5 space-y-3">
-              <h2 className="font-semibold">Laboratório visual separado</h2>
-              <p className="text-sm text-slate-500">
-                A prévia usa somente dados fictícios e operações em memória. O
-                seletor de perfis do laboratório não concede acesso real.
-              </p>
-              <a className="text-button" href="#/demo/requester/painel">
-                Explorar demonstração · dados fictícios
-              </a>
-            </section>
-            <p className="text-xs text-slate-500" role="status">
-              {health === 'available'
-                ? 'API disponível'
-                : health === 'checking'
-                  ? 'Verificando API…'
-                  : 'API indisponível'}
-            </p>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {modules.map((name) => (
+                    <section key={name} className="panel p-5">
+                      <h2 className="font-semibold">{name}</h2>
+                      <p className="mt-3 text-sm text-slate-500">
+                        Em desenvolvimento
+                      </p>
+                      <button
+                        className="button-secondary mt-4"
+                        disabled
+                        aria-label={`${name} — em desenvolvimento`}
+                      >
+                        Indisponível nesta etapa
+                      </button>
+                    </section>
+                  ))}
+                </div>
+                <section className="panel p-5 space-y-3">
+                  <h2 className="font-semibold">Laboratório visual separado</h2>
+                  <p className="text-sm text-slate-500">
+                    A prévia usa somente dados fictícios e operações em memória.
+                    O seletor de perfis do laboratório não concede acesso real.
+                  </p>
+                  <a className="text-button" href="#/demo/requester/painel">
+                    Explorar demonstração · dados fictícios
+                  </a>
+                </section>
+                <p className="text-xs text-slate-500" role="status">
+                  {health === 'available'
+                    ? 'API disponível'
+                    : health === 'checking'
+                      ? 'Verificando API…'
+                      : 'API indisponível'}
+                </p>
+              </>
+            )}
           </main>
           <footer className="workspace-footer">
             HelpDesk · Área autenticada · {area.label}

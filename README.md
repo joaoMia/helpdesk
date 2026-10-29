@@ -60,6 +60,8 @@ Na DEV-003, o bootstrap exige DATABASE_URL e configuração AUTH_* válidas; nã
 
 ## Qualidade e build
 
+DEV-006: o solicitante pode consultar e editar **Meu perfil** em `#/requester/perfil`, com persistência real por `GET/PATCH /users/me`. Mudança de e-mail exige senha atual e novo login. Limites e pendência de verificação do endereço estão no [procedimento do perfil](docs/23-perfil-solicitante.md).
+
 ```text
 npm run typecheck
 npm run lint

@@ -5,6 +5,8 @@ import { loadAuthConfig } from './modules/auth/auth.config.js';
 import { AuthRepository } from './modules/auth/auth.repository.js';
 import { AuthService } from './modules/auth/auth.service.js';
 import { authRuntime } from './modules/auth/auth.routes.js';
+import { ProfileService } from './modules/users/profile.service.js';
+import { ProfileRepository } from './modules/users/profile.repository.js';
 
 try {
   const env = loadEnvironment();
@@ -13,7 +15,10 @@ try {
   const auth = loadAuthConfig();
   const db = createDatabase(env.DATABASE_URL);
   const runtime = authRuntime(new AuthService(new AuthRepository(db), auth));
-  const server = createApp(runtime).listen(env.PORT, env.HOST, () => {
+  const server = createApp(
+    runtime,
+    new ProfileService(new ProfileRepository(db)),
+  ).listen(env.PORT, env.HOST, () => {
     console.log(`HelpDesk API disponível em http://${env.HOST}:${env.PORT}`);
   });
   server.on('error', (error: NodeJS.ErrnoException) => {
