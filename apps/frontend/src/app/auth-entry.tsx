@@ -2,13 +2,20 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Profile } from '../pages/profile';
 import { Technicians } from '../pages/technicians';
 import { Catalog } from '../pages/catalog';
+import { RequesterNewTicket } from '../pages/requester-new-ticket';
+import { RequesterTickets } from '../pages/requester-tickets';
+import { RequesterTicketDetail } from '../pages/requester-ticket-detail';
 import type { PublicUser } from '@helpdesk/contracts';
 import { App as DemoApp } from './app';
 import { RealLogin } from '../pages/real-login';
 import { Account } from '../pages/account';
 import { ChangePassword } from '../pages/change-password';
 import { AuthError, authClient } from '../lib/auth-client';
-import { authDestination, authenticatedHome } from '../navigation/auth-routes';
+import {
+  authDestination,
+  authenticatedHome,
+  requesterTicketPage,
+} from '../navigation/auth-routes';
 
 export function AuthEntry() {
   const [path, setPath] = useState(window.location.hash),
@@ -17,6 +24,9 @@ export function AuthEntry() {
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(''),
     [message, setMessage] = useState('');
+  const [createdTicket, setCreatedTicket] = useState('');
+  const ticketPage =
+    user?.role === 'REQUESTER' ? requesterTicketPage(path) : undefined;
   const epoch = useRef(0);
   const profileExpired = useCallback(() => {
     epoch.current++;
@@ -160,6 +170,7 @@ export function AuthEntry() {
   if (user)
     return (
       <Account
+        key={user.id}
         user={user}
         logout={() => {
           void logout();
@@ -186,6 +197,24 @@ export function AuthEntry() {
           <Technicians onExpired={profileExpired} />
         ) : user.role === 'ADMIN' && path === '#/admin/catalogo' ? (
           <Catalog user={user} onExpired={profileExpired} />
+        ) : ticketPage?.page === 'new' ? (
+          <RequesterNewTicket
+            onExpired={profileExpired}
+            onCreated={(id) => {
+              setCreatedTicket(id);
+              window.location.hash = '#/requester/chamado/' + id;
+            }}
+          />
+        ) : ticketPage?.page === 'list' ? (
+          <RequesterTickets onExpired={profileExpired} />
+        ) : ticketPage?.page === 'detail' && ticketPage.id ? (
+          <RequesterTicketDetail
+            key={ticketPage.id}
+            id={ticketPage.id}
+            user={user}
+            created={createdTicket === ticketPage.id}
+            onExpired={profileExpired}
+          />
         ) : undefined}
       </Account>
     );

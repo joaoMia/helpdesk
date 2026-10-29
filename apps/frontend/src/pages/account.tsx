@@ -87,6 +87,35 @@ export function Account({
               Meu perfil
             </a>
           )}
+          {user.role === 'REQUESTER' && (
+            <>
+              <a
+                className={`nav-item ${currentPath === '#/requester/novo' ? 'nav-active' : ''}`}
+                aria-current={
+                  currentPath === '#/requester/novo' ? 'page' : undefined
+                }
+                href="#/requester/novo"
+                onClick={() => setMenu(false)}
+              >
+                <Icon name="plus" />
+                Abrir chamado
+              </a>
+              <a
+                className={`nav-item ${currentPath === '#/requester/chamados' || currentPath.startsWith('#/requester/chamado/') ? 'nav-active' : ''}`}
+                aria-current={
+                  currentPath === '#/requester/chamados' ||
+                  currentPath.startsWith('#/requester/chamado/')
+                    ? 'page'
+                    : undefined
+                }
+                href="#/requester/chamados"
+                onClick={() => setMenu(false)}
+              >
+                <Icon name="ticket" />
+                Meus chamados
+              </a>
+            </>
+          )}
           {user.role === 'ADMIN' && (
             <a
               className={`nav-item ${currentPath === '#/admin/usuarios' ? 'nav-active' : ''}`}

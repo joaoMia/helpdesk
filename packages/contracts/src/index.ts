@@ -105,3 +105,78 @@ export type FormField = z.infer<typeof formFieldSchema>;
 export type OpenTicketInput = z.infer<typeof openTicketInputSchema>;
 export type ServiceSnapshot = z.infer<typeof serviceSnapshotSchema>;
 export type OpenedTicket = z.infer<typeof openedTicketSchema>;
+
+// BLOCO 01: additive HTTP contracts; the internal opening contract is preserved.
+export const createTicketHttpSchema = openTicketInputSchema
+  .extend({
+    subject: z.string().trim().min(1).max(160),
+    description: z.string().trim().min(1).max(4000),
+  })
+  .refine(
+    (v) => Object.keys(v.answers).length === 0,
+    'Campos adicionais ainda não estão disponíveis na abertura HTTP.',
+  );
+export const ticketQuerySchema = z.strictObject({
+  page: z.coerce.number().int().min(1).max(100000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(10),
+  search: z.string().trim().max(120).default(''),
+  status: ticketStatusSchema.optional(),
+  priority: z.union([ticketPrioritySchema, z.literal('NONE')]).optional(),
+  serviceId: idSchema.optional(),
+});
+export const ticketHistoryQuerySchema = ticketQuerySchema.pick({
+  page: true,
+  pageSize: true,
+});
+export const ticketSummarySchema = z.strictObject({
+  id: idSchema,
+  code: z.number().int().positive(),
+  subject: z.string(),
+  status: ticketStatusSchema,
+  priority: ticketPrioritySchema.nullable(),
+  assignedTechnicianId: idSchema.nullable(),
+  serviceId: idSchema,
+  serviceName: z.string(),
+  categoryName: z.string(),
+  createdAt: instantSchema,
+  updatedAt: instantSchema,
+});
+export const ticketDetailSchema = ticketSummarySchema.extend({
+  description: z.string(),
+  requesterId: idSchema,
+  formVersionId: idSchema,
+  serviceSnapshot: serviceSnapshotSchema,
+  firstStartedAt: instantSchema.nullable(),
+  closedAt: instantSchema.nullable(),
+  answers: z.array(
+    z.strictObject({
+      fieldKey: z.string(),
+      value: answerValueSchema,
+      createdAt: instantSchema,
+    }),
+  ),
+});
+export const ticketHistoryEventSchema = z.strictObject({
+  id: idSchema,
+  actorId: idSchema.nullable(),
+  eventType: z.string(),
+  createdAt: instantSchema,
+});
+const ticketPage = {
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  pageSize: z.number().int().positive(),
+};
+export const ticketListSchema = z.strictObject({
+  items: z.array(ticketSummarySchema),
+  ...ticketPage,
+});
+export const ticketHistorySchema = z.strictObject({
+  items: z.array(ticketHistoryEventSchema),
+  ...ticketPage,
+});
+export type TicketQuery = z.infer<typeof ticketQuerySchema>;
+export type TicketSummary = z.infer<typeof ticketSummarySchema>;
+export type TicketDetail = z.infer<typeof ticketDetailSchema>;
+export type TicketHistory = z.infer<typeof ticketHistorySchema>;
+export type CreateTicketHttp = z.infer<typeof createTicketHttpSchema>;
