@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Profile } from '../pages/profile';
 import type { PublicUser } from '@helpdesk/contracts';
 import { App as DemoApp } from './app';
 import { RealLogin } from '../pages/real-login';
@@ -15,6 +16,12 @@ export function AuthEntry() {
     [notice, setNotice] = useState(''),
     [message, setMessage] = useState('');
   const epoch = useRef(0);
+  const profileExpired = useCallback(() => {
+    epoch.current++;
+    setUser(null);
+    setMessage('Sessão expirada. Entre novamente.');
+    window.location.hash = '#/login';
+  }, []);
   useEffect(() => {
     const change = () => {
       const next = window.location.hash;
@@ -157,7 +164,23 @@ export function AuthEntry() {
         }}
         busy={busy}
         error={message}
-      />
+      >
+        {user.role === 'REQUESTER' && path === '#/requester/perfil' ? (
+          <Profile
+            onExpired={profileExpired}
+            onUpdated={(value, reauthenticate) => {
+              epoch.current++;
+              if (reauthenticate) {
+                setUser(null);
+                setMessage(
+                  'E-mail atualizado e sessões encerradas. Entre com o novo e-mail.',
+                );
+                window.location.hash = '#/login';
+              } else setUser(value);
+            }}
+          />
+        ) : undefined}
+      </Account>
     );
   return (
     <RealLogin

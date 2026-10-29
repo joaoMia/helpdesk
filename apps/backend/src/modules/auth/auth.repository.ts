@@ -35,6 +35,7 @@ export class AuthRepository {
   async createSession(
     userId: string,
     passwordHash: string,
+    email: string,
     id: string,
     tokenHash: string,
     expiresAt: Date,
@@ -42,7 +43,12 @@ export class AuthRepository {
     return this.db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM users WHERE id=${userId}::uuid FOR UPDATE`;
       const user = await tx.user.findUnique({ where: { id: userId } });
-      if (!user?.isActive || user.passwordHash !== passwordHash) return null;
+      if (
+        !user?.isActive ||
+        user.passwordHash !== passwordHash ||
+        user.email !== email
+      )
+        return null;
       await tx.authSession.create({
         data: {
           id,

@@ -17,5 +17,6 @@ export function authDestination(user: PublicUser | null, path: string) {
   if (!user) return path === '#/register' ? path : '#/login';
   if (user.mustChangePassword) return '#/change-password';
   if (path === '#/change-password') return path;
+  if (user.role === 'REQUESTER' && path === '#/requester/perfil') return path;
   return authenticatedHome(user);
 }

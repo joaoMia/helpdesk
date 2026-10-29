@@ -18,6 +18,8 @@ User público: id, name, email, role e mustChangePassword. Não retorna hash, JW
 
 ## Contratos preliminares dos demais módulos
 
+DEV-006: `GET /users/me` e `PATCH /users/me` estão implementados sem `/api/v1`, com proxy frontend `/api/users/me`. GET retorna apenas a identidade pública própria. PATCH é exclusivo de REQUESTER e aceita somente name/email/currentPassword; mudança efetiva do e-mail exige senha e revoga todas as sessões. Detalhes, erros e limites no [perfil real](23-perfil-solicitante.md). A alteração não comprova propriedade do endereço.
+
 Prefixo sugerido `/api/v1`. JSON com paginação, filtros, erros padronizados (`code`, `message`, `details`, `requestId`); timestamps ISO-8601 UTC e enums públicos documentados. Sem campos de preço/cobrança (RN-006 revisada na DEV-001).
 
 | Método       | Rota                       | Quem pode                             | Observações                                                       |
