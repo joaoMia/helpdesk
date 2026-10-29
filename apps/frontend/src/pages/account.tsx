@@ -129,6 +129,21 @@ export function Account({
               Gestão de usuários
             </a>
           )}
+          {user.role === 'TECHNICIAN' && (
+            <a
+              className={`nav-item ${currentPath.startsWith('#/technician/chamados') ? 'nav-active' : ''}`}
+              aria-current={
+                currentPath.startsWith('#/technician/chamados')
+                  ? 'page'
+                  : undefined
+              }
+              href="#/technician/chamados/nao-classificados"
+              onClick={() => setMenu(false)}
+            >
+              <Icon name="ticket" />
+              Chamados
+            </a>
+          )}
           {user.role === 'ADMIN' && (
             <a
               className={`nav-item ${currentPath === catalogPath ? 'nav-active' : ''}`}

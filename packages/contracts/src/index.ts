@@ -180,3 +180,38 @@ export type TicketSummary = z.infer<typeof ticketSummarySchema>;
 export type TicketDetail = z.infer<typeof ticketDetailSchema>;
 export type TicketHistory = z.infer<typeof ticketHistorySchema>;
 export type CreateTicketHttp = z.infer<typeof createTicketHttpSchema>;
+
+// Operational triage exposes only the approved minimum projection.
+export const triageQuerySchema = z.strictObject({
+  page: z.coerce.number().int().min(1).max(100000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(10),
+  queue: z.enum(['UNCLASSIFIED', 'CLASSIFIED', 'ALL']).default('UNCLASSIFIED'),
+  search: z
+    .string()
+    .trim()
+    .max(30)
+    .regex(/^(?:(?:HD-)?[1-9]\d{0,9})?$/i)
+    .refine(
+      (value) => !value || Number(value.replace(/^HD-/i, '')) <= 2147483647,
+    )
+    .default(''),
+  priority: ticketPrioritySchema.optional(),
+});
+export const triageTicketSchema = ticketSummarySchema.pick({
+  id: true,
+  code: true,
+  status: true,
+  priority: true,
+  createdAt: true,
+});
+export const triageListSchema = z.strictObject({
+  items: z.array(triageTicketSchema),
+  ...ticketPage,
+});
+export const classifyPrioritySchema = z.strictObject({
+  priority: ticketPrioritySchema,
+  expectedPriority: ticketPrioritySchema.nullable(),
+});
+export type TriageQuery = z.infer<typeof triageQuerySchema>;
+export type TriageTicket = z.infer<typeof triageTicketSchema>;
+export type ClassifyPriority = z.infer<typeof classifyPrioritySchema>;

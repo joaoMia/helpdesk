@@ -109,3 +109,5 @@ DEV-007 / HD-021: GET /technicians, GET /technicians/:id, POST /technicians e PA
 DEV-008 / HD-025: GET/POST /categories e /services e GET/PATCH /categories/:id e /services/:id implementados sem /api/v1. GET exige autenticação e filtra disponibilidade; POST/PATCH exclusivos de ADMIN. Formulários personalizados continuam fora do PATCH. Contratos, filtros, retorno item/items e limites em [catálogo real](25-catalogo-real.md).
 
 BLOCO 01: POST /tickets, GET /tickets, GET /tickets/:id e GET /tickets/:id/history estão implementados, sem /api/v1. Abertura exclusiva de REQUESTER; leitura própria, atribuída ou global conforme ticketScope existente. Contratos HTTP são aditivos e não habilitam operações de atendimento. Entrada, paginação, snapshots, respostas e limites em [BLOCO 01](26-bloco01-chamados.md).
+
+BLOCO 02 acrescenta GET /tickets/triage e PATCH /tickets/:id/priority, exclusivos de TECHNICIAN com os grants existentes. Contratos aditivos, projeção mínima e precondição expectedPriority em [triagem real](27-bloco02-triagem.md). Classificar não altera status nem atribuição.

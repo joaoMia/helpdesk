@@ -12,11 +12,18 @@ import {
   ticketDetailSchema,
   ticketHistorySchema,
   openedTicketSchema,
+  triageListSchema,
+  triageTicketSchema,
 } from '@helpdesk/contracts';
 import type { TechnicianInput, TechnicianUpdate } from '@helpdesk/contracts';
 import type { UpdateProfile } from '@helpdesk/contracts';
 import type { PublicUser } from '@helpdesk/contracts';
-import type { TicketQuery, CreateTicketHttp } from '@helpdesk/contracts';
+import type {
+  TicketQuery,
+  CreateTicketHttp,
+  TriageQuery,
+  ClassifyPriority,
+} from '@helpdesk/contracts';
 import type {
   CategoryInput,
   CategoryUpdate,
@@ -188,6 +195,45 @@ export function createAuthClient(
   }
   return {
     me,
+    async triage(query: Partial<TriageQuery> = {}) {
+      const search = new URLSearchParams(
+        Object.entries(query)
+          .filter(([, v]) => v !== undefined && v !== '')
+          .map(([k, v]) => [k, String(v)]),
+      );
+      return triageListSchema.parse(
+        await ticketGet('/triage?' + search.toString()),
+      );
+    },
+    async classifyPriority(id: string, input: ClassifyPriority) {
+      const target = base.replace(/\/auth$/, '/tickets');
+      // No blind mutation retry after transport errors or conflicts.
+      try {
+        return triageTicketSchema.parse(
+          (
+            await mutate(
+              '/' + encodeURIComponent(id) + '/priority',
+              input,
+              'PATCH',
+              target,
+            )
+          ).ticket,
+        );
+      } catch (e) {
+        if (!(e instanceof AuthError) || e.code !== 'SESSION_INVALID') throw e;
+        await refresh();
+        return triageTicketSchema.parse(
+          (
+            await mutate(
+              '/' + encodeURIComponent(id) + '/priority',
+              input,
+              'PATCH',
+              target,
+            )
+          ).ticket,
+        );
+      }
+    },
     async tickets(query: Partial<TicketQuery> = {}) {
       const search = new URLSearchParams(
         Object.entries(query)

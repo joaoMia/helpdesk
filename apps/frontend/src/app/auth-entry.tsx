@@ -5,6 +5,7 @@ import { Catalog } from '../pages/catalog';
 import { RequesterNewTicket } from '../pages/requester-new-ticket';
 import { RequesterTickets } from '../pages/requester-tickets';
 import { RequesterTicketDetail } from '../pages/requester-ticket-detail';
+import { TechnicianTriage } from '../pages/technician-triage';
 import type { PublicUser } from '@helpdesk/contracts';
 import { App as DemoApp } from './app';
 import { RealLogin } from '../pages/real-login';
@@ -15,6 +16,7 @@ import {
   authDestination,
   authenticatedHome,
   requesterTicketPage,
+  technicianTriageQueue,
 } from '../navigation/auth-routes';
 
 export function AuthEntry() {
@@ -197,6 +199,11 @@ export function AuthEntry() {
           <Technicians onExpired={profileExpired} />
         ) : user.role === 'ADMIN' && path === '#/admin/catalogo' ? (
           <Catalog user={user} onExpired={profileExpired} />
+        ) : user.role === 'TECHNICIAN' && technicianTriageQueue(path) ? (
+          <TechnicianTriage
+            queue={technicianTriageQueue(path)!}
+            onExpired={profileExpired}
+          />
         ) : ticketPage?.page === 'new' ? (
           <RequesterNewTicket
             onExpired={profileExpired}

@@ -100,3 +100,5 @@ DEV-007 / HD-021: ADMIN acessa **Gestão de usuários** para listar, cadastrar e
 DEV-008 / HD-025: **Catálogo de serviços** real, com página independente exclusiva de ADMIN (DEV-008.1). As consultas GET autenticadas de solicitantes/técnicos permanecem disponíveis para integração futura à abertura. Categorias, serviços e formulário básico v1 persistem no PostgreSQL; não há abertura HTTP de chamados nem editor persistente de campos. Consulte [catálogo real](docs/25-catalogo-real.md).
 
 BLOCO 01: solicitantes autenticados acessam **Abrir chamado** e **Meus chamados** na sidebar. Abertura real em quatro etapas, detalhes e histórico persistidos, com serviço único e snapshots. Sem atendimento, anexos ou formulários personalizados nesta etapa. Consulte [abertura e acompanhamento reais](docs/26-bloco01-chamados.md).
+
+BLOCO 02: técnicos autenticados acessam **Chamados**, com filas operacionais e classificação real de prioridade sem assumir atendimento. Projeção mínima, concorrência e auditoria preservadas. Consulte [triagem e classificação](docs/27-bloco02-triagem.md).

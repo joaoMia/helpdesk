@@ -3,6 +3,23 @@ import type { AuthRuntime } from '../auth/auth.routes.js';
 import type { TicketApiService } from './ticket-api.service.js';
 import { ApplicationError } from '../../shared/errors.js';
 export function ticketController(auth: AuthRuntime, service: TicketApiService) {
+  const triage: RequestHandler = async (req, res) =>
+    res.json(await service.triage(auth.http.identity(req), req.query));
+  const classify: RequestHandler = async (req, res) => {
+    if (Object.keys(req.query).length)
+      throw new ApplicationError(
+        'INVALID_INPUT',
+        400,
+        'Parâmetros adicionais não são permitidos.',
+      );
+    res.json({
+      ticket: await service.classify(
+        auth.http.identity(req),
+        req.params.id,
+        req.body,
+      ),
+    });
+  };
   const list: RequestHandler = async (req, res) =>
     res.json(await service.list(auth.http.identity(req), req.query));
   const detail: RequestHandler = async (req, res) => {
@@ -33,5 +50,5 @@ export function ticketController(auth: AuthRuntime, service: TicketApiService) {
       .status(201)
       .json({ ticket });
   };
-  return { list, detail, history, create };
+  return { list, detail, history, create, triage, classify };
 }

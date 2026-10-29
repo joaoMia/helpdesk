@@ -24,6 +24,8 @@ export function ticketRoutes(auth: AuthRuntime, service: TicketApiService) {
       ),
   });
   r.get('/', ...guard.permission('tickets.read'), c.list);
+  r.get('/triage', ...guard.permission('tickets.triage'), c.triage);
+  r.patch('/:id/priority', ...guard.permission('tickets.classify'), c.classify);
   r.get('/:id/history', ...guard.permission('tickets.read'), c.history);
   r.get('/:id', ...guard.permission('tickets.read'), c.detail);
   r.post('/', ...guard.permission('tickets.create'), limit, c.create);
