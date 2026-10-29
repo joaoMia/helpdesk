@@ -10,6 +10,7 @@ const grants = {
   'users.update-self': ['REQUESTER', 'TECHNICIAN'],
   'users.update-requester': ['ADMIN'],
   'technicians.create': ['ADMIN'],
+  'technicians.read': ['ADMIN'],
   'technicians.update': ['ADMIN'],
   'services.create': ['ADMIN'],
   'services.update': ['ADMIN'],

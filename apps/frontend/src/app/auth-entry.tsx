@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Profile } from '../pages/profile';
+import { Technicians } from '../pages/technicians';
 import type { PublicUser } from '@helpdesk/contracts';
 import { App as DemoApp } from './app';
 import { RealLogin } from '../pages/real-login';
@@ -165,7 +166,8 @@ export function AuthEntry() {
         busy={busy}
         error={message}
       >
-        {user.role === 'REQUESTER' && path === '#/requester/perfil' ? (
+        {(user.role === 'REQUESTER' && path === '#/requester/perfil') ||
+        (user.role === 'TECHNICIAN' && path === '#/technician/perfil') ? (
           <Profile
             onExpired={profileExpired}
             onUpdated={(value, reauthenticate) => {
@@ -179,6 +181,8 @@ export function AuthEntry() {
               } else setUser(value);
             }}
           />
+        ) : user.role === 'ADMIN' && path === '#/admin/usuarios' ? (
+          <Technicians onExpired={profileExpired} />
         ) : undefined}
       </Account>
     );

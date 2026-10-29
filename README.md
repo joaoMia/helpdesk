@@ -94,3 +94,5 @@ O Compose cria somente os recursos com projeto `helpdesk`, sem utilizar containe
 A implantação futura é no Server 10 Linux da empresa, pela rede interna, com DNS, certificados e backups gerenciados pela TI. Nenhum deploy foi realizado. Vite não é servidor de produção; a prévia não representa autenticação/autorização. Próximos módulos seguem backlog e aprovações próprias.
 
 Respeite UTF-8/LF e a política específica do CSV em `.editorconfig` e `.gitattributes`. Alterações e próximas tarefas precisam de autorização própria; não há publicação automática.
+
+DEV-007 / HD-021: ADMIN acessa **Gestão de usuários** para listar, cadastrar e editar técnicos reais. TECHNICIAN acessa **Meu perfil**. Senha provisória é exibida apenas após cadastro e exige troca inicial. Consulte [gestão de técnicos](docs/24-gestao-tecnicos.md).

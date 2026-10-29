@@ -13,7 +13,7 @@ export function profileRoutes(auth: AuthRuntime, service: ProfileService) {
   router.get('/me', ...guard.permission('users.read'), controller.get);
   router.patch(
     '/me',
-    ...guard.roles('REQUESTER'),
+    ...guard.roles('REQUESTER', 'TECHNICIAN'),
     (req, _res, next) => {
       requirePermission(req.identity, 'users.update-self');
       next();

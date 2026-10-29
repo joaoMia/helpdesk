@@ -68,15 +68,30 @@ export function Account({
             <Icon name="users" />
             Alterar senha
           </a>
-          {user.role === 'REQUESTER' && (
+          {['REQUESTER', 'TECHNICIAN'].includes(user.role) && (
             <a
               className={`nav-item ${children ? 'nav-active' : ''}`}
               aria-current={children ? 'page' : undefined}
-              href="#/requester/perfil"
+              href={
+                user.role === 'TECHNICIAN'
+                  ? '#/technician/perfil'
+                  : '#/requester/perfil'
+              }
               onClick={() => setMenu(false)}
             >
               <Icon name="users" />
               Meu perfil
+            </a>
+          )}
+          {user.role === 'ADMIN' && (
+            <a
+              className={`nav-item ${children ? 'nav-active' : ''}`}
+              aria-current={children ? 'page' : undefined}
+              href="#/admin/usuarios"
+              onClick={() => setMenu(false)}
+            >
+              <Icon name="users" />
+              Gestão de usuários
             </a>
           )}
         </nav>
@@ -154,15 +169,27 @@ export function Account({
                     <section key={name} className="panel p-5">
                       <h2 className="font-semibold">{name}</h2>
                       <p className="mt-3 text-sm text-slate-500">
-                        Em desenvolvimento
+                        {user.role === 'ADMIN' && name === 'Gestão de usuários'
+                          ? 'Cadastro e edição de técnicos'
+                          : 'Em desenvolvimento'}
                       </p>
-                      <button
-                        className="button-secondary mt-4"
-                        disabled
-                        aria-label={`${name} — em desenvolvimento`}
-                      >
-                        Indisponível nesta etapa
-                      </button>
+                      {user.role === 'ADMIN' &&
+                      name === 'Gestão de usuários' ? (
+                        <a
+                          className="button-secondary mt-4 inline-block"
+                          href="#/admin/usuarios"
+                        >
+                          Gerenciar técnicos
+                        </a>
+                      ) : (
+                        <button
+                          className="button-secondary mt-4"
+                          disabled
+                          aria-label={`${name} — em desenvolvimento`}
+                        >
+                          Indisponível nesta etapa
+                        </button>
+                      )}
                     </section>
                   ))}
                 </div>

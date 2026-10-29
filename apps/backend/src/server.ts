@@ -7,6 +7,8 @@ import { AuthService } from './modules/auth/auth.service.js';
 import { authRuntime } from './modules/auth/auth.routes.js';
 import { ProfileService } from './modules/users/profile.service.js';
 import { ProfileRepository } from './modules/users/profile.repository.js';
+import { TechnicianService } from './modules/technicians/technician.service.js';
+import { TechnicianRepository } from './modules/technicians/technician.repository.js';
 
 try {
   const env = loadEnvironment();
@@ -18,6 +20,7 @@ try {
   const server = createApp(
     runtime,
     new ProfileService(new ProfileRepository(db)),
+    new TechnicianService(new TechnicianRepository(db)),
   ).listen(env.PORT, env.HOST, () => {
     console.log(`HelpDesk API disponível em http://${env.HOST}:${env.PORT}`);
   });
