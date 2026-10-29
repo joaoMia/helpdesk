@@ -11,6 +11,8 @@ import { TechnicianService } from './modules/technicians/technician.service.js';
 import { TechnicianRepository } from './modules/technicians/technician.repository.js';
 import { CatalogService } from './modules/catalog/catalog.service.js';
 import { CatalogRepository } from './modules/catalog/catalog.repository.js';
+import { TicketApiService } from './modules/tickets/ticket-api.service.js';
+import { TicketApiRepository } from './modules/tickets/ticket-api.repository.js';
 
 try {
   const env = loadEnvironment();
@@ -24,6 +26,7 @@ try {
     new ProfileService(new ProfileRepository(db)),
     new TechnicianService(new TechnicianRepository(db)),
     new CatalogService(new CatalogRepository(db)),
+    new TicketApiService(new TicketApiRepository(db)),
   ).listen(env.PORT, env.HOST, () => {
     console.log(`HelpDesk API disponível em http://${env.HOST}:${env.PORT}`);
   });

@@ -107,3 +107,5 @@ A [modelagem](05-modelagem-de-dados.md) registra a primeira migration mínima au
 DEV-007 / HD-021: GET /technicians, GET /technicians/:id, POST /technicians e PATCH /technicians/:id implementados, exclusivos de ADMIN. Contratos estritos, paginação, credencial provisória única e limites no [procedimento de gestão de técnicos](24-gestao-tecnicos.md).
 
 DEV-008 / HD-025: GET/POST /categories e /services e GET/PATCH /categories/:id e /services/:id implementados sem /api/v1. GET exige autenticação e filtra disponibilidade; POST/PATCH exclusivos de ADMIN. Formulários personalizados continuam fora do PATCH. Contratos, filtros, retorno item/items e limites em [catálogo real](25-catalogo-real.md).
+
+BLOCO 01: POST /tickets, GET /tickets, GET /tickets/:id e GET /tickets/:id/history estão implementados, sem /api/v1. Abertura exclusiva de REQUESTER; leitura própria, atribuída ou global conforme ticketScope existente. Contratos HTTP são aditivos e não habilitam operações de atendimento. Entrada, paginação, snapshots, respostas e limites em [BLOCO 01](26-bloco01-chamados.md).

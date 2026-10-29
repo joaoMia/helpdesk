@@ -12,6 +12,7 @@ export function DemoDialog({
   cancelLabel = 'Cancelar',
   onConfirm,
   onCancel,
+  eyebrow = 'AÇÃO DEMONSTRATIVA · SOMENTE NA SESSÃO',
 }: {
   title: string;
   description?: string;
@@ -20,6 +21,7 @@ export function DemoDialog({
   cancelLabel?: string;
   onConfirm?: () => boolean | void;
   onCancel: () => void;
+  eyebrow?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     titleId = useId(),
@@ -86,7 +88,7 @@ export function DemoDialog({
         close();
       }}
     >
-      <span className="eyebrow">AÇÃO DEMONSTRATIVA · SOMENTE NA SESSÃO</span>
+      <span className="eyebrow">{eyebrow}</span>
       <h2 id={titleId}>{title}</h2>
       {description && <p id={descriptionId}>{description}</p>}
       <div className="dialog-content">{children}</div>

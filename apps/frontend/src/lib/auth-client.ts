@@ -8,10 +8,15 @@ import {
   catalogServiceSchema,
   categoryListSchema,
   serviceListSchema,
+  ticketListSchema,
+  ticketDetailSchema,
+  ticketHistorySchema,
+  openedTicketSchema,
 } from '@helpdesk/contracts';
 import type { TechnicianInput, TechnicianUpdate } from '@helpdesk/contracts';
 import type { UpdateProfile } from '@helpdesk/contracts';
 import type { PublicUser } from '@helpdesk/contracts';
+import type { TicketQuery, CreateTicketHttp } from '@helpdesk/contracts';
 import type {
   CategoryInput,
   CategoryUpdate,
@@ -164,8 +169,65 @@ export function createAuthClient(
         .filter(([, v]) => v !== undefined)
         .map(([k, v]) => [k, String(v)]),
     ).toString();
+  async function ticketGet(path: string) {
+    const target = base.replace(/\/auth$/, '/tickets');
+    let response = await request(
+      path,
+      { credentials: 'include', cache: 'no-store' },
+      target,
+    );
+    if (response.status === 401) {
+      await refresh();
+      response = await request(
+        path,
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+    }
+    return decode(response);
+  }
   return {
     me,
+    async tickets(query: Partial<TicketQuery> = {}) {
+      const search = new URLSearchParams(
+        Object.entries(query)
+          .filter(([, v]) => v !== undefined && v !== '')
+          .map(([k, v]) => [k, String(v)]),
+      );
+      return ticketListSchema.parse(await ticketGet('?' + search.toString()));
+    },
+    async ticket(id: string) {
+      return ticketDetailSchema.parse(
+        (await ticketGet('/' + encodeURIComponent(id))).ticket,
+      );
+    },
+    async ticketHistory(id: string, page = 1, pageSize = 10) {
+      return ticketHistorySchema.parse(
+        await ticketGet(
+          '/' +
+            encodeURIComponent(id) +
+            '/history?' +
+            new URLSearchParams({
+              page: String(page),
+              pageSize: String(pageSize),
+            }),
+        ),
+      );
+    },
+    async createTicket(input: CreateTicketHttp) {
+      const target = base.replace(/\/auth$/, '/tickets');
+      try {
+        return openedTicketSchema.parse(
+          (await mutate('', input, 'POST', target)).ticket,
+        );
+      } catch (e) {
+        if (!(e instanceof AuthError) || e.code !== 'SESSION_INVALID') throw e;
+        await refresh();
+        return openedTicketSchema.parse(
+          (await mutate('', input, 'POST', target)).ticket,
+        );
+      }
+    },
     async categories(query: Partial<CatalogQuery> = {}) {
       return categoryListSchema.parse(
         await catalogGet('categories', catalogSearch(query)),

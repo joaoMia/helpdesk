@@ -10,8 +10,8 @@ import type { OpenedTicket } from '@helpdesk/contracts';
 import { ApplicationError } from '../../shared/errors.js';
 import type { OpeningRecord, TicketRepository } from './ticket.repository.js';
 
-// Internal only: identity must come from future real authentication, never demo UI.
-// No HTTP route exposes this use case.
+// Core use case. HTTP orchestration supplies the authenticated actor and secured
+// transaction through TicketApiService; demonstration identity is never accepted.
 export class TicketService {
   constructor(private readonly repository: TicketRepository) {}
   async open(actorId: unknown, payload: unknown): Promise<OpenedTicket> {

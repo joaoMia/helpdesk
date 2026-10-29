@@ -55,3 +55,5 @@ Migrations, contratos existentes, autenticação e frontend permanecem preservad
 DEV-007 / HD-021 disponibiliza gestão real de técnicos com contratos estritos, revalidação transacional e projeções públicas. A permissão technicians.read é exclusiva de ADMIN. Consulte os [limites e procedimentos](24-gestao-tecnicos.md); demais políticas e decisões pendentes permanecem inalteradas.
 
 DEV-008 / HD-025: categories.read e services.read concedem consulta autenticada com escopo de disponibilidade; categories.create/update são exclusivos de ADMIN. Categorias inativas e seus serviços não são recuperados por REQUESTER/TECHNICIAN. Detalhes em [catálogo real](25-catalogo-real.md).
+
+BLOCO 01: os endpoints reais de consulta/histórico reutilizam ticketScope e os mesmos grants, sem alterações de permissões. POST /tickets exige REQUESTER e revalida usuário/sessão na transação de abertura. Triagem permanece no adaptador mínimo, sem nova rota ou ampliação de visibilidade. Detalhes em [BLOCO 01](26-bloco01-chamados.md).
