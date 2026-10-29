@@ -19,6 +19,8 @@
     "provision:dev:auto": "tsx scripts/provision-automatic.ts",
     "preprovision:dev:recover": "npm run prepare:core",
     "provision:dev:recover": "tsx scripts/recover-development.ts",
+    "prerequester:reset:dev": "npm run prepare:core",
+    "requester:reset:dev": "tsx scripts/reset-requester.ts",
     "db:migrate:dev": "tsx scripts/migrate-development.ts",
     "db:migrate:status": "prisma migrate status",
     "db:prisma:check": "tsx scripts/check-prisma.ts",
