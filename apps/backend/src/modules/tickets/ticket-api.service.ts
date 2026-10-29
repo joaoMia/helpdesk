@@ -8,6 +8,10 @@ import {
   serviceSnapshotSchema,
   ticketListSchema,
   ticketHistorySchema,
+  triageQuerySchema,
+  triageListSchema,
+  triageTicketSchema,
+  classifyPrioritySchema,
 } from '@helpdesk/contracts';
 import type { Identity } from '../auth/auth.service.js';
 import {
@@ -15,7 +19,10 @@ import {
   resourceNotFound,
 } from '../authorization/permissions.js';
 import { ApplicationError, databaseErrorCode } from '../../shared/errors.js';
-import { TicketApiRepository } from './ticket-api.repository.js';
+import {
+  TicketApiRepository,
+  triageConflict,
+} from './ticket-api.repository.js';
 import { TicketService } from './ticket.service.js';
 const invalid = () =>
   new ApplicationError(
@@ -49,6 +56,42 @@ function resourceId(input: unknown) {
 }
 export class TicketApiService {
   constructor(private repo: TicketApiRepository) {}
+  async triage(identity: Identity, input: unknown) {
+    requirePermission(identity, 'tickets.triage');
+    const parsed = triageQuerySchema.safeParse(input);
+    if (!parsed.success) throw invalid();
+    const result = await this.repo.triage(identity, parsed.data);
+    return triageListSchema.parse({
+      ...result,
+      items: result.items.map((row) => ({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    });
+  }
+  async classify(identity: Identity, id: unknown, input: unknown) {
+    requirePermission(identity, 'tickets.classify');
+    const parsed = classifyPrioritySchema.safeParse(input);
+    if (!parsed.success) throw invalid();
+    try {
+      const row = await this.repo.classify(
+        identity,
+        resourceId(id),
+        parsed.data,
+      );
+      return triageTicketSchema.parse({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+      });
+    } catch (error) {
+      if (
+        (error as { code?: string })?.code === 'P2034' ||
+        ['40001', '40P01'].includes(databaseErrorCode(error) ?? '')
+      )
+        throw triageConflict();
+      throw error;
+    }
+  }
   async open(identity: Identity, input: unknown) {
     requirePermission(identity, 'tickets.create');
     const parsed = createTicketHttpSchema.safeParse(input);

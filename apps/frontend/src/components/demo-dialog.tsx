@@ -13,6 +13,7 @@ export function DemoDialog({
   onConfirm,
   onCancel,
   eyebrow = 'AÇÃO DEMONSTRATIVA · SOMENTE NA SESSÃO',
+  pending = false,
 }: {
   title: string;
   description?: string;
@@ -22,6 +23,7 @@ export function DemoDialog({
   onConfirm?: () => boolean | void;
   onCancel: () => void;
   eyebrow?: string;
+  pending?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     titleId = useId(),
@@ -63,6 +65,7 @@ export function DemoDialog({
     { scope: ref, dependencies: [reduced], revertOnUpdate: true },
   );
   function close() {
+    if (pending) return;
     contextSafe(() => {
       if (busy.current) return;
       busy.current = true;
@@ -93,12 +96,18 @@ export function DemoDialog({
       {description && <p id={descriptionId}>{description}</p>}
       <div className="dialog-content">{children}</div>
       <div className="form-actions">
-        <button className="button-secondary" data-initial-focus onClick={close}>
+        <button
+          className="button-secondary"
+          data-initial-focus
+          disabled={pending}
+          onClick={close}
+        >
           {cancelLabel}
         </button>
         {onConfirm && (
           <button
             className="button-primary"
+            disabled={pending}
             onClick={() => {
               if (busy.current) return;
               if (onConfirm() !== false) close();

@@ -57,3 +57,5 @@ DEV-007 / HD-021 disponibiliza gestão real de técnicos com contratos estritos,
 DEV-008 / HD-025: categories.read e services.read concedem consulta autenticada com escopo de disponibilidade; categories.create/update são exclusivos de ADMIN. Categorias inativas e seus serviços não são recuperados por REQUESTER/TECHNICIAN. Detalhes em [catálogo real](25-catalogo-real.md).
 
 BLOCO 01: os endpoints reais de consulta/histórico reutilizam ticketScope e os mesmos grants, sem alterações de permissões. POST /tickets exige REQUESTER e revalida usuário/sessão na transação de abertura. Triagem permanece no adaptador mínimo, sem nova rota ou ampliação de visibilidade. Detalhes em [BLOCO 01](26-bloco01-chamados.md).
+
+BLOCO 02 disponibiliza consulta operacional e classificação usando tickets.triage/classify existentes, sem ampliar grants ou projeção. Revalidação transacional e UPDATE condicional com evento; ADMIN continua sem poderes de técnico. Limites em [triagem real](27-bloco02-triagem.md). Assumir atendimento continua fora do escopo.

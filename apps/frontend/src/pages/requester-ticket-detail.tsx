@@ -166,7 +166,9 @@ export function RequesterTicketDetail({
                         <p className="mt-1 text-sm leading-6 text-slate-600">
                           {event.eventType === 'OPENED'
                             ? 'Chamado aberto. Aguardando classificação.'
-                            : `Evento registrado: ${event.eventType}`}
+                            : event.eventType === 'PRIORITY_CLASSIFIED'
+                              ? 'Prioridade classificada pela equipe técnica. Classificar não inicia o atendimento.'
+                              : `Evento registrado: ${event.eventType}`}
                         </p>
                       </li>
                     ))}

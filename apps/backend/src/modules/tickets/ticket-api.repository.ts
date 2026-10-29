@@ -5,9 +5,14 @@ import { invalidSession } from '../auth/auth.service.js';
 import {
   ticketScope,
   ticketDetailSelect,
+  triageSelect,
 } from '../authorization/ticket-scope.js';
 import { resourceNotFound } from '../authorization/permissions.js';
-import type { TicketQuery } from '@helpdesk/contracts';
+import type {
+  TicketQuery,
+  TriageQuery,
+  ClassifyPriority,
+} from '@helpdesk/contracts';
 import type { TicketUnit } from './ticket.repository.js';
 import { prismaTicketUnit } from './prisma-ticket.repository.js';
 import { ApplicationError } from '../../shared/errors.js';
@@ -25,6 +30,103 @@ const summarySelect = {
 } as const;
 export class TicketApiRepository {
   constructor(private db: PrismaClient) {}
+  triage(identity: Identity, q: TriageQuery) {
+    const where: Prisma.TicketWhereInput = {
+      AND: [
+        ticketScope(identity, 'tickets.triage'),
+        q.queue === 'UNCLASSIFIED'
+          ? { priority: null }
+          : q.queue === 'CLASSIFIED'
+            ? { priority: { not: null } }
+            : {},
+        q.priority ? { priority: q.priority } : {},
+        q.search ? { code: Number(q.search.replace(/^HD-/i, '')) } : {},
+      ],
+    };
+    return this.db.$transaction(
+      async (tx) => ({
+        items: await tx.ticket.findMany({
+          where,
+          select: triageSelect,
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          skip: (q.page - 1) * q.pageSize,
+          take: q.pageSize,
+        }),
+        total: await tx.ticket.count({ where }),
+        page: q.page,
+        pageSize: q.pageSize,
+      }),
+      { isolationLevel: 'RepeatableRead' },
+    );
+  }
+  classify(identity: Identity, id: string, input: ClassifyPriority) {
+    return this.db.$transaction(
+      async (tx) => {
+        // Same lock order as authentication/password changes: user, session, ticket.
+        await tx.$queryRaw`SELECT id FROM users WHERE id=${identity.user.id}::uuid FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM auth_sessions WHERE id=${identity.sessionId}::uuid FOR UPDATE`;
+        const user = await tx.user.findUnique({
+          where: { id: identity.user.id },
+          select: {
+            id: true,
+            role: true,
+            isActive: true,
+            mustChangePassword: true,
+          },
+        });
+        const session = await tx.authSession.findUnique({
+          where: { id: identity.sessionId },
+          select: { userId: true, revokedAt: true, expiresAt: true },
+        });
+        if (
+          !user ||
+          user.role !== 'TECHNICIAN' ||
+          !user.isActive ||
+          user.mustChangePassword ||
+          !session ||
+          session.userId !== user.id ||
+          session.revokedAt ||
+          session.expiresAt <= new Date()
+        )
+          throw invalidSession();
+        const scope = ticketScope(identity, 'tickets.classify');
+        const existing = await tx.ticket.findFirst({
+          where: { AND: [scope, { id }] },
+          select: triageSelect,
+        });
+        if (!existing) {
+          // Both missing and ineligible resources have the same safe conflict.
+          throw triageConflict();
+        }
+        if (existing.priority !== input.expectedPriority)
+          throw triageConflict();
+        if (existing.priority === input.priority) return existing;
+        const updated = await tx.ticket.updateMany({
+          where: { AND: [scope, { id, priority: input.expectedPriority }] },
+          data: {
+            priority: input.priority,
+            classifiedAt: new Date(),
+            classifiedById: user.id,
+          },
+        });
+        if (updated.count !== 1) throw triageConflict();
+        await tx.ticketEvent.create({
+          data: {
+            ticketId: id,
+            actorId: user.id,
+            eventType: 'PRIORITY_CLASSIFIED',
+            oldValue: { priority: existing.priority },
+            newValue: { priority: input.priority },
+          },
+        });
+        return tx.ticket.findFirstOrThrow({
+          where: { AND: [scope, { id }] },
+          select: triageSelect,
+        });
+      },
+      { isolationLevel: 'Serializable', maxWait: 5000, timeout: 15000 },
+    );
+  }
   openingTransaction<T>(
     identity: Identity,
     operation: (unit: TicketUnit) => Promise<T>,
@@ -164,4 +266,11 @@ export class TicketApiRepository {
       { isolationLevel: 'RepeatableRead' },
     );
   }
+}
+export function triageConflict() {
+  return new ApplicationError(
+    'TICKET_CONFLICT',
+    409,
+    'O chamado não está mais disponível para esta classificação ou a prioridade mudou. Atualize a fila antes de tentar novamente.',
+  );
 }

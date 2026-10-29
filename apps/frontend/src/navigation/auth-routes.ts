@@ -9,6 +9,19 @@ export const profileAreas = {
 export function authenticatedHome(user: PublicUser) {
   return profileAreas[user.role].path;
 }
+export function technicianTriageQueue(path: string) {
+  switch (path) {
+    case '#/technician/chamados':
+    case '#/technician/chamados/nao-classificados':
+      return 'UNCLASSIFIED';
+    case '#/technician/chamados/classificados':
+      return 'CLASSIFIED';
+    case '#/technician/chamados/todos':
+      return 'ALL';
+    default:
+      return undefined;
+  }
+}
 export function requesterTicketPage(
   path: string,
 ): { page: 'new' | 'list' | 'detail'; id?: string } | undefined {
@@ -33,5 +46,6 @@ export function authDestination(user: PublicUser | null, path: string) {
   if (user.role === 'ADMIN' && path === '#/admin/usuarios') return path;
   if (user.role === 'ADMIN' && path === '#/admin/catalogo') return path;
   if (user.role === 'REQUESTER' && requesterTicketPage(path)) return path;
+  if (user.role === 'TECHNICIAN' && technicianTriageQueue(path)) return path;
   return authenticatedHome(user);
 }
