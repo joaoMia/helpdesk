@@ -105,3 +105,5 @@ Erros HTTP existentes recebem error.code, error.message, error.requestId e heade
 A [modelagem](05-modelagem-de-dados.md) registra a primeira migration mínima autorizada na DEV-002 e os pontos ainda pendentes. A criação das tabelas não libera estes endpoints. HD-003/004/006 permanecem pendentes de aprovação; telas demonstrativas não são aceite funcional.
 
 DEV-007 / HD-021: GET /technicians, GET /technicians/:id, POST /technicians e PATCH /technicians/:id implementados, exclusivos de ADMIN. Contratos estritos, paginação, credencial provisória única e limites no [procedimento de gestão de técnicos](24-gestao-tecnicos.md).
+
+DEV-008 / HD-025: GET/POST /categories e /services e GET/PATCH /categories/:id e /services/:id implementados sem /api/v1. GET exige autenticação e filtra disponibilidade; POST/PATCH exclusivos de ADMIN. Formulários personalizados continuam fora do PATCH. Contratos, filtros, retorno item/items e limites em [catálogo real](25-catalogo-real.md).

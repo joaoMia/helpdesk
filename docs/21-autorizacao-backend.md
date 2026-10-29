@@ -18,7 +18,7 @@ Lista vazia de papéis, operação desconhecida e operações de outro tipo de r
 | users.update-self                                          | REQUESTER/TECHNICIAN, exclusivamente a própria conta, conforme RN-003/004. Não autoriza alterar papel/atividade/senha por payload genérico. |
 | users.update-requester                                     | ADMIN, atualização de recursos REQUESTER; não concede alteração arbitrária de perfil.                                                       |
 | technicians.read / technicians.create / technicians.update | ADMIN, criação/atualização de TECHNICIAN; não concede exclusão ou desativação ainda pendente.                                               |
-| services.create / services.update / services.deactivate    | ADMIN, operações previstas na RN-005; não concede exclusão. CRUD não implementado.                                                          |
+| services.create / services.update / services.deactivate    | ADMIN, operações previstas na RN-005; não concede exclusão. CRUD real disponível na DEV-008.                                                |
 | tickets.create                                             | REQUESTER; abertura continua interna e sem endpoint.                                                                                        |
 | tickets.read / tickets.aggregate                           | REQUESTER: próprios; TECHNICIAN: atribuídos; ADMIN: visão global documentada.                                                               |
 | tickets.triage                                             | TECHNICIAN: somente OPEN sem atribuição e projeção mínima.                                                                                  |
@@ -53,3 +53,5 @@ Probes HTTP existem somente em tests/integration/authorization-fixture.ts; serve
 Migrations, contratos existentes, autenticação e frontend permanecem preservados. A HD-019 ainda deverá provisionar administrador/técnicos com credenciais seguras, troca inicial e autorização específica; esta camada não cria contas reais ou operações de gerenciamento.
 
 DEV-007 / HD-021 disponibiliza gestão real de técnicos com contratos estritos, revalidação transacional e projeções públicas. A permissão technicians.read é exclusiva de ADMIN. Consulte os [limites e procedimentos](24-gestao-tecnicos.md); demais políticas e decisões pendentes permanecem inalteradas.
+
+DEV-008 / HD-025: categories.read e services.read concedem consulta autenticada com escopo de disponibilidade; categories.create/update são exclusivos de ADMIN. Categorias inativas e seus serviços não são recuperados por REQUESTER/TECHNICIAN. Detalhes em [catálogo real](25-catalogo-real.md).

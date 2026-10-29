@@ -2,6 +2,7 @@ import { z } from 'zod';
 export * from './auth.js';
 export * from './profile.js';
 export * from './technician.js';
+export * from './catalog.js';
 
 export const userRoleSchema = z.enum(['ADMIN', 'TECHNICIAN', 'REQUESTER']);
 export const ticketStatusSchema = z.enum([

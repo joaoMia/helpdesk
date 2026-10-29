@@ -21,6 +21,8 @@ export function Account({
   const health = useApiHealth();
   const [menu, setMenu] = useState(false);
   const area = profileAreas[user.role];
+  const currentPath = window.location.hash;
+  const catalogPath = '#/admin/catalogo';
   const modules =
     user.role === 'REQUESTER'
       ? ['Abrir chamado', 'Meus chamados', 'Meus projetos']
@@ -70,8 +72,10 @@ export function Account({
           </a>
           {['REQUESTER', 'TECHNICIAN'].includes(user.role) && (
             <a
-              className={`nav-item ${children ? 'nav-active' : ''}`}
-              aria-current={children ? 'page' : undefined}
+              className={`nav-item ${currentPath.endsWith('/perfil') ? 'nav-active' : ''}`}
+              aria-current={
+                currentPath.endsWith('/perfil') ? 'page' : undefined
+              }
               href={
                 user.role === 'TECHNICIAN'
                   ? '#/technician/perfil'
@@ -85,13 +89,26 @@ export function Account({
           )}
           {user.role === 'ADMIN' && (
             <a
-              className={`nav-item ${children ? 'nav-active' : ''}`}
-              aria-current={children ? 'page' : undefined}
+              className={`nav-item ${currentPath === '#/admin/usuarios' ? 'nav-active' : ''}`}
+              aria-current={
+                currentPath === '#/admin/usuarios' ? 'page' : undefined
+              }
               href="#/admin/usuarios"
               onClick={() => setMenu(false)}
             >
               <Icon name="users" />
               Gestão de usuários
+            </a>
+          )}
+          {user.role === 'ADMIN' && (
+            <a
+              className={`nav-item ${currentPath === catalogPath ? 'nav-active' : ''}`}
+              aria-current={currentPath === catalogPath ? 'page' : undefined}
+              href={catalogPath}
+              onClick={() => setMenu(false)}
+            >
+              <Icon name="grid" />
+              Catálogo de serviços
             </a>
           )}
         </nav>
@@ -169,17 +186,24 @@ export function Account({
                     <section key={name} className="panel p-5">
                       <h2 className="font-semibold">{name}</h2>
                       <p className="mt-3 text-sm text-slate-500">
-                        {user.role === 'ADMIN' && name === 'Gestão de usuários'
-                          ? 'Cadastro e edição de técnicos'
+                        {user.role === 'ADMIN'
+                          ? name === 'Gestão de usuários'
+                            ? 'Cadastro e edição de técnicos'
+                            : 'Categorias e serviços reais'
                           : 'Em desenvolvimento'}
                       </p>
-                      {user.role === 'ADMIN' &&
-                      name === 'Gestão de usuários' ? (
+                      {user.role === 'ADMIN' ? (
                         <a
                           className="button-secondary mt-4 inline-block"
-                          href="#/admin/usuarios"
+                          href={
+                            name === 'Gestão de usuários'
+                              ? '#/admin/usuarios'
+                              : catalogPath
+                          }
                         >
-                          Gerenciar técnicos
+                          {name === 'Gestão de usuários'
+                            ? 'Gerenciar técnicos'
+                            : 'Gerenciar catálogo'}
                         </a>
                       ) : (
                         <button

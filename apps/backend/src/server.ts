@@ -9,6 +9,8 @@ import { ProfileService } from './modules/users/profile.service.js';
 import { ProfileRepository } from './modules/users/profile.repository.js';
 import { TechnicianService } from './modules/technicians/technician.service.js';
 import { TechnicianRepository } from './modules/technicians/technician.repository.js';
+import { CatalogService } from './modules/catalog/catalog.service.js';
+import { CatalogRepository } from './modules/catalog/catalog.repository.js';
 
 try {
   const env = loadEnvironment();
@@ -21,6 +23,7 @@ try {
     runtime,
     new ProfileService(new ProfileRepository(db)),
     new TechnicianService(new TechnicianRepository(db)),
+    new CatalogService(new CatalogRepository(db)),
   ).listen(env.PORT, env.HOST, () => {
     console.log(`HelpDesk API disponível em http://${env.HOST}:${env.PORT}`);
   });
