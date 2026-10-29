@@ -1,4 +1,11 @@
-import { publicUserSchema, profileResultSchema } from '@helpdesk/contracts';
+import {
+  publicUserSchema,
+  profileResultSchema,
+  technicianListSchema,
+  technicianSchema,
+  technicianCreatedSchema,
+} from '@helpdesk/contracts';
+import type { TechnicianInput, TechnicianUpdate } from '@helpdesk/contracts';
 import type { UpdateProfile } from '@helpdesk/contracts';
 import type { PublicUser } from '@helpdesk/contracts';
 
@@ -108,6 +115,81 @@ export function createAuthClient(
   }
   return {
     me,
+    async technicians(query: {
+      page: number;
+      pageSize: number;
+      search: string;
+    }) {
+      const target = base.replace(/\/auth$/, '/technicians');
+      const path =
+        '?' +
+        new URLSearchParams({
+          page: String(query.page),
+          pageSize: String(query.pageSize),
+          search: query.search,
+        });
+      let response = await request(
+        path,
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+      if (response.status === 401) {
+        await refresh();
+        response = await request(
+          path,
+          { credentials: 'include', cache: 'no-store' },
+          target,
+        );
+      }
+      return technicianListSchema.parse(await decode(response));
+    },
+    async technician(id: string) {
+      const target = base.replace(/\/auth$/, '/technicians');
+      let response = await request(
+        '/' + encodeURIComponent(id),
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+      if (response.status === 401) {
+        await refresh();
+        response = await request(
+          '/' + encodeURIComponent(id),
+          { credentials: 'include', cache: 'no-store' },
+          target,
+        );
+      }
+      return technicianSchema.parse((await decode(response)).technician);
+    },
+    async createTechnician(input: TechnicianInput) {
+      const target = base.replace(/\/auth$/, '/technicians');
+      try {
+        return technicianCreatedSchema.parse(
+          await mutate('', input, 'POST', target),
+        );
+      } catch (e) {
+        if (!(e instanceof AuthError) || e.code !== 'SESSION_INVALID') throw e;
+        await refresh();
+        return technicianCreatedSchema.parse(
+          await mutate('', input, 'POST', target),
+        );
+      }
+    },
+    async updateTechnician(id: string, input: TechnicianUpdate) {
+      const target = base.replace(/\/auth$/, '/technicians');
+      try {
+        return technicianSchema.parse(
+          (await mutate('/' + encodeURIComponent(id), input, 'PATCH', target))
+            .technician,
+        );
+      } catch (e) {
+        if (!(e instanceof AuthError) || e.code !== 'SESSION_INVALID') throw e;
+        await refresh();
+        return technicianSchema.parse(
+          (await mutate('/' + encodeURIComponent(id), input, 'PATCH', target))
+            .technician,
+        );
+      }
+    },
     async profile() {
       const target = base.replace(/\/auth$/, '/users');
       let response = await request(

@@ -12,19 +12,19 @@ Lista vazia de papéis, operação desconhecida e operações de outro tipo de r
 
 ## Permissões disponíveis
 
-| Operação                                                | Perfil e limite                                                                                                                             |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| users.read                                              | Própria conta para todos; ADMIN pode ler solicitantes/técnicos. Outros administradores não são incluídos automaticamente.                   |
-| users.update-self                                       | REQUESTER/TECHNICIAN, exclusivamente a própria conta, conforme RN-003/004. Não autoriza alterar papel/atividade/senha por payload genérico. |
-| users.update-requester                                  | ADMIN, atualização de recursos REQUESTER; não concede alteração arbitrária de perfil.                                                       |
-| technicians.create / technicians.update                 | ADMIN, criação/atualização de TECHNICIAN; não concede exclusão ou desativação ainda pendente.                                               |
-| services.create / services.update / services.deactivate | ADMIN, operações previstas na RN-005; não concede exclusão. CRUD não implementado.                                                          |
-| tickets.create                                          | REQUESTER; abertura continua interna e sem endpoint.                                                                                        |
-| tickets.read / tickets.aggregate                        | REQUESTER: próprios; TECHNICIAN: atribuídos; ADMIN: visão global documentada.                                                               |
-| tickets.triage                                          | TECHNICIAN: somente OPEN sem atribuição e projeção mínima.                                                                                  |
-| tickets.classify                                        | TECHNICIAN: OPEN livre, independentemente da atribuição; não atribui o chamado.                                                             |
-| tickets.start                                           | TECHNICIAN: OPEN livre com prioridade definida; somente verificação de elegibilidade.                                                       |
-| tickets.update-assigned                                 | TECHNICIAN: próprio atendimento ainda não encerrado; não aprova transições ou exceções.                                                     |
+| Operação                                                   | Perfil e limite                                                                                                                             |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| users.read                                                 | Própria conta para todos; ADMIN pode ler solicitantes/técnicos. Outros administradores não são incluídos automaticamente.                   |
+| users.update-self                                          | REQUESTER/TECHNICIAN, exclusivamente a própria conta, conforme RN-003/004. Não autoriza alterar papel/atividade/senha por payload genérico. |
+| users.update-requester                                     | ADMIN, atualização de recursos REQUESTER; não concede alteração arbitrária de perfil.                                                       |
+| technicians.read / technicians.create / technicians.update | ADMIN, criação/atualização de TECHNICIAN; não concede exclusão ou desativação ainda pendente.                                               |
+| services.create / services.update / services.deactivate    | ADMIN, operações previstas na RN-005; não concede exclusão. CRUD não implementado.                                                          |
+| tickets.create                                             | REQUESTER; abertura continua interna e sem endpoint.                                                                                        |
+| tickets.read / tickets.aggregate                           | REQUESTER: próprios; TECHNICIAN: atribuídos; ADMIN: visão global documentada.                                                               |
+| tickets.triage                                             | TECHNICIAN: somente OPEN sem atribuição e projeção mínima.                                                                                  |
+| tickets.classify                                           | TECHNICIAN: OPEN livre, independentemente da atribuição; não atribui o chamado.                                                             |
+| tickets.start                                              | TECHNICIAN: OPEN livre com prioridade definida; somente verificação de elegibilidade.                                                       |
+| tickets.update-assigned                                    | TECHNICIAN: próprio atendimento ainda não encerrado; não aprova transições ou exceções.                                                     |
 
 Permissões não concedidas continuam bloqueadas, incluindo supervisão administrativa de classificação/assunção/pendência/encerramento, reabertura, transferência e exclusão de técnicos. Uma operação de gestão não autoriza mudança arbitrária de perfis: futuras APIs precisam de contratos estritos, whitelist dos campos editáveis e validações de negócio próprias.
 
@@ -51,3 +51,5 @@ Fluxos de pendência, encerramento, calendários, reabertura, transferência e e
 Probes HTTP existem somente em tests/integration/authorization-fixture.ts; server.ts/createApp não os importam. Contas com papéis reais e senhas aleatórias protegidas por Argon2id são criadas somente no namespace descartável de helpdesk_test, com login/cookies/CSRF reais. Não há seed de desenvolvimento ou credencial fixa. Reutiliza o isolamento e a limpeza verificada já utilizados na DEV-003; desenvolvimento é conferido por conexão somente leitura antes/depois.
 
 Migrations, contratos existentes, autenticação e frontend permanecem preservados. A HD-019 ainda deverá provisionar administrador/técnicos com credenciais seguras, troca inicial e autorização específica; esta camada não cria contas reais ou operações de gerenciamento.
+
+DEV-007 / HD-021 disponibiliza gestão real de técnicos com contratos estritos, revalidação transacional e projeções públicas. A permissão technicians.read é exclusiva de ADMIN. Consulte os [limites e procedimentos](24-gestao-tecnicos.md); demais políticas e decisões pendentes permanecem inalteradas.

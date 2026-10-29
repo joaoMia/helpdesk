@@ -274,14 +274,14 @@ describe('HD-020 perfil real PostgreSQL', () => {
     ).toBe(other.name);
   });
   it.each(['ADMIN', 'TECHNICIAN'] as const)(
-    'bloqueia PATCH de %s sem conceder poderes adicionais',
+    'respeita a edição própria de %s sem conceder poderes adicionais',
     async (role) => {
       const { client } = await logged(role);
       expect((await client.agent.get('/users/me')).status).toBe(200);
       expect(
         (await mutate(client, '/users/me', { name: 'Outra pessoa' }, true))
           .status,
-      ).toBe(403);
+      ).toBe(role === 'TECHNICIAN' ? 200 : 403);
     },
   );
   it('sem autenticação e URL de terceiros não abrem perfil', async () => {

@@ -10,7 +10,8 @@ export class ProfileService {
   constructor(private repo: ProfileRepository) {}
   async update(identity: Identity, payload: unknown) {
     requirePermission(identity, 'users.update-self');
-    if (identity.user.role !== 'REQUESTER') throw forbidden();
+    if (!['REQUESTER', 'TECHNICIAN'].includes(identity.user.role))
+      throw forbidden();
     const parsed = updateProfileSchema.safeParse(payload);
     if (!parsed.success)
       throw new ApplicationError(

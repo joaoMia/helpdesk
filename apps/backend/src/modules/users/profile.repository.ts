@@ -23,7 +23,8 @@ export class ProfileRepository {
       const now = new Date();
       if (
         !user ||
-        user.role !== 'REQUESTER' ||
+        !['REQUESTER', 'TECHNICIAN'].includes(user.role) ||
+        user.role !== identity.user.role ||
         !user.isActive ||
         user.mustChangePassword ||
         user.email !== expected.email ||

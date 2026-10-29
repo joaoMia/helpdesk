@@ -83,7 +83,7 @@ export function Profile({
     <section className="panel p-6 space-y-5">
       <h1 className="text-xl font-semibold">Meu perfil</h1>
       <p className="text-sm text-slate-500">
-        Dados reais da sua conta de solicitante.
+        Dados reais da sua própria conta.
       </p>
       {error && (
         <p role="alert" className="form-error">
@@ -102,7 +102,9 @@ export function Profile({
           onSubmit={(event) => void save(event)}
           className="space-y-5 max-w-xl"
         >
-          <p>Perfil: Solicitante</p>
+          <p>
+            Perfil: {user.role === 'TECHNICIAN' ? 'Técnico' : 'Solicitante'}
+          </p>
           <label className="block space-y-2">
             <span>Nome completo</span>
             <input

@@ -18,7 +18,7 @@ User público: id, name, email, role e mustChangePassword. Não retorna hash, JW
 
 ## Contratos preliminares dos demais módulos
 
-DEV-006: `GET /users/me` e `PATCH /users/me` estão implementados sem `/api/v1`, com proxy frontend `/api/users/me`. GET retorna apenas a identidade pública própria. PATCH é exclusivo de REQUESTER e aceita somente name/email/currentPassword; mudança efetiva do e-mail exige senha e revoga todas as sessões. Detalhes, erros e limites no [perfil real](23-perfil-solicitante.md). A alteração não comprova propriedade do endereço.
+DEV-006: `GET /users/me` e `PATCH /users/me` estão implementados sem `/api/v1`, com proxy frontend `/api/users/me`. GET retorna apenas a identidade pública própria. PATCH aceita REQUESTER e TECHNICIAN (extensão DEV-007 / HD-021) e aceita somente name/email/currentPassword; mudança efetiva do e-mail exige senha e revoga todas as sessões. Detalhes, erros e limites no [perfil real](23-perfil-solicitante.md). A alteração não comprova propriedade do endereço.
 
 Prefixo sugerido `/api/v1`. JSON com paginação, filtros, erros padronizados (`code`, `message`, `details`, `requestId`); timestamps ISO-8601 UTC e enums públicos documentados. Sem campos de preço/cobrança (RN-006 revisada na DEV-001).
 
@@ -103,3 +103,5 @@ Formato interno em revisão da HD-006, **não uma rota HTTP liberada**:
 Erros HTTP existentes recebem error.code, error.message, error.requestId e header X-Request-Id gerado no servidor. JSON inválido: 400; corpo acima do limite existente: 413; rota ausente: 404; falhas internas: mensagem genérica. Erros de persistência são mapeados sem expor SQL, parâmetros ou mensagens do driver. Códigos das futuras rotas e OpenAPI definitivo ainda dependem da HD-006.
 
 A [modelagem](05-modelagem-de-dados.md) registra a primeira migration mínima autorizada na DEV-002 e os pontos ainda pendentes. A criação das tabelas não libera estes endpoints. HD-003/004/006 permanecem pendentes de aprovação; telas demonstrativas não são aceite funcional.
+
+DEV-007 / HD-021: GET /technicians, GET /technicians/:id, POST /technicians e PATCH /technicians/:id implementados, exclusivos de ADMIN. Contratos estritos, paginação, credencial provisória única e limites no [procedimento de gestão de técnicos](24-gestao-tecnicos.md).

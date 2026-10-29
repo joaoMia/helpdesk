@@ -4,8 +4,14 @@ import { errorHandler } from './middlewares/error-handler.js';
 import type { AuthRuntime } from './modules/auth/auth.routes.js';
 import type { ProfileService } from './modules/users/profile.service.js';
 import { profileRoutes } from './modules/users/profile.routes.js';
+import type { TechnicianService } from './modules/technicians/technician.service.js';
+import { technicianRoutes } from './modules/technicians/technician.routes.js';
 
-export function createApp(auth?: AuthRuntime, profile?: ProfileService) {
+export function createApp(
+  auth?: AuthRuntime,
+  profile?: ProfileService,
+  technicians?: TechnicianService,
+) {
   const app = express();
   app.disable('x-powered-by');
   app.use((_request, response, next) => {
@@ -21,6 +27,8 @@ export function createApp(auth?: AuthRuntime, profile?: ProfileService) {
 
   if (auth) app.use('/auth', auth.router);
   if (auth && profile) app.use('/users', profileRoutes(auth, profile));
+  if (auth && technicians)
+    app.use('/technicians', technicianRoutes(auth, technicians));
 
   app.use((_request, response) => {
     response.status(404).json({
