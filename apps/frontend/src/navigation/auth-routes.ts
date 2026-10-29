@@ -20,5 +20,6 @@ export function authDestination(user: PublicUser | null, path: string) {
   if (user.role === 'REQUESTER' && path === '#/requester/perfil') return path;
   if (user.role === 'TECHNICIAN' && path === '#/technician/perfil') return path;
   if (user.role === 'ADMIN' && path === '#/admin/usuarios') return path;
+  if (user.role === 'ADMIN' && path === '#/admin/catalogo') return path;
   return authenticatedHome(user);
 }

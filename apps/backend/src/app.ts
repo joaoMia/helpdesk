@@ -6,11 +6,14 @@ import type { ProfileService } from './modules/users/profile.service.js';
 import { profileRoutes } from './modules/users/profile.routes.js';
 import type { TechnicianService } from './modules/technicians/technician.service.js';
 import { technicianRoutes } from './modules/technicians/technician.routes.js';
+import type { CatalogService } from './modules/catalog/catalog.service.js';
+import { catalogRoutes } from './modules/catalog/catalog.routes.js';
 
 export function createApp(
   auth?: AuthRuntime,
   profile?: ProfileService,
   technicians?: TechnicianService,
+  catalog?: CatalogService,
 ) {
   const app = express();
   app.disable('x-powered-by');
@@ -29,6 +32,10 @@ export function createApp(
   if (auth && profile) app.use('/users', profileRoutes(auth, profile));
   if (auth && technicians)
     app.use('/technicians', technicianRoutes(auth, technicians));
+  if (auth && catalog) {
+    app.use('/categories', catalogRoutes('categories', auth, catalog));
+    app.use('/services', catalogRoutes('services', auth, catalog));
+  }
 
   app.use((_request, response) => {
     response.status(404).json({

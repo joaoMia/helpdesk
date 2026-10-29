@@ -15,6 +15,11 @@ export function prismaTicketUnit(tx: Prisma.TransactionClient): TicketUnit {
         : null;
     },
     async findCatalog(id) {
+      // Serialize catalog edits/transfer with this internal opening. In a
+      // serializable transaction a stale concurrent edit aborts, never opens
+      // against an unchecked category/service or races the transfer guard.
+      await tx.$queryRaw`SELECT c.id FROM service_categories c JOIN services s ON s.category_id=c.id WHERE s.id=${id}::uuid FOR SHARE OF c`;
+      await tx.$queryRaw`SELECT id FROM services WHERE id=${id}::uuid FOR SHARE`;
       const service = await tx.service.findUnique({
         where: { id },
         include: {

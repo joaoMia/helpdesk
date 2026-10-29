@@ -4,10 +4,21 @@ import {
   technicianListSchema,
   technicianSchema,
   technicianCreatedSchema,
+  categorySchema,
+  catalogServiceSchema,
+  categoryListSchema,
+  serviceListSchema,
 } from '@helpdesk/contracts';
 import type { TechnicianInput, TechnicianUpdate } from '@helpdesk/contracts';
 import type { UpdateProfile } from '@helpdesk/contracts';
 import type { PublicUser } from '@helpdesk/contracts';
+import type {
+  CategoryInput,
+  CategoryUpdate,
+  ServiceInput,
+  ServiceUpdate,
+  CatalogQuery,
+} from '@helpdesk/contracts';
 
 export class AuthError extends Error {
   constructor(
@@ -113,8 +124,88 @@ export function createAuthClient(
     }
     return publicUserSchema.parse((await decode(response)).user);
   }
+  async function catalogGet(kind: 'categories' | 'services', path: string) {
+    const target = base.replace(/\/auth$/, '/' + kind);
+    let response = await request(
+      path,
+      { credentials: 'include', cache: 'no-store' },
+      target,
+    );
+    if (response.status === 401) {
+      await refresh();
+      response = await request(
+        path,
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+    }
+    return decode(response);
+  }
+  async function catalogWrite(
+    kind: 'categories' | 'services',
+    input: unknown,
+    id?: string,
+  ) {
+    const target = base.replace(/\/auth$/, '/' + kind),
+      path = id ? '/' + encodeURIComponent(id) : '',
+      method = id ? 'PATCH' : 'POST';
+    try {
+      return await mutate(path, input, method, target);
+    } catch (e) {
+      if (!(e instanceof AuthError) || e.code !== 'SESSION_INVALID') throw e;
+      await refresh();
+      return mutate(path, input, method, target);
+    }
+  }
+  const catalogSearch = (query: Partial<CatalogQuery>) =>
+    '?' +
+    new URLSearchParams(
+      Object.entries(query)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, String(v)]),
+    ).toString();
   return {
     me,
+    async categories(query: Partial<CatalogQuery> = {}) {
+      return categoryListSchema.parse(
+        await catalogGet('categories', catalogSearch(query)),
+      );
+    },
+    async category(id: string) {
+      return categorySchema.parse(
+        (await catalogGet('categories', '/' + encodeURIComponent(id))).item,
+      );
+    },
+    async services(query: Partial<CatalogQuery> = {}) {
+      return serviceListSchema.parse(
+        await catalogGet('services', catalogSearch(query)),
+      );
+    },
+    async service(id: string) {
+      return catalogServiceSchema.parse(
+        (await catalogGet('services', '/' + encodeURIComponent(id))).item,
+      );
+    },
+    async createCategory(input: CategoryInput) {
+      return categorySchema.parse(
+        (await catalogWrite('categories', input)).item,
+      );
+    },
+    async updateCategory(id: string, input: CategoryUpdate) {
+      return categorySchema.parse(
+        (await catalogWrite('categories', input, id)).item,
+      );
+    },
+    async createService(input: ServiceInput) {
+      return catalogServiceSchema.parse(
+        (await catalogWrite('services', input)).item,
+      );
+    },
+    async updateService(id: string, input: ServiceUpdate) {
+      return catalogServiceSchema.parse(
+        (await catalogWrite('services', input, id)).item,
+      );
+    },
     async technicians(query: {
       page: number;
       pageSize: number;

@@ -96,3 +96,5 @@ A implantação futura é no Server 10 Linux da empresa, pela rede interna, com 
 Respeite UTF-8/LF e a política específica do CSV em `.editorconfig` e `.gitattributes`. Alterações e próximas tarefas precisam de autorização própria; não há publicação automática.
 
 DEV-007 / HD-021: ADMIN acessa **Gestão de usuários** para listar, cadastrar e editar técnicos reais. TECHNICIAN acessa **Meu perfil**. Senha provisória é exibida apenas após cadastro e exige troca inicial. Consulte [gestão de técnicos](docs/24-gestao-tecnicos.md).
+
+DEV-008 / HD-025: **Catálogo de serviços** real, com página independente exclusiva de ADMIN (DEV-008.1). As consultas GET autenticadas de solicitantes/técnicos permanecem disponíveis para integração futura à abertura. Categorias, serviços e formulário básico v1 persistem no PostgreSQL; não há abertura HTTP de chamados nem editor persistente de campos. Consulte [catálogo real](docs/25-catalogo-real.md).
