@@ -22,3 +22,17 @@ CLAUDE.local.md
 .npm-cache/
 .local/
 apps/backend/src/generated/prisma/
+
+# Dumps, cópias privadas e evidências de execução
+*.dump
+*.dump.sha256
+*.sql.gz
+*.bak
+*.pem
+*.key
+*.pfx
+*.p12
+backups/
+uploads/
+playwright-report/
+test-results/
