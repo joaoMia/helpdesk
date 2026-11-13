@@ -31,16 +31,20 @@ test('Spark usa dados gerais; TOTVS e Portal ativam somente seus campos', () => 
     ),
   );
   assert(
-    validateAnswers('s1', { ...spark, systems: ['TOTVS', 'Portal Permetal'] })
-      .modules,
+    validateAnswers('s1', {
+      ...spark,
+      systems: ['TOTVS', 'Portal Interno Fictício'],
+    }).modules,
   );
   assert(
-    validateAnswers('s1', { ...spark, systems: ['TOTVS', 'Portal Permetal'] })
-      .re,
+    validateAnswers('s1', {
+      ...spark,
+      systems: ['TOTVS', 'Portal Interno Fictício'],
+    }).re,
   );
   const complete = {
     ...spark,
-    systems: ['TOTVS', 'Portal Permetal'],
+    systems: ['TOTVS', 'Portal Interno Fictício'],
     modules: 'Estoque',
     accessHours: '08h–18h',
     re: 'DEMO',
@@ -92,7 +96,7 @@ test('valida URL, e-mail, sistemas e anexo sem solicitar senha', () => {
   );
   assert(
     validateAnswers('s1', {
-      systems: ['Portal Permetal'],
+      systems: ['Portal Interno Fictício'],
       fullName: 'Demo',
       department: 'Demo',
       re: '0',
