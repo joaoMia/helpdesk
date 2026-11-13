@@ -210,9 +210,6 @@ export function RealLogin({
           <p className="mt-5 text-xs text-slate-500">
             Recuperação de acesso por e-mail ainda não está disponível.
           </p>
-          <a className="text-button mt-5" href="#/demo/requester/painel">
-            Explorar laboratório visual · sem autenticação
-          </a>
         </section>
       </main>
     </div>
