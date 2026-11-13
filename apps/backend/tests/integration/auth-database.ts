@@ -52,6 +52,8 @@ export async function authTestDatabase() {
     async dispose() {
       try {
         await db.$disconnect();
+        // Explicit retention for isolated validation runs that must avoid DROP SCHEMA.
+        if (process.env.HELPDESK_TEST_KEEP_SCHEMA === '1') return;
         const owner = await control.query(
           'SELECT nspname FROM pg_namespace WHERE nspname=$1 AND nspowner=(SELECT oid FROM pg_roles WHERE rolname=current_user)',
           [schema],
