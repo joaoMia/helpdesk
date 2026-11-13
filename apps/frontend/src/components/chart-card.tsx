@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import gsap from 'gsap';
 import * as echarts from 'echarts/core';
+import { UniversalTransition } from 'echarts/features';
 import { BarChart, GaugeChart, LineChart, PieChart } from 'echarts/charts';
 import {
   AriaComponent,
@@ -23,6 +23,7 @@ import { AnimatedPanel } from './animated-panel';
 import { useMotionPreference } from '../hooks/use-motion-preference';
 import { replaceChart } from '../lib/chart-update';
 echarts.use([
+  UniversalTransition,
   BarChart,
   LineChart,
   PieChart,
@@ -46,10 +47,8 @@ export default function ChartCard({
 }) {
   const root = useRef<HTMLDivElement>(null),
     body = useRef<HTMLDivElement>(null),
-    exiting = useRef(false),
     instance = useRef<ReturnType<typeof echarts.init> | null>(null);
   const [mode, setMode] = useState<ChartMode>(model.kind),
-    [viewMode, setViewMode] = useState<ChartMode>(model.kind),
     [open, setOpen] = useState(true);
   const [dark, setDark] = useState(
     () => document.documentElement.dataset.theme === 'dark',
@@ -58,6 +57,7 @@ export default function ChartCard({
     hasData = hasChartData(model),
     modes = availableChartModes(model);
   const activeMode = modes.includes(mode) ? mode : model.kind;
+  const viewMode = activeMode;
   useEffect(() => {
     const element = root.current;
     if (!element) return;
@@ -85,62 +85,15 @@ export default function ChartCard({
       delete element.dataset.chartInstance;
     };
   }, []);
-  useEffect(() => {
-    const element = body.current;
-    if (activeMode === viewMode) {
-      if (!exiting.current) return;
-      exiting.current = false;
-      const restore = gsap.to(element, {
-        opacity: 1,
-        y: 0,
-        duration: reduced ? 0 : 0.2,
-        overwrite: 'auto',
-        onComplete: () => {
-          if (element) element.dataset.transition = 'complete';
-        },
-      });
-      return () => {
-        restore.kill();
-      };
-    }
-    exiting.current = true;
-    if (element) element.dataset.transition = 'exiting';
-    const tween = gsap.to(element, {
-      opacity: 0,
-      y: -6,
-      duration: reduced ? 0 : 0.14,
-      onComplete: () => {
-        exiting.current = false;
-        setViewMode(activeMode);
-      },
-    });
-    return () => {
-      tween.kill();
-    };
-  }, [activeMode, viewMode, reduced]);
   useLayoutEffect(() => {
     const element = root.current;
     const container = body.current;
     if (!element || !container) return;
-    const context = gsap.context(() => {
-      gsap.fromTo(
-        container,
-        { opacity: reduced ? 1 : 0, y: reduced ? 0 : 8 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: reduced ? 0 : 0.32,
-          onComplete: () => {
-            container.dataset.transition = 'complete';
-          },
-        },
-      );
-    }, container);
-    container.dataset.transition = 'entering';
+    container.dataset.transition = 'complete';
     if (!hasData || viewMode === 'table') {
       instance.current?.clear();
       element.dataset.chartSeries = '[]';
-      return () => context.revert();
+      return;
     }
     const chart =
       instance.current ??
@@ -174,7 +127,6 @@ export default function ChartCard({
     return () => {
       element.removeEventListener('helpdesk:chart-reveal', reveal);
       chart.off('finished', settled);
-      context.revert();
     };
   }, [model, viewMode, dark, reduced, hasData]);
   return (

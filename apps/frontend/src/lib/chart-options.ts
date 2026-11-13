@@ -136,9 +136,8 @@ export function chartOptions(
           id: 'series-0',
           name: model.series[0]?.name ?? 'Chamados',
           type: 'pie',
-          // Full replacement + entry animation is intentional: cross-type morphing
-          // left obsolete SVG sectors in the installed ECharts version.
-          universalTransition: false,
+          // Stable series/category identities allow ECharts to interpolate geometry.
+          universalTransition: !reduced,
           radius: mode === 'rose' ? [20, '68%'] : ['44%', '68%'],
           // Radius mode keeps sector angles proportional to ticket counts.
           roseType: mode === 'rose' ? 'radius' : false,
@@ -205,7 +204,7 @@ export function chartOptions(
         id: `series-${index}`,
         name: series.name,
         type,
-        universalTransition: false,
+        universalTransition: !reduced,
         data: model.labels.map((name, i) => ({
           id: model.ids?.[i] ?? name,
           name,

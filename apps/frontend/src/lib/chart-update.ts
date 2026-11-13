@@ -1,8 +1,11 @@
 import type { EChartsCoreOption } from 'echarts/core';
 
-// replaceMerge still matches components with identical IDs. A complete model
-// replacement prevents pie/gauge geometry or Cartesian axes leaking across modes.
-export const chartReplacement = { notMerge: true, lazyUpdate: false } as const;
+// Merge matching series to preserve geometry; remove obsolete axes and series.
+export const chartReplacement = {
+  notMerge: false,
+  lazyUpdate: false,
+  replaceMerge: ['series', 'xAxis', 'yAxis', 'grid'],
+};
 export function replaceChart(
   chart: {
     setOption: (
