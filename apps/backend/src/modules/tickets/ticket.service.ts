@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   formDefinitionSchema,
   idSchema,
@@ -5,6 +6,7 @@ import {
   openTicketInputSchema,
   openedTicketSchema,
   serviceSnapshotSchema,
+  visibleFormKeys,
 } from '@helpdesk/contracts';
 import type { OpenedTicket } from '@helpdesk/contracts';
 import { ApplicationError } from '../../shared/errors.js';
@@ -51,6 +53,12 @@ export class TicketService {
           409,
           'Serviço sem formulário versionado disponível.',
         );
+      if (input.formVersionId && input.formVersionId !== service.form.id)
+        throw new ApplicationError(
+          'FORM_CHANGED',
+          409,
+          'O formulário foi atualizado. Recarregue os campos e revise suas respostas antes de abrir.',
+        );
       const definitions = formDefinitionSchema.safeParse(service.form.fields);
       if (!definitions.success)
         throw new ApplicationError(
@@ -59,12 +67,7 @@ export class TicketService {
           'Configuração do formulário indisponível.',
         );
       const fields = definitions.data;
-      if (fields.some((field) => field.condition))
-        throw new ApplicationError(
-          'FORM_RULES_PENDING',
-          409,
-          'Condições de formulário aguardam homologação para uso real.',
-        );
+      const visible = visibleFormKeys(fields, input.answers);
       if (
         Object.keys(input.answers).some(
           (key) => !fields.some((field) => field.key === key),
@@ -77,7 +80,10 @@ export class TicketService {
         );
       const answers: OpeningRecord['answers'] = [];
       for (const field of fields) {
-        const value = input.answers[field.key];
+        if (!visible.has(field.key)) continue;
+        const value = Object.hasOwn(input.answers, field.key)
+          ? input.answers[field.key]
+          : undefined;
         const empty =
           value === undefined ||
           (typeof value === 'string' && !value.trim()) ||
@@ -91,24 +97,49 @@ export class TicketService {
             );
           continue;
         }
-        if (field.type === 'FILE')
-          throw new ApplicationError(
-            'UPLOAD_PENDING',
-            409,
-            'Anexos dependem do módulo de upload autenticado.',
-          );
+        if (field.type === 'FILE') {
+          if (!unit.supportsOpeningFiles)
+            throw new ApplicationError(
+              'UPLOAD_PENDING',
+              409,
+              'Upload autenticado indisponível.',
+            );
+          const files = z.array(idSchema).min(1).max(10).safeParse(value);
+          if (!files.success || new Set(files.data).size !== files.data.length)
+            throw new ApplicationError(
+              'INVALID_ANSWERS',
+              400,
+              'Selecione anexos válidos para o campo ' + field.label + '.',
+            );
+          answers.push({
+            fieldId: field.id,
+            fieldKey: field.key,
+            value: files.data,
+          });
+          continue;
+        }
         const valid =
-          field.type === 'CHECKBOX'
-            ? typeof value === 'boolean'
-            : field.type === 'MULTI_SELECT'
-              ? Array.isArray(value) &&
-                new Set(value).size === value.length &&
-                value.every((item) => field.options?.includes(item))
-              : field.type === 'SELECT'
-                ? typeof value === 'string' && !!field.options?.includes(value)
-                : field.type === 'DATE_TIME'
-                  ? instantSchema.safeParse(value).success
-                  : typeof value === 'string';
+          field.type === 'NUMBER'
+            ? z.number().finite().safeParse(value).success
+            : field.type === 'DATE'
+              ? z.iso.date().safeParse(value).success
+              : field.type === 'EMAIL'
+                ? z.email().safeParse(value).success
+                : field.type === 'URL'
+                  ? z.url({ protocol: /^https?$/ }).safeParse(value).success
+                  : field.type === 'CHECKBOX'
+                    ? typeof value === 'boolean'
+                    : field.type === 'MULTI_SELECT' ||
+                        field.type === 'CHECKBOX_GROUP'
+                      ? Array.isArray(value) &&
+                        new Set(value).size === value.length &&
+                        value.every((item) => field.options?.includes(item))
+                      : field.type === 'SELECT'
+                        ? typeof value === 'string' &&
+                          !!field.options?.includes(value)
+                        : field.type === 'DATE_TIME'
+                          ? instantSchema.safeParse(value).success
+                          : typeof value === 'string';
         if (!valid)
           throw new ApplicationError(
             'INVALID_ANSWERS',

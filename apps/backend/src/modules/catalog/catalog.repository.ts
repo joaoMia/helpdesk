@@ -26,12 +26,13 @@ const administration = {
 const conflict = (message: string) =>
   new ApplicationError('CATALOG_CONFLICT', 409, message);
 export class CatalogRepository {
-  constructor(private db: PrismaClient) {}
+  constructor(readonly db: PrismaClient) {}
   private projection(admin: boolean) {
     return { ...reader, ...(admin ? administration : {}) };
   }
   private where(admin: boolean, query: CatalogQuery) {
     return {
+      retirement: { is: null },
       AND: [
         ...(!admin ? [{ isActive: true }] : []),
         ...(query.status !== 'all'
@@ -87,7 +88,10 @@ export class CatalogRepository {
         }
         const where = {
           ...this.where(admin, q),
-          ...(!admin ? { category: { isActive: true } } : {}),
+          category: {
+            retirement: { is: null },
+            ...(!admin ? { isActive: true } : {}),
+          },
           ...(q.categoryId ? { categoryId: q.categoryId } : {}),
         };
         return {
@@ -115,7 +119,11 @@ export class CatalogRepository {
     );
   }
   async detail(kind: CatalogKind, admin: boolean, id: string) {
-    const where = { id, ...(!admin ? { isActive: true } : {}) };
+    const where = {
+      id,
+      retirement: { is: null },
+      ...(!admin ? { isActive: true } : {}),
+    };
     const result =
       kind === 'categories'
         ? await this.db.serviceCategory.findFirst({
@@ -125,7 +133,10 @@ export class CatalogRepository {
         : await this.db.service.findFirst({
             where: {
               ...where,
-              ...(!admin ? { category: { isActive: true } } : {}),
+              category: {
+                retirement: { is: null },
+                ...(!admin ? { isActive: true } : {}),
+              },
             },
             select: {
               ...this.projection(admin),
@@ -171,7 +182,11 @@ export class CatalogRepository {
         await this.actor(tx, identity);
         if (id) {
           await tx.$queryRaw`SELECT id FROM service_categories WHERE id=${id}::uuid FOR UPDATE`;
-          if (!(await tx.serviceCategory.findUnique({ where: { id } })))
+          if (
+            !(await tx.serviceCategory.findUnique({
+              where: { id, retirement: { is: null } },
+            }))
+          )
             throw resourceNotFound();
           return tx.serviceCategory.update({
             where: { id },
@@ -204,7 +219,7 @@ export class CatalogRepository {
         const oldCategory = previous?.categoryId ?? categoryId;
         await tx.$queryRaw`SELECT id FROM service_categories WHERE id IN (${oldCategory}::uuid,${categoryId}::uuid) ORDER BY id FOR SHARE`;
         const category = await tx.serviceCategory.findUnique({
-          where: { id: categoryId },
+          where: { id: categoryId, retirement: { is: null } },
         });
         if (!category) throw resourceNotFound();
         if (id)

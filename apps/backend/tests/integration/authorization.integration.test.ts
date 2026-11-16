@@ -52,13 +52,13 @@ describe('HD-018 RBAC/ownership com autenticação e PostgreSQL reais', () => {
       /Descrição|privada|requesterId/,
     );
   });
-  it('técnico tem detalhes somente dos chamados atribuídos a ele', async () => {
+  it('técnico lê todos os detalhes; mutação continua limitada ao responsável', async () => {
     const c = await authenticated('technicianA');
     expect(
       (await c.agent.get('/probe/tickets/' + data.assignedA.id)).status,
     ).toBe(200);
     for (const id of [data.assignedB.id, data.own.id, data.classified.id])
-      expect((await c.agent.get('/probe/tickets/' + id)).status).toBe(404);
+      expect((await c.agent.get('/probe/tickets/' + id)).status).toBe(200);
     expect(
       (await post(c, '/probe/tickets/' + data.assignedB.id + '/update')).status,
     ).toBe(404);
@@ -201,7 +201,10 @@ describe('HD-018 RBAC/ownership com autenticação e PostgreSQL reais', () => {
       await c.agent.get('/probe/counts').query({ status: 'OPEN' });
       const scoped = expect.objectContaining({
         where: {
-          AND: [{ requesterId: data.users.requesterA.id }, { status: 'OPEN' }],
+          AND: [
+            { requesterId: data.users.requesterA.id, retirement: { is: null } },
+            { status: 'OPEN' },
+          ],
         },
       });
       expect(list).toHaveBeenCalledWith(scoped);
@@ -215,7 +218,11 @@ describe('HD-018 RBAC/ownership com autenticação e PostgreSQL reais', () => {
         expect.objectContaining({
           where: {
             AND: [
-              { status: 'OPEN', assignedTechnicianId: null },
+              {
+                status: 'OPEN',
+                assignedTechnicianId: null,
+                retirement: { is: null },
+              },
               { status: 'CLOSED' },
             ],
           },
@@ -340,9 +347,19 @@ describe('HD-018 RBAC/ownership com autenticação e PostgreSQL reais', () => {
       ['technicianB', [data.assignedB.id]],
     ] as const) {
       const c = await authenticated(key),
-        r = await c.agent.get('/probe/tickets');
+        r = await c.agent.get('/probe/tickets'),
+        visible = key.startsWith('technician')
+          ? [
+              data.own.id,
+              data.other.id,
+              data.assignedA.id,
+              data.assignedB.id,
+              data.classified.id,
+              data.closed.id,
+            ]
+          : ids;
       expect(new Set(r.body.map((row: { id: string }) => row.id))).toEqual(
-        new Set(ids),
+        new Set(visible),
       );
       const counts = await c.agent.get('/probe/counts');
       expect(

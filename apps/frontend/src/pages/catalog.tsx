@@ -1,4 +1,8 @@
-import { useEffect, useState } from 'react';
+import { RemoveRecordButton } from '../components/remove-record-button';
+import { ServiceFormEditor } from '../components/service-form-editor';
+import { DemoDialog } from '../components/demo-dialog';
+import { useDebouncedValue } from '../hooks/use-debounced-value';
+import { useEffect, useRef, useState } from 'react';
 import type {
   Category,
   CatalogService,
@@ -7,6 +11,7 @@ import type {
 } from '@helpdesk/contracts';
 import { categoryInputSchema, serviceInputSchema } from '@helpdesk/contracts';
 import { authClient, AuthError } from '../lib/auth-client';
+import { loadAllOptions } from '../lib/paginated-options';
 type Kind = 'categories' | 'services';
 type Editing = {
   kind: Kind;
@@ -17,6 +22,40 @@ type Editing = {
   isActive: boolean;
   categoryId: string;
 };
+
+export function CatalogServiceActions({
+  id,
+  busy,
+  onEdit,
+  onForm,
+  onRemoved,
+  onExpired,
+}: {
+  id: string;
+  busy: boolean;
+  onEdit: () => void;
+  onForm: () => void;
+  onRemoved: () => void;
+  onExpired: () => void;
+}) {
+  return (
+    <div className="catalog-service-actions">
+      <button className="text-button" disabled={busy} onClick={onEdit}>
+        Editar serviço
+      </button>
+      <RemoveRecordButton
+        kind="service"
+        id={id}
+        onExpired={onExpired}
+        onRemoved={onRemoved}
+      />
+      <button className="text-button" onClick={onForm}>
+        Formulário
+      </button>
+    </div>
+  );
+}
+
 export function Catalog({
   user,
   onExpired,
@@ -35,9 +74,7 @@ export function Catalog({
     [categoryPage, setCategoryPage] = useState(1),
     [servicePage, setServicePage] = useState(1),
     [categoryText, setCategoryText] = useState(''),
-    [categorySearch, setCategorySearch] = useState(''),
     [text, setText] = useState(''),
-    [search, setSearch] = useState(''),
     [categoryStatus, setCategoryStatus] =
       useState<CatalogQuery['status']>('all'),
     [status, setStatus] = useState<CatalogQuery['status']>('all'),
@@ -48,6 +85,43 @@ export function Catalog({
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
     [revision, setRevision] = useState(0);
+  const search = useDebouncedValue(text.trim());
+  const categorySearch = useDebouncedValue(categoryText.trim());
+  const [loadedQuery, setLoadedQuery] = useState('');
+  const queryKey = JSON.stringify([
+    categoryPage,
+    categorySearch,
+    categoryStatus,
+    servicePage,
+    search,
+    status,
+    selected?.id,
+    revision,
+  ]);
+  useEffect(() => {
+    let active = true;
+    loadAllOptions((page) =>
+      authClient.categories({
+        page,
+        pageSize: 50,
+        status: admin ? 'all' : 'active',
+      }),
+    )
+      .then((rows) => {
+        if (active)
+          setKnownCategories(new Map(rows.map((r) => [r.id, r.name])));
+      })
+      .catch((e) => {
+        if (active) {
+          if (e instanceof AuthError && e.status === 401) onExpired();
+          else
+            setError('Não foi possível carregar as categorias para seleção.');
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [admin, revision, onExpired]);
   useEffect(() => {
     let alive = true;
     Promise.all([
@@ -90,12 +164,16 @@ export function Catalog({
         }
       })
       .finally(() => {
-        if (alive) setLoading(false);
+        if (alive) {
+          setLoading(false);
+          setLoadedQuery(queryKey);
+        }
       });
     return () => {
       alive = false;
     };
   }, [
+    queryKey,
     admin,
     categoryPage,
     categorySearch,
@@ -107,6 +185,17 @@ export function Catalog({
     revision,
     onExpired,
   ]);
+  const [formService, setFormService] = useState<string | null>(null);
+  const initialEditing = useRef<string>('');
+  const [discarding, setDiscarding] = useState(false);
+  function closeEditor() {
+    if (busy) return;
+    if (JSON.stringify(editing) !== initialEditing.current) {
+      setDiscarding(true);
+      return;
+    }
+    setEditing(null);
+  }
   function reload() {
     setLoading(true);
     setRevision((n) => n + 1);
@@ -114,7 +203,8 @@ export function Catalog({
   function start(kind: Kind, item?: Category | CatalogService) {
     setError('');
     setNotice('');
-    setEditing({
+    setDiscarding(false);
+    const draft: Editing = {
       kind,
       ...(item ? { id: item.id } : {}),
       name: item?.name ?? '',
@@ -125,10 +215,12 @@ export function Catalog({
         item && 'categoryId' in item
           ? item.categoryId
           : (selected?.id ?? categories[0]?.id ?? ''),
-    });
+    };
+    initialEditing.current = JSON.stringify(draft);
+    setEditing(draft);
   }
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
+  async function save(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!editing || busy || !admin) return;
     const { kind, id, name, description, isActive, displayOrder, categoryId } =
       editing;
@@ -202,10 +294,9 @@ export function Catalog({
         </button>
       </div>
       <p className="info-note">
-        Cada chamado utilizará um único serviço. A abertura de chamados ainda
-        está em desenvolvimento. Serviços novos possuem formulário básico com
-        assunto e descrição; o editor de campos personalizados não está
-        disponível.
+        Cada chamado utiliza um único serviço. Serviços novos possuem formulário
+        básico. Use Formulário para configurar e publicar campos adicionais sem
+        modificar o histórico dos chamados.
       </p>
       {error && (
         <p role="alert" className="form-error">
@@ -213,111 +304,151 @@ export function Catalog({
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
+      {(loading || loadedQuery !== queryKey) && (
+        <p role="status" className="text-sm text-slate-500">
+          Atualizando catálogo…
+        </p>
+      )}
+      {admin && formService && (
+        <ServiceFormEditor
+          id={formService}
+          onExpired={onExpired}
+          onClose={() => setFormService(null)}
+        />
+      )}
       {admin && editing && (
-        <form
-          className="panel p-5 space-y-4 max-w-2xl"
-          onSubmit={(e) => void save(e)}
+        <DemoDialog
+          title={
+            (editing.id ? 'Editar ' : 'Cadastrar ') +
+            (editing.kind === 'categories' ? 'categoria' : 'serviço')
+          }
+          eyebrow="CATÁLOGO REAL"
+          pending={busy}
+          confirmLabel={busy ? 'Salvando…' : 'Salvar'}
+          onConfirm={() => {
+            void save();
+            return false;
+          }}
+          onCancel={closeEditor}
         >
-          <h2 className="font-semibold">
-            {editing.id ? 'Editar' : 'Criar'}{' '}
-            {editing.kind === 'categories' ? 'categoria' : 'serviço'}
-          </h2>
-          <label className="block">
-            Nome
-            <input
-              className="field w-full mt-2"
-              required
-              minLength={2}
-              maxLength={120}
-              disabled={busy}
-              value={editing.name}
-              onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-            />
-          </label>
-          <label className="block">
-            Descrição
-            <textarea
-              className="field w-full mt-2"
-              maxLength={2000}
-              disabled={busy}
-              value={editing.description}
-              onChange={(e) =>
-                setEditing({ ...editing, description: e.target.value })
-              }
-            />
-          </label>
-          {editing.kind === 'services' && (
+          <form className="space-y-4" onSubmit={(e) => void save(e)}>
             <label className="block">
-              Categoria
-              <select
+              Nome
+              <input
                 className="field w-full mt-2"
                 required
+                minLength={2}
+                maxLength={120}
                 disabled={busy}
-                value={editing.categoryId}
+                value={editing.name}
                 onChange={(e) =>
-                  setEditing({ ...editing, categoryId: e.target.value })
+                  setEditing({ ...editing, name: e.target.value })
                 }
-              >
-                <option value="">Selecione</option>
-                {[...categoryOptions].map(([id, name]) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-              <span className="text-sm text-slate-500">
-                Para localizar outras categorias, use a busca e a paginação da
-                listagem abaixo. Transferências são bloqueadas se o serviço já
-                possui chamados.
-              </span>
+              />
             </label>
-          )}
-          <label className="block">
-            Ordem de exibição
-            <input
-              className="field w-full mt-2"
-              type="number"
-              required
-              min={0}
-              max={100000}
-              disabled={busy}
-              value={editing.displayOrder}
-              onChange={(e) =>
-                setEditing({ ...editing, displayOrder: Number(e.target.value) })
-              }
-            />
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={editing.isActive}
-              disabled={busy}
-              onChange={(e) =>
-                setEditing({ ...editing, isActive: e.target.checked })
-              }
-            />
-            Ativo
-          </label>
-          <p className="info-note">
-            Desativar preserva o histórico e impede novas solicitações. Uma
-            categoria inativa torna todos os seus serviços indisponíveis, sem
-            mudar a situação individual de cada um. Serviços ativos exigem
-            categoria ativa.
-          </p>
-          <div className="flex gap-3">
-            <button className="button-primary" disabled={busy}>
-              {busy ? 'Salvando…' : 'Salvar'}
-            </button>
-            <button
-              className="button-secondary"
-              type="button"
-              disabled={busy}
-              onClick={() => setEditing(null)}
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
+            <label className="block">
+              Descrição
+              <textarea
+                className="field w-full mt-2"
+                maxLength={2000}
+                disabled={busy}
+                value={editing.description}
+                onChange={(e) =>
+                  setEditing({ ...editing, description: e.target.value })
+                }
+              />
+            </label>
+            {editing.kind === 'services' && (
+              <label className="block">
+                Categoria
+                <select
+                  className="field w-full mt-2"
+                  required
+                  disabled={busy}
+                  value={editing.categoryId}
+                  onChange={(e) =>
+                    setEditing({ ...editing, categoryId: e.target.value })
+                  }
+                >
+                  <option value="">Selecione</option>
+                  {[...categoryOptions].map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-sm text-slate-500">
+                  Selecione uma categoria cadastrada. Transferências são
+                  bloqueadas se o serviço já possui chamados.
+                </span>
+              </label>
+            )}
+            <label className="block">
+              Ordem de exibição
+              <input
+                className="field w-full mt-2"
+                type="number"
+                required
+                min={0}
+                max={100000}
+                disabled={busy}
+                value={editing.displayOrder}
+                onChange={(e) =>
+                  setEditing({
+                    ...editing,
+                    displayOrder: Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={editing.isActive}
+                disabled={busy}
+                onChange={(e) =>
+                  setEditing({ ...editing, isActive: e.target.checked })
+                }
+              />
+              Ativo
+            </label>
+            <p className="info-note">
+              Desativar preserva o histórico e impede novas solicitações. Uma
+              categoria inativa torna todos os seus serviços indisponíveis, sem
+              mudar a situação individual de cada um. Serviços ativos exigem
+              categoria ativa.
+            </p>
+            {error && (
+              <p role="alert" className="form-error">
+                {error}
+              </p>
+            )}
+            {discarding && (
+              <div className="info-note" role="alert">
+                <p>Descartar as alterações não salvas?</p>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  disabled={busy}
+                  onClick={() => setDiscarding(false)}
+                >
+                  Continuar editando
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    setDiscarding(false);
+                    setEditing(null);
+                  }}
+                >
+                  Descartar alterações
+                </button>
+              </div>
+            )}
+          </form>
+        </DemoDialog>
       )}
       <section
         className="panel p-5 space-y-4"
@@ -341,7 +472,6 @@ export function Catalog({
           className="flex flex-wrap gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            setCategorySearch(categoryText.trim());
             setCategoryPage(1);
             reload();
           }}
@@ -353,7 +483,10 @@ export function Catalog({
             aria-label="Buscar categorias"
             placeholder="Buscar categorias"
             value={categoryText}
-            onChange={(e) => setCategoryText(e.target.value)}
+            onChange={(e) => {
+              setCategoryText(e.target.value);
+              setCategoryPage(1);
+            }}
           />
           {admin && (
             <select
@@ -373,7 +506,11 @@ export function Catalog({
           )}
           <button className="button-secondary">Buscar categorias</button>
         </form>
-        {loading ? (
+        {(loadedQuery !== queryKey ||
+          loading ||
+          text.trim() !== search ||
+          categoryText.trim() !== categorySearch) &&
+        !categories.length ? (
           <p role="status">Carregando catálogo…</p>
         ) : (
           <div className="overflow-x-auto">
@@ -413,13 +550,21 @@ export function Catalog({
                           Ver serviços
                         </button>
                         {admin && (
-                          <button
-                            className="text-button"
-                            disabled={busy}
-                            onClick={() => start('categories', c)}
-                          >
-                            Editar categoria
-                          </button>
+                          <>
+                            <RemoveRecordButton
+                              kind="category"
+                              id={c.id}
+                              onExpired={onExpired}
+                              onRemoved={reload}
+                            />
+                            <button
+                              className="text-button"
+                              disabled={busy}
+                              onClick={() => start('categories', c)}
+                            >
+                              Editar categoria
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -435,7 +580,12 @@ export function Catalog({
         <Pager
           page={categoryPage}
           total={categoryTotal}
-          loading={loading}
+          loading={
+            loading ||
+            loadedQuery !== queryKey ||
+            text.trim() !== search ||
+            categoryText.trim() !== categorySearch
+          }
           change={(p) => {
             setCategoryPage(p);
             setLoading(true);
@@ -475,7 +625,6 @@ export function Catalog({
           className="flex flex-wrap gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            setSearch(text.trim());
             setServicePage(1);
             reload();
           }}
@@ -487,7 +636,10 @@ export function Catalog({
             aria-label="Buscar serviços"
             placeholder="Buscar serviços por nome ou descrição"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              setServicePage(1);
+            }}
           />
           {admin && (
             <select
@@ -511,7 +663,6 @@ export function Catalog({
             className="text-button"
             onClick={() => {
               setText('');
-              setSearch('');
               setStatus('all');
               setServicePage(1);
               reload();
@@ -520,7 +671,11 @@ export function Catalog({
             Limpar
           </button>
         </form>
-        {loading ? (
+        {(loadedQuery !== queryKey ||
+          loading ||
+          text.trim() !== search ||
+          categoryText.trim() !== categorySearch) &&
+        !services.length ? (
           <p role="status">Carregando serviços…</p>
         ) : (
           <div className="overflow-x-auto">
@@ -557,13 +712,14 @@ export function Catalog({
                           )}
                         </td>
                         <td className="p-3">
-                          <button
-                            className="text-button"
-                            disabled={busy}
-                            onClick={() => start('services', s)}
-                          >
-                            Editar serviço
-                          </button>
+                          <CatalogServiceActions
+                            id={s.id}
+                            busy={busy}
+                            onEdit={() => start('services', s)}
+                            onForm={() => setFormService(s.id)}
+                            onExpired={onExpired}
+                            onRemoved={reload}
+                          />
                         </td>
                       </>
                     )}
@@ -579,7 +735,12 @@ export function Catalog({
         <Pager
           page={servicePage}
           total={serviceTotal}
-          loading={loading}
+          loading={
+            loading ||
+            loadedQuery !== queryKey ||
+            text.trim() !== search ||
+            categoryText.trim() !== categorySearch
+          }
           change={(p) => {
             setServicePage(p);
             setLoading(true);

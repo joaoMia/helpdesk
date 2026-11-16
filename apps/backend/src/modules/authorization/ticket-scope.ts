@@ -22,22 +22,32 @@ export function ticketScope(
   switch (operation) {
     case 'tickets.triage':
     case 'tickets.classify':
-      return classificationPrecondition();
+      return { ...classificationPrecondition(), retirement: { is: null } };
     case 'tickets.start':
-      return startPrecondition();
+      return { ...startPrecondition(), retirement: { is: null } };
     case 'tickets.update-assigned':
       return {
         AND: [{ assignedTechnicianId: actor.id }, modificationPrecondition()],
       };
     case 'tickets.read':
+      switch (actor.role) {
+        case 'REQUESTER':
+          return { requesterId: actor.id, retirement: { is: null } };
+        case 'TECHNICIAN':
+          return { retirement: { is: null } };
+        case 'ADMIN':
+          return { retirement: { is: null } };
+        default:
+          throw forbidden();
+      }
     case 'tickets.aggregate':
       switch (actor.role) {
         case 'REQUESTER':
-          return { requesterId: actor.id };
+          return { requesterId: actor.id, retirement: { is: null } };
         case 'TECHNICIAN':
-          return { assignedTechnicianId: actor.id };
+          return { assignedTechnicianId: actor.id, retirement: { is: null } };
         case 'ADMIN':
-          return {};
+          return { retirement: { is: null } };
         default:
           throw forbidden();
       }
@@ -60,6 +70,9 @@ export const ticketDetailSelect = {
   subject: true,
   description: true,
   requesterId: true,
+  requester: { select: { name: true } },
+  assignedTechnician: { select: { name: true } },
+  resolvedAt: true,
   serviceId: true,
   formVersionId: true,
   serviceSnapshot: true,

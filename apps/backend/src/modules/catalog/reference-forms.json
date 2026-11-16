@@ -1,0 +1,487 @@
+[
+  {
+    "name": "Criação de usuário",
+    "category": "Acessos e contas",
+    "definition": {
+      "title": "Criação de usuário",
+      "description": "",
+      "fields": [
+        {
+          "id": "d0d15b21-dcbf-4561-9d8c-359412163724",
+          "key": "systems",
+          "label": "Sistemas",
+          "type": "SELECT",
+          "required": true,
+          "options": ["TOTVS", "Spark", "Portal Interno Fictício"]
+        },
+        {
+          "id": "e573ed63-887a-44ae-b8a0-e517a1ba56a4",
+          "key": "fullName",
+          "label": "Nome completo",
+          "type": "TEXT",
+          "required": true
+        },
+        {
+          "id": "f5c40a55-65a1-44cb-bf37-076b2f1261fb",
+          "key": "department",
+          "label": "Setor",
+          "type": "TEXT",
+          "required": true
+        },
+        {
+          "id": "997d2c08-4ae0-4317-a8df-2506b3a9942a",
+          "key": "extra",
+          "label": "Descrição complementar",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "983b2652-d70c-4e71-8c45-a2c9f424dec6",
+          "key": "modules",
+          "label": "Acessos e módulos a liberar",
+          "type": "LONG_TEXT",
+          "required": true,
+          "condition": {
+            "field": "systems",
+            "includes": "TOTVS"
+          }
+        },
+        {
+          "id": "da016e5d-89fe-44ed-9fc6-d135850eea88",
+          "key": "accessHours",
+          "label": "Horário de acesso",
+          "type": "TEXT",
+          "required": true,
+          "condition": {
+            "field": "systems",
+            "includes": "TOTVS"
+          }
+        },
+        {
+          "id": "95b9fc38-7af7-49f3-ae31-539506721471",
+          "key": "re",
+          "label": "RE",
+          "type": "TEXT",
+          "required": true,
+          "condition": {
+            "field": "systems",
+            "includes": "Portal Interno Fictício"
+          }
+        },
+        {
+          "id": "e6952388-457f-4f55-98df-21cba904335c",
+          "key": "email",
+          "label": "E-mail",
+          "type": "EMAIL",
+          "required": true,
+          "condition": {
+            "field": "systems",
+            "includes": "Portal Interno Fictício"
+          }
+        },
+        {
+          "id": "49fc51fc-f877-4f8f-af9e-accadcff103e",
+          "key": "manager",
+          "label": "Responsável",
+          "type": "TEXT",
+          "required": true,
+          "condition": {
+            "field": "systems",
+            "includes": "Portal Interno Fictício"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "Instalação de aplicativo",
+    "category": "Windows",
+    "definition": {
+      "title": "Instalação de aplicativo",
+      "description": "",
+      "fields": [
+        {
+          "id": "43abe158-5924-4edc-8459-7e5e5f704fec",
+          "key": "application",
+          "label": "Nome do aplicativo",
+          "type": "TEXT",
+          "required": false
+        },
+        {
+          "id": "d4e8931b-c97a-4364-9938-a603249db25f",
+          "key": "website",
+          "label": "URL para instalação",
+          "help": "URL com http:// ou https://. Não informe tokens ou credenciais.",
+          "type": "URL",
+          "required": true
+        },
+        {
+          "id": "5f60fc92-2bd8-4ff4-a417-ee1112ef2f02",
+          "key": "windowsUser",
+          "label": "Usuário Windows para acesso remoto",
+          "help": "Informe somente o identificador Windows. Nunca informe a senha.",
+          "type": "TEXT",
+          "required": true
+        },
+        {
+          "id": "d3fe175a-e657-4a89-b23e-17eec3958ac3",
+          "key": "reason",
+          "label": "Motivo da instalação",
+          "type": "LONG_TEXT",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Problema no sistema",
+    "category": "TOTVS",
+    "definition": {
+      "title": "Problema no sistema",
+      "description": "",
+      "fields": [
+        {
+          "id": "44a722cf-d7ba-48b1-8484-7e083b91d2a0",
+          "key": "systemUser",
+          "label": "Usuário do sistema",
+          "type": "TEXT",
+          "required": false
+        },
+        {
+          "id": "d025a991-07c8-4553-945c-10e4dae04d9a",
+          "key": "module",
+          "label": "Módulo com problema",
+          "type": "TEXT",
+          "required": true
+        },
+        {
+          "id": "cfd45d47-fdb8-435d-88e8-2d5fd4ff8861",
+          "key": "problem",
+          "label": "Descrição do problema",
+          "type": "LONG_TEXT",
+          "required": true
+        },
+        {
+          "id": "c0c0e757-b07d-438d-b9bb-9196ccd3ebfe",
+          "key": "evidence",
+          "label": "Anexo do problema",
+          "help": "Obrigatório nesta proposta. Apenas o nome é mantido; não há upload.",
+          "type": "FILE",
+          "required": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "Configuração de impressora",
+    "category": "Impressoras",
+    "definition": {
+      "title": "Configuração de impressora",
+      "description": "",
+      "fields": [
+        {
+          "id": "cd70a3f0-e1e9-45a2-93ab-b1d8819e3c21",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "c3aa9a85-4b5f-400f-9321-6f310cfdd7e2",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Redefinição de acesso",
+    "category": "Acessos e contas",
+    "definition": {
+      "title": "Redefinição de acesso",
+      "description": "",
+      "fields": [
+        {
+          "id": "dcdddd21-1e84-45cd-af43-fa7e67161def",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "9fd930f0-bad2-4f2c-a360-7200156885a5",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Equipamentos legados",
+    "category": "Windows",
+    "definition": {
+      "title": "Equipamentos legados",
+      "description": "",
+      "fields": [
+        {
+          "id": "b4270244-8df4-42be-a72a-8c7759377f18",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "54c8e7a9-1a72-40a6-bd74-93f275e0008b",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Máquina travando",
+    "category": "Windows",
+    "definition": {
+      "title": "Máquina travando",
+      "description": "",
+      "fields": [
+        {
+          "id": "39ca1e74-6787-4229-9055-45f5486c97aa",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "86bbccda-ae44-4f87-bcaa-9dcf60542566",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Problema de inicialização",
+    "category": "Windows",
+    "definition": {
+      "title": "Problema de inicialização",
+      "description": "",
+      "fields": [
+        {
+          "id": "c3438216-cb51-48d1-ad77-9db339e25063",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "d21500ed-0330-410f-876a-aa91ece97478",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Erro do sistema operacional",
+    "category": "Windows",
+    "definition": {
+      "title": "Erro do sistema operacional",
+      "description": "",
+      "fields": [
+        {
+          "id": "b79659a5-384f-4a88-b082-c53118c8224f",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "fac59436-9541-48fa-b216-8df1020e04d3",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Liberação de acesso",
+    "category": "TOTVS",
+    "definition": {
+      "title": "Liberação de acesso",
+      "description": "",
+      "fields": [
+        {
+          "id": "4ceccc35-f2b5-40a3-955c-9585fd50cc26",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "25cec802-968a-44cc-b649-4a7b20216ebe",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Erro de execução",
+    "category": "TOTVS",
+    "definition": {
+      "title": "Erro de execução",
+      "description": "",
+      "fields": [
+        {
+          "id": "3df91aed-580d-4412-ade0-8c36f39e7a88",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "ce71fb90-05de-4e3e-bf73-b3ddd206ec8c",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Problema no Outlook",
+    "category": "Pacote Office",
+    "definition": {
+      "title": "Problema no Outlook",
+      "description": "",
+      "fields": [
+        {
+          "id": "88e228a1-11cd-4444-a0c4-2a1e23244f1f",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "d627a135-34a5-4aed-a2e7-9594cddd3a4d",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Problema no Excel",
+    "category": "Pacote Office",
+    "definition": {
+      "title": "Problema no Excel",
+      "description": "",
+      "fields": [
+        {
+          "id": "86324afe-8d3f-4414-9755-a50c968c7a76",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "7f73dc43-3490-45ec-abbe-d641689bd283",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Instalação do Office",
+    "category": "Pacote Office",
+    "definition": {
+      "title": "Instalação do Office",
+      "description": "",
+      "fields": [
+        {
+          "id": "5bdcc704-3ab6-493b-b015-db800ae64d13",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "ec360a70-3a0d-4f4e-a269-636421d32f7c",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Solicitação de permissões",
+    "category": "Acessos e contas",
+    "definition": {
+      "title": "Solicitação de permissões",
+      "description": "",
+      "fields": [
+        {
+          "id": "5a2300e7-0140-4e3b-b7f7-058442c8ea93",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "06ca88d2-bda4-4088-b419-4697464fe729",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "name": "Problema de conectividade",
+    "category": "Infraestrutura de rede",
+    "definition": {
+      "title": "Problema de conectividade",
+      "description": "",
+      "fields": [
+        {
+          "id": "6267ccfd-0388-49d2-979f-05c392025fc6",
+          "key": "context",
+          "label": "Contexto e informações adicionais",
+          "type": "LONG_TEXT",
+          "required": false
+        },
+        {
+          "id": "2f131bf7-783a-4643-b9ea-5606e2cfbe1a",
+          "key": "evidence",
+          "label": "Anexo opcional",
+          "type": "FILE",
+          "required": false
+        }
+      ]
+    }
+  }
+]

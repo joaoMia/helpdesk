@@ -1,0 +1,40 @@
+.ticket-chat-bubble.ticket-chat-own {
+  background: #dff3ef;
+  color: #173f3b;
+  border-color: #b8dcd4;
+}
+.ticket-chat-bubble.ticket-chat-received {
+  background: #edf1f5;
+  color: #243447;
+  border-color: #d5dee8;
+}
+:root[data-theme='dark'] .ticket-chat-bubble.ticket-chat-own {
+  background: #173d39;
+  color: #e1f5ef;
+  border-color: #2e6158;
+}
+:root[data-theme='dark'] .ticket-chat-bubble.ticket-chat-received {
+  background: #263343;
+  color: #edf3fa;
+  border-color: #435267;
+}
+.ticket-chat-bubble time {
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* Scoped conversation palette; no global theme changes. */
+.ticket-chat-messages {
+  background: #e6eceb;
+}
+:root[data-theme='dark'] .ticket-chat-messages {
+  background: #101e2b;
+}
+.ticket-chat-bubble p,
+.ticket-chat-bubble time {
+  color: inherit;
+}
+.ticket-chat-bubble .text-button {
+  color: inherit;
+  text-decoration: underline;
+}

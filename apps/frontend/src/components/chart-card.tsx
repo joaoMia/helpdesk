@@ -39,11 +39,15 @@ export default function ChartCard({
   subtitle,
   model,
   action,
+  stableUpdates = false,
+  realData = false,
 }: {
   title: string;
   subtitle?: string;
   model: ChartModel;
   action?: ReactNode;
+  stableUpdates?: boolean;
+  realData?: boolean;
 }) {
   const root = useRef<HTMLDivElement>(null),
     body = useRef<HTMLDivElement>(null),
@@ -107,7 +111,20 @@ export default function ChartCard({
     chart.on('finished', settled);
     const render = () => {
       element.dataset.chartSettled = 'false';
-      replaceChart(chart, chartOptions(model, dark, reduced, viewMode));
+      replaceChart(chart, {
+        ...chartOptions(model, dark, reduced, viewMode),
+        ...(realData
+          ? {
+              aria: {
+                enabled: true,
+                label: {
+                  description:
+                    'Gráfico com dados reais do PostgreSQL. Consulte a tabela de dados desta visualização.',
+                },
+              },
+            }
+          : {}),
+      });
     };
     render();
     const reveal = render;
@@ -128,12 +145,17 @@ export default function ChartCard({
       element.removeEventListener('helpdesk:chart-reveal', reveal);
       chart.off('finished', settled);
     };
-  }, [model, viewMode, dark, reduced, hasData]);
+  }, [model, viewMode, dark, reduced, hasData, stableUpdates, realData]);
   return (
     <MotionRegion motionKey={'chart-' + title} reveal className="chart-card">
       <Panel
         title={title}
-        subtitle={subtitle ?? 'Amostra fictícia · sem dados de produção'}
+        subtitle={
+          subtitle ??
+          (realData
+            ? 'Dados reais do seu escopo autorizado'
+            : 'Amostra fictícia · sem dados de produção')
+        }
         action={
           <button
             className="text-button text-xs"
@@ -165,10 +187,16 @@ export default function ChartCard({
           </div>
           {!hasData && (
             <EmptyState title="Sem dados nesta amostra">
-              Altere o período ou explore os dados demonstrativos disponíveis.
+              {realData
+                ? 'Nenhum registro corresponde aos filtros selecionados.'
+                : 'Altere o período ou explore os dados demonstrativos disponíveis.'}
             </EmptyState>
           )}
-          <div ref={body} data-chart-view={viewMode}>
+          <div
+            ref={body}
+            data-chart-view={viewMode}
+            data-has-data={hasData ? 'true' : 'false'}
+          >
             <div
               ref={root}
               className="chart-canvas"
@@ -176,7 +204,7 @@ export default function ChartCard({
               role="img"
               aria-label={`${title}. Dados disponíveis na tabela desta visualização.`}
             />
-            {viewMode === 'table' ? (
+            {viewMode === 'table' && hasData ? (
               <DataTable model={model} title={title} />
             ) : (
               hasData && (

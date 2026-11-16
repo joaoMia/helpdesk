@@ -1,8 +1,9 @@
+import { TicketPriorityEditor } from '../components/ticket-priority-editor';
 import { useEffect, useRef, useState } from 'react';
 import type {
   TriageQuery,
   TriageTicket,
-  ClassifyPriority,
+  StartedTicket,
 } from '@helpdesk/contracts';
 import { authClient, AuthError } from '../lib/auth-client';
 import {
@@ -14,6 +15,8 @@ import {
 } from '../components/ui';
 import { MotionRegion } from '../components/motion-region';
 import { DemoDialog } from '../components/demo-dialog';
+import { AssignmentPreviewDialog } from '../components/assignment-preview-dialog';
+import { useDebouncedValue } from '../hooks/use-debounced-value';
 import { TicketPagination } from '../components/ticket-pagination';
 import { date, priorityLabels } from '../lib/presentation';
 
@@ -34,19 +37,25 @@ export function TechnicianTriage({
     [total, setTotal] = useState(0),
     [page, setPage] = useState(1),
     [text, setText] = useState(''),
-    [search, setSearch] = useState(''),
     [priority, setPriority] = useState<TriageQuery['priority']>(),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [actionError, setActionError] = useState(''),
     [notice, setNotice] = useState(''),
     [revision, setRevision] = useState(0),
-    [selected, setSelected] = useState<TriageTicket | null>(null),
-    [choice, setChoice] = useState<ClassifyPriority['priority']>('MEDIUM'),
+    [starting, setStarting] = useState<TriageTicket | null>(null),
+    [started, setStarted] = useState<StartedTicket | null>(null),
     [saving, setSaving] = useState(false);
+  const search = useDebouncedValue(text.trim());
+  const [assigning, setAssigning] = useState<{
+    id: string;
+    code: number;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  } | null>(null);
   const [loadedQuery, setLoadedQuery] = useState('');
   const queryKey = JSON.stringify([queue, page, search, priority]);
-  const refreshing = loading || loadedQuery !== queryKey;
+  const refreshing =
+    loading || loadedQuery !== queryKey || text.trim() !== search;
   const sending = useRef(false),
     alive = useRef(true);
   useEffect(() => {
@@ -93,32 +102,31 @@ export function TechnicianTriage({
     setLoading(true);
     setRevision((n) => n + 1);
   }
-  async function classify() {
-    if (sending.current || !selected) return;
+  async function start() {
+    if (sending.current || !starting) return;
     sending.current = true;
     setSaving(true);
     setActionError('');
     setNotice('');
+    setStarted(null);
     try {
-      const ticket = await authClient.classifyPriority(selected.id, {
-        priority: choice,
-        expectedPriority: selected.priority,
-      });
+      const ticket = await authClient.startTicket(starting.id);
       if (!alive.current) return;
+      setStarted(ticket);
+      setStarting(null);
       setNotice(
-        `Prioridade de HD-${ticket.code} confirmada: ${priorityLabels[ticket.priority!]}. O chamado permanece aberto e sem responsável.`,
+        `Atendimento de HD-${ticket.code} iniciado e atribuído à sua conta.`,
       );
-      setSelected(null);
       reload();
     } catch (e) {
       if (!alive.current) return;
-      setSelected(null);
+      setStarting(null);
       if (e instanceof AuthError && e.status === 401) onExpired();
       else {
         setActionError(
           e instanceof AuthError && e.status !== 0 && e.status < 500
             ? e.message
-            : 'Não foi possível confirmar o resultado. Atualize a fila antes de tentar novamente.',
+            : 'Não foi possível confirmar a assunção. Consulte Meus atendimentos antes de tentar novamente.',
         );
         reload();
       }
@@ -145,7 +153,6 @@ export function TechnicianTriage({
               if (key !== queue) {
                 setPage(1);
                 setLoading(true);
-                setSelected(null);
               }
             }}
           >
@@ -156,6 +163,20 @@ export function TechnicianTriage({
       {notice && (
         <p role="status" className="info-note">
           {notice}
+        </p>
+      )}
+      {started && (
+        <p className="info-note">
+          <a
+            className="text-button"
+            href={'#/technician/chamado/' + started.id}
+          >
+            Abrir detalhes de HD-{started.code}
+          </a>{' '}
+          ·{' '}
+          <a className="text-button" href="#/technician/atendimentos">
+            Ver meus atendimentos
+          </a>
         </p>
       )}
       {error && (
@@ -171,15 +192,14 @@ export function TechnicianTriage({
       <MotionRegion motionKey="real-technician-triage">
         <section className="panel">
           <p className="info-note m-5 mb-0">
-            Somente número, status, prioridade e abertura ficam disponíveis na
-            triagem. Assunto, solicitante e detalhes permanecem privados até a
-            atribuição. Todos reúne apenas as duas filas operacionais.
+            Categoria, serviço, solicitante, setor e empresa ajudam na triagem.
+            Descrição, respostas e anexos continuam restritos ao atendimento
+            autorizado. Classificar não atribui nem inicia atendimento.
           </p>
           <form
             className="filter-bar"
             onSubmit={(e) => {
               e.preventDefault();
-              setSearch(text.trim());
               setPage(1);
               reload();
             }}
@@ -191,7 +211,10 @@ export function TechnicianTriage({
                 value={text}
                 maxLength={30}
                 placeholder="Buscar por número: HD-123"
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  setPage(1);
+                }}
               />
             </label>
             <label>
@@ -221,7 +244,6 @@ export function TechnicianTriage({
               type="button"
               onClick={() => {
                 setText('');
-                setSearch('');
                 setPriority(undefined);
                 setPage(1);
                 reload();
@@ -238,7 +260,12 @@ export function TechnicianTriage({
               Atualizar
             </button>
           </form>
-          {refreshing ? (
+          {refreshing && items.length > 0 && (
+            <p role="status" className="px-6 py-2 text-xs text-slate-500">
+              Atualizando fila…
+            </p>
+          )}
+          {refreshing && !items.length ? (
             <p role="status" className="p-6">
               Carregando fila…
             </p>
@@ -259,6 +286,7 @@ export function TechnicianTriage({
                 <thead>
                   <tr>
                     <th>Chamado</th>
+                    <th>Contexto</th>
                     <th>Status</th>
                     <th>Prioridade</th>
                     <th>Abertura</th>
@@ -269,7 +297,24 @@ export function TechnicianTriage({
                   {items.map((t) => (
                     <tr key={t.id}>
                       <td>
-                        <span className="ticket-number">HD-{t.code}</span>
+                        <a
+                          className="ticket-link"
+                          href={'#/technician/triagem/' + t.id}
+                        >
+                          <span className="ticket-number">HD-{t.code}</span>
+                        </a>
+                      </td>
+                      <td>
+                        <p className="text-sm font-medium">
+                          {[t.categoryName, t.serviceName]
+                            .filter(Boolean)
+                            .join(' > ') || 'Serviço não informado'}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {t.requesterName ?? 'Solicitante não informado'} ·{' '}
+                          {t.departmentName ?? 'Setor não informado'} ·{' '}
+                          {t.companyName ?? 'Empresa não informada'}
+                        </p>
                       </td>
                       <td>
                         <StatusBadge status={t.status} />
@@ -281,17 +326,49 @@ export function TechnicianTriage({
                         {date(t.createdAt)}
                       </td>
                       <td>
-                        <button
-                          className="button-secondary"
-                          disabled={saving}
-                          onClick={() => {
-                            setChoice(t.priority ?? 'MEDIUM');
-                            setSelected(t);
-                          }}
-                        >
-                          Classificar
-                          <span className="sr-only"> HD-{t.code}</span>
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <TicketPriorityEditor
+                            id={t.id}
+                            priority={t.priority}
+                            onExpired={onExpired}
+                            disabled={refreshing}
+                            onSaved={() => {
+                              setNotice(
+                                `Prioridade de HD-${t.code} atualizada.`,
+                              );
+                              reload();
+                            }}
+                          />
+                          {queue === 'CLASSIFIED' && t.priority && (
+                            <>
+                              <button
+                                className="button-secondary"
+                                disabled={saving}
+                                onClick={() =>
+                                  setAssigning({
+                                    id: t.id,
+                                    code: t.code,
+                                    priority: t.priority!,
+                                  })
+                                }
+                              >
+                                Atribuir chamado
+                                <span className="sr-only"> HD-{t.code}</span>
+                              </button>
+                              <button
+                                className="button-primary"
+                                disabled={saving}
+                                onClick={() => {
+                                  setStarted(null);
+                                  setStarting(t);
+                                }}
+                              >
+                                Iniciar meu atendimento
+                                <span className="sr-only"> HD-{t.code}</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -310,43 +387,42 @@ export function TechnicianTriage({
           />
         </section>
       </MotionRegion>
-      {selected && (
+      {starting && (
         <DemoDialog
-          eyebrow="CLASSIFICAÇÃO REAL"
-          title={`Classificar HD-${selected.code}`}
-          description="Defina a prioridade. O chamado continuará OPEN, sem técnico e sem início de atendimento."
-          confirmLabel={saving ? 'Salvando…' : 'Confirmar prioridade'}
+          eyebrow="ASSUNÇÃO REAL"
+          title={`Iniciar meu atendimento em HD-${starting.code}?`}
+          description="O atendimento será iniciado e atribuído à sua conta. Serviço, prioridade e informações históricas serão preservados."
           pending={saving}
+          confirmLabel={saving ? 'Iniciando…' : 'Confirmar assunção'}
           onCancel={() => {
-            if (!sending.current) setSelected(null);
+            if (!sending.current) setStarting(null);
           }}
           onConfirm={() => {
-            void classify();
+            void start();
             return false;
           }}
         >
-          <label className="form-label">
-            Prioridade
-            <select
-              className="field"
-              value={choice}
-              disabled={saving}
-              onChange={(e) =>
-                setChoice(e.target.value as ClassifyPriority['priority'])
-              }
-            >
-              {Object.entries(priorityLabels).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="info-note mt-4">
-            A alteração será registrada no histórico. Nenhum atendimento será
-            assumido.
+          <p className="info-note">
+            Esta ação muda OPEN para IN_PROGRESS. Pendência e encerramento ainda
+            não estão disponíveis.
           </p>
         </DemoDialog>
+      )}
+      {assigning !== null && (
+        <AssignmentPreviewDialog
+          id={assigning.id}
+          code={assigning.code}
+          priority={assigning.priority}
+          onAssigned={() => {
+            setAssigning(null);
+            setNotice(
+              'Chamado atribuído. O atendimento ainda não foi iniciado.',
+            );
+            reload();
+          }}
+          onClose={() => setAssigning(null)}
+          onExpired={onExpired}
+        />
       )}
     </>
   );

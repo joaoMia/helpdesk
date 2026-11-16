@@ -30,7 +30,6 @@ describe('HD-018 políticas com negação por padrão', () => {
   it('não tem wildcard de administrador nem operações pendentes implicitamente liberadas', () => {
     for (const role of ['REQUESTER', 'TECHNICIAN', 'ADMIN'] as const)
       for (const unknown of [
-        'tickets.close',
         'tickets.transfer',
         'tickets.reopen',
         'tickets.pending',
@@ -43,6 +42,21 @@ describe('HD-018 políticas com negação por padrão', () => {
         '*',
       ])
         expect(hasPermission(role, unknown as Permission)).toBe(false);
+    expect(hasPermission('ADMIN', 'tickets.close')).toBe(true);
+    expect(hasPermission('TECHNICIAN', 'tickets.close')).toBe(true);
+    expect(hasPermission('REQUESTER', 'tickets.close')).toBe(false);
+    for (const operation of [
+      'tickets.solve',
+      'tickets.pause',
+      'tickets.resume',
+    ] as const) {
+      expect(hasPermission('TECHNICIAN', operation)).toBe(true);
+      expect(hasPermission('ADMIN', operation)).toBe(false);
+      expect(hasPermission('REQUESTER', operation)).toBe(false);
+    }
+    expect(hasPermission('ADMIN', 'tickets.comment')).toBe(true);
+    expect(hasPermission('TECHNICIAN', 'dashboard.read')).toBe(false);
+    expect(hasPermission('REQUESTER', 'dashboard.read')).toBe(false);
     for (const operation of [
       'tickets.classify',
       'tickets.start',
@@ -72,6 +86,7 @@ describe('HD-018 políticas com negação por padrão', () => {
     expect(ticketScope(actor('TECHNICIAN'), 'tickets.triage')).toEqual({
       status: 'OPEN',
       assignedTechnicianId: null,
+      retirement: { is: null },
     });
   });
   it('início exige classificação sem confundir com autorização ou atribuir chamado', () => {
@@ -97,11 +112,15 @@ describe('HD-018 políticas com negação por padrão', () => {
       requester = actor('REQUESTER');
     expect(ticketScope(requester, 'tickets.read')).toEqual({
       requesterId: requester.user.id,
+      retirement: { is: null },
     });
     expect(ticketScope(tech, 'tickets.aggregate')).toEqual({
       assignedTechnicianId: tech.user.id,
+      retirement: { is: null },
     });
-    expect(ticketScope(actor('ADMIN'), 'tickets.read')).toEqual({});
+    expect(ticketScope(actor('ADMIN'), 'tickets.read')).toEqual({
+      retirement: { is: null },
+    });
     expect(ticketScope(tech, 'tickets.update-assigned')).toEqual({
       AND: [
         { assignedTechnicianId: tech.user.id },

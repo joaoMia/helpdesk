@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { AdministrationRepository } from '../administration/administration.repository.js';
 import {
   createTicketHttpSchema,
   ticketQuerySchema,
@@ -11,7 +13,16 @@ import {
   triageQuerySchema,
   triageListSchema,
   triageTicketSchema,
+  triageContextTicketSchema,
   classifyPrioritySchema,
+  startTicketInputSchema,
+  startedTicketSchema,
+  overviewQuerySchema,
+  overviewListSchema,
+  assigneeQuerySchema,
+  assigneeListSchema,
+  assignTicketInputSchema,
+  assignedTicketSchema,
 } from '@helpdesk/contracts';
 import type { Identity } from '../auth/auth.service.js';
 import {
@@ -22,8 +33,12 @@ import { ApplicationError, databaseErrorCode } from '../../shared/errors.js';
 import {
   TicketApiRepository,
   triageConflict,
+  startConflict,
 } from './ticket-api.repository.js';
 import { TicketService } from './ticket.service.js';
+import { OpeningUploadService } from './opening-upload.service.js';
+import { OpeningUploadRepository } from './opening-upload.repository.js';
+import type { AttachmentStorage } from './attachment-storage.js';
 const invalid = () =>
   new ApplicationError(
     'INVALID_INPUT',
@@ -55,7 +70,136 @@ function resourceId(input: unknown) {
   return id.data;
 }
 export class TicketApiService {
-  constructor(private repo: TicketApiRepository) {}
+  readonly uploads: OpeningUploadService;
+  constructor(
+    private repo: TicketApiRepository,
+    storage?: AttachmentStorage,
+  ) {
+    this.uploads = new OpeningUploadService(
+      new OpeningUploadRepository(repo.db),
+      storage,
+    );
+  }
+  async retire(identity: Identity, id: unknown, input: unknown) {
+    requirePermission(identity, 'tickets.retire');
+    const v = z
+      .strictObject({ reason: z.string().trim().min(3).max(1000) })
+      .safeParse(input);
+    if (!v.success) throw invalid();
+    try {
+      return await new AdministrationRepository(this.repo.db).retire(
+        identity,
+        'ticket',
+        resourceId(id),
+        v.data.reason,
+      );
+    } catch (e) {
+      if (
+        (e as { code?: string }).code === 'P2002' ||
+        (e as { code?: string }).code === 'P2034'
+      )
+        throw new ApplicationError(
+          'TICKET_CONFLICT',
+          409,
+          'O registro já foi retirado ou mudou. Atualize a lista.',
+        );
+      throw e;
+    }
+  }
+  async operational(identity: Identity, id: unknown, query: unknown) {
+    requirePermission(identity, 'tickets.overview');
+    if (!query || typeof query !== 'object' || Object.keys(query).length)
+      throw invalid();
+    const result = await this.repo.overview(identity, {
+      ...overviewQuerySchema.parse({}),
+      pageSize: 1,
+      id: resourceId(id),
+    });
+    const row = result.items[0];
+    if (!row) throw resourceNotFound();
+    return overviewListSchema.shape.items.element.parse({
+      ...row,
+      createdAt: row.createdAt.toISOString(),
+    });
+  }
+  async overview(identity: Identity, input: unknown) {
+    requirePermission(identity, 'tickets.overview');
+    const parsed = overviewQuerySchema.safeParse(input);
+    if (!parsed.success) throw invalid();
+    const result = await this.repo.overview(identity, parsed.data);
+    return overviewListSchema.parse({
+      ...result,
+      items: result.items.map((row) => ({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    });
+  }
+  async assignees(identity: Identity, input: unknown) {
+    requirePermission(identity, 'tickets.assignment-candidates');
+    const parsed = assigneeQuerySchema.safeParse(input);
+    if (!parsed.success) throw invalid();
+    return assigneeListSchema.parse(
+      await this.repo.assignees(identity, parsed.data),
+    );
+  }
+
+  async triageDetail(identity: Identity, id: unknown) {
+    requirePermission(identity, 'tickets.triage');
+    const row = await this.repo.triageDetail(identity, resourceId(id));
+    const snapshot = serviceSnapshotSchema.parse(row.serviceSnapshot);
+    const org = row.organizationSnapshot as {
+      companyName?: string;
+      departmentName?: string;
+    } | null;
+    return triageContextTicketSchema.parse({
+      id: row.id,
+      code: row.code,
+      status: row.status,
+      priority: row.priority,
+      categoryName: snapshot.categoryName,
+      serviceName: snapshot.serviceName,
+      requesterName: row.requester.name,
+      companyName: org?.companyName ?? null,
+      departmentName: org?.departmentName ?? null,
+      createdAt: row.createdAt.toISOString(),
+    });
+  }
+  async assign(identity: Identity, id: unknown, input: unknown) {
+    requirePermission(identity, 'tickets.assign');
+    const parsed = assignTicketInputSchema.safeParse(input);
+    if (!parsed.success) throw invalid();
+    try {
+      return assignedTicketSchema.parse(
+        await this.repo.assign(identity, resourceId(id), parsed.data),
+      );
+    } catch (error) {
+      if (
+        (error as { code?: string })?.code === 'P2034' ||
+        ['40001', '40P01'].includes(databaseErrorCode(error) ?? '')
+      )
+        throw startConflict();
+      throw error;
+    }
+  }
+  async start(identity: Identity, id: unknown, input: unknown) {
+    requirePermission(identity, 'tickets.start');
+    if (!startTicketInputSchema.safeParse(input).success) throw invalid();
+    try {
+      const row = await this.repo.start(identity, resourceId(id));
+      return startedTicketSchema.parse({
+        ...row,
+        firstStartedAt: row.firstStartedAt?.toISOString(),
+      });
+    } catch (error) {
+      if (
+        (error as { code?: string })?.code === 'P2034' ||
+        ['40001', '40P01'].includes(databaseErrorCode(error) ?? '')
+      )
+        throw startConflict();
+      throw error;
+    }
+  }
   async triage(identity: Identity, input: unknown) {
     requirePermission(identity, 'tickets.triage');
     const parsed = triageQuerySchema.safeParse(input);
@@ -129,6 +273,9 @@ export class TicketApiService {
     return ticketDetailSchema.parse({
       ...summary(row),
       requesterId: row.requesterId,
+      requesterName: row.requester.name,
+      responsibleName: row.assignedTechnician?.name ?? null,
+      resolvedAt: row.resolvedAt?.toISOString() ?? null,
       description: row.description,
       formVersionId: row.formVersionId,
       serviceSnapshot: row.serviceSnapshot,
@@ -151,10 +298,29 @@ export class TicketApiService {
     );
     return ticketHistorySchema.parse({
       ...result,
-      items: result.items.map((e) => ({
-        ...e,
-        createdAt: e.createdAt.toISOString(),
-      })),
+      items: result.items.map((e) => {
+        const value =
+          e.newValue &&
+          typeof e.newValue === 'object' &&
+          !Array.isArray(e.newValue)
+            ? e.newValue
+            : {};
+        return {
+          id: e.id,
+          actorId: e.actorId,
+          eventType: e.eventType,
+          createdAt: e.createdAt.toISOString(),
+          actorName:
+            typeof value.actorName === 'string'
+              ? value.actorName
+              : (e.actor?.name ?? null),
+          responsibleName:
+            e.eventType === 'ASSIGNED' &&
+            typeof value.assignedTechnicianName === 'string'
+              ? value.assignedTechnicianName
+              : null,
+        };
+      }),
     });
   }
 }

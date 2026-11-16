@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { formController } from './form.controller.js';
 import { rateLimit } from 'express-rate-limit';
 import type { AuthRuntime } from '../auth/auth.routes.js';
 import { authorization } from '../authorization/http.js';
@@ -58,5 +59,21 @@ export function catalogRoutes(
     limit,
     c.update,
   );
+  if (kind === 'services') {
+    const f = formController(auth, service.forms);
+    router.get('/:id/form', ...guard.permission('services.read'), f.read);
+    router.patch(
+      '/:id/form/draft',
+      ...guard.permission('services.update'),
+      limit,
+      f.save,
+    );
+    router.post(
+      '/:id/form/publish',
+      ...guard.permission('services.update'),
+      limit,
+      f.publish,
+    );
+  }
   return router;
 }

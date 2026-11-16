@@ -1,6 +1,14 @@
+import { OpeningFileField } from '../components/opening-file-field';
+import type { OpeningUpload } from '@helpdesk/contracts';
+import { DynamicServiceFields } from '../components/dynamic-service-fields';
 import { useEffect, useRef, useState } from 'react';
-import type { Category, CatalogService } from '@helpdesk/contracts';
-import { createTicketHttpSchema } from '@helpdesk/contracts';
+import type {
+  Category,
+  CatalogService,
+  ServiceForm,
+} from '@helpdesk/contracts';
+import { visibleFormKeys } from '@helpdesk/contracts';
+import { openingPayload } from '../lib/opening-payload';
 import { authClient, AuthError } from '../lib/auth-client';
 import { PageHeading, Icon, EmptyState, Panel } from '../components/ui';
 import { Stepper } from '../components/stepper';
@@ -14,6 +22,13 @@ export function RequesterNewTicket({
   onExpired: () => void;
   onCreated: (id: string) => void;
 }) {
+  const [uploads, setUploads] = useState<Record<string, OpeningUpload[]>>({});
+  const [pendingFiles, setPendingFiles] = useState(0);
+  const [formRevision, setFormRevision] = useState(0);
+  const [form, setForm] = useState<ServiceForm['published']>(null),
+    [answers, setAnswers] = useState<
+      Record<string, string | string[] | boolean | number>
+    >({});
   const [step, setStep] = useState(0),
     [category, setCategory] = useState<Category | null>(null),
     [service, setService] = useState<CatalogService | null>(null),
@@ -82,7 +97,7 @@ export function RequesterNewTicket({
     };
   }, [step, page, filter, category?.id, revision, onExpired]);
   function go(next: number) {
-    if (submitting.current) return;
+    if (submitting.current || pendingFiles) return;
     setStep(next);
     setPage(1);
     setQuery('');
@@ -91,8 +106,15 @@ export function RequesterNewTicket({
     setError('');
   }
   function select(next: () => void, changed: boolean) {
-    if (submitting.current) return;
-    if (changed && (subject || description)) setChange(() => next);
+    if (submitting.current || pendingFiles) return;
+    if (
+      changed &&
+      (subject ||
+        description ||
+        Object.keys(answers).length ||
+        Object.values(uploads).flat().length)
+    )
+      setChange(() => next);
     else next();
   }
   function chooseCategory(c: Category) {
@@ -106,9 +128,43 @@ export function RequesterNewTicket({
       go(1);
     }, c.id !== category?.id);
   }
+  useEffect(() => {
+    if (!service) return;
+    let active = true;
+    authClient
+      .serviceForm(service.id)
+      .then((r) => {
+        if (active) {
+          setForm(r.published);
+          const defaults = Object.fromEntries(
+            (r.published?.fields ?? [])
+              .filter((f) => f.type === 'CHECKBOX')
+              .map((f) => [f.key, false]),
+          );
+          setAnswers((old) => ({ ...defaults, ...old }));
+        }
+      })
+      .catch((e) => {
+        if (active) {
+          if (e instanceof AuthError && e.status === 401) onExpired();
+          else
+            setError(
+              'Não foi possível carregar o formulário. Volte ao serviço e selecione novamente.',
+            );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [service, onExpired, formRevision]);
   function chooseService(s: CatalogService) {
     select(() => {
       if (s.id !== service?.id) {
+        setForm(null);
+        setAnswers({});
+        for (const file of Object.values(uploads).flat())
+          void authClient.discardOpeningFile(file.id).catch(() => {});
+        setUploads({});
         setSubject('');
         setDescription('');
       }
@@ -118,12 +174,37 @@ export function RequesterNewTicket({
   }
   function review(e: React.FormEvent) {
     e.preventDefault();
-    const input = createTicketHttpSchema.safeParse({
-      serviceId: service?.id,
-      subject,
-      description,
-      answers: {},
-    });
+    const input = openingPayload(
+      {
+        serviceId: service?.id ?? '',
+        subject,
+        description,
+        answers,
+        formVersionId: form?.id ?? '',
+      },
+      form?.fields ?? [],
+    );
+    if (pendingFiles) {
+      setError('Aguarde a conclusão dos anexos.');
+      return;
+    }
+    const missing = form?.fields.find(
+      (f) =>
+        visibleFormKeys(form.fields, answers).has(f.key) &&
+        f.required &&
+        (answers[f.key] === undefined ||
+          answers[f.key] === '' ||
+          (Array.isArray(answers[f.key]) &&
+            !(answers[f.key] as string[]).length)),
+    );
+    if (missing) {
+      setError('Preencha o campo obrigatório: ' + missing.label + '.');
+      return;
+    }
+    if (!form) {
+      setError('Aguarde o carregamento do formulário.');
+      return;
+    }
     if (!input.success) {
       setError('Preencha assunto e descrição e selecione um serviço válido.');
       window.requestAnimationFrame(() => focusFirstError(root.current));
@@ -133,13 +214,18 @@ export function RequesterNewTicket({
     go(3);
   }
   async function open() {
-    if (submitting.current || uncertain || !service) return;
-    const parsed = createTicketHttpSchema.safeParse({
-      serviceId: service.id,
-      subject,
-      description,
-      answers: {},
-    });
+    if (submitting.current || pendingFiles || uncertain || !service || !form)
+      return;
+    const parsed = openingPayload(
+      {
+        serviceId: service.id,
+        subject,
+        description,
+        answers,
+        formVersionId: form.id,
+      },
+      form.fields,
+    );
     if (!parsed.success) {
       setError('Revise o formulário antes de abrir.');
       return;
@@ -155,6 +241,16 @@ export function RequesterNewTicket({
       if (e instanceof AuthError && e.status === 401) {
         onExpired();
         return;
+      }
+      if (e instanceof AuthError && e.code === 'FORM_CHANGED') {
+        submitting.current = false;
+        setAnswers({});
+        for (const f of Object.values(uploads).flat())
+          void authClient.discardOpeningFile(f.id).catch(() => {});
+        setUploads({});
+        setForm(null);
+        setFormRevision((n) => n + 1);
+        go(2);
       }
       const ambiguous =
         !(e instanceof AuthError) ||
@@ -179,7 +275,7 @@ export function RequesterNewTicket({
       {change && (
         <ConfirmChange
           demonstration={false}
-          message="Trocar a seleção descarta o assunto e a descrição preenchidos. Deseja manter o rascunho?"
+          message="Trocar a seleção descarta o assunto, a descrição, as respostas e os anexos deste rascunho. Deseja manter o rascunho?"
           onCancel={() => setChange(null)}
           onConfirm={() => {
             change();
@@ -211,7 +307,7 @@ export function RequesterNewTicket({
         steps={['Categoria', 'Serviço', 'Formulário', 'Revisão']}
         current={step}
         onStep={(next) => {
-          if (!busy && !uncertain) go(next);
+          if (!busy && !pendingFiles && !uncertain) go(next);
         }}
       />
       {error && (
@@ -346,7 +442,7 @@ export function RequesterNewTicket({
             <div className="space-y-6">
               <Panel
                 title={service.name}
-                subtitle={`${category?.name} · formulário básico`}
+                subtitle={`${category?.name} · ${form?.title || 'formulário do serviço'}`}
               >
                 <div className="form-body">
                   <label className="form-label">
@@ -371,10 +467,48 @@ export function RequesterNewTicket({
                       onChange={(e) => setDescription(e.target.value)}
                     />
                   </label>
-                  <p className="info-note">
-                    Anexos e campos personalizados ainda não estão disponíveis
-                    neste fluxo real.
-                  </p>
+                  {!form ? (
+                    <div>
+                      <p role="status">Carregando formulário…</p>
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={() => setFormRevision((n) => n + 1)}
+                      >
+                        Recarregar formulário
+                      </button>
+                    </div>
+                  ) : (
+                    <DynamicServiceFields
+                      fields={form.fields}
+                      answers={answers}
+                      onChange={(key, value) =>
+                        setAnswers((old) => ({ ...old, [key]: value }))
+                      }
+                      disabled={busy || !!pendingFiles}
+                      renderFile={(f) => (
+                        <OpeningFileField
+                          key={form.id + f.key}
+                          serviceId={service.id}
+                          formVersionId={form.id}
+                          fieldKey={f.key}
+                          files={uploads[f.key] ?? []}
+                          disabled={busy || !!pendingFiles}
+                          onPending={(delta) =>
+                            setPendingFiles((n) => n + delta)
+                          }
+                          onExpired={onExpired}
+                          onChange={(files) => {
+                            setUploads((old) => ({ ...old, [f.key]: files }));
+                            setAnswers((old) => ({
+                              ...old,
+                              [f.key]: files.map((file) => file.id),
+                            }));
+                          }}
+                        />
+                      )}
+                    />
+                  )}
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
@@ -383,7 +517,10 @@ export function RequesterNewTicket({
                     >
                       Voltar ao serviço
                     </button>
-                    <button className="button-primary">
+                    <button
+                      className="button-primary"
+                      disabled={!form || !!pendingFiles}
+                    >
                       Revisar chamado <Icon name="arrow" />
                     </button>
                   </div>
@@ -409,6 +546,26 @@ export function RequesterNewTicket({
                   <strong>{service.name}</strong>
                 </div>
                 <h2 className="text-xl font-semibold">{subject}</h2>
+                <dl className="space-y-3">
+                  {form?.fields
+                    .filter((f) =>
+                      visibleFormKeys(form.fields, answers).has(f.key),
+                    )
+                    .map((f) => (
+                      <div key={f.id}>
+                        <dt className="detail-label">{f.label}</dt>
+                        <dd className="break-words">
+                          {f.type === 'FILE'
+                            ? (uploads[f.key] ?? [])
+                                .map((file) => file.name)
+                                .join(', ') || 'Não informado'
+                            : Array.isArray(answers[f.key])
+                              ? (answers[f.key] as string[]).join(', ')
+                              : String(answers[f.key] ?? 'Não informado')}
+                        </dd>
+                      </div>
+                    ))}
+                </dl>
                 <p className="whitespace-pre-wrap text-sm leading-7">
                   {description}
                 </p>

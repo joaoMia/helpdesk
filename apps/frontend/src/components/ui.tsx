@@ -3,6 +3,7 @@ import type { Priority, Status } from '../types/demo';
 import { statusLabels, priorityLabels } from '../lib/presentation';
 
 const paths = {
+  trash: 'M3 6h18 M9 6V3h6v3 M5 6l1 15h12l1-15 M10 10v7 M14 10v7',
   grid: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
   ticket: 'M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4z M15 8v2 M15 14v2',
   users:
@@ -41,11 +42,13 @@ export function Icon({
     </svg>
   );
 }
-export function StatusBadge({ status }: { status: Status }) {
+export function StatusBadge({ status }: { status: Status | 'RESOLVED' }) {
   return (
-    <span className={`badge status-${status.toLowerCase()}`}>
+    <span
+      className={`badge status-${status === 'RESOLVED' ? 'in_progress' : status.toLowerCase()}`}
+    >
       <span className="size-1.5 rounded-full bg-current" />
-      {statusLabels[status]}
+      {status === 'RESOLVED' ? 'Resolvido' : statusLabels[status]}
     </span>
   );
 }

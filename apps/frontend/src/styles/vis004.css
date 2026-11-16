@@ -526,7 +526,8 @@ select.profile-select {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  min-height: 110px;
+  min-height: 0;
+  padding-block: 1.1rem;
 }
 .chart-card .panel-heading > button {
   white-space: nowrap;
@@ -543,6 +544,89 @@ select.profile-select {
   flex-wrap: wrap;
   gap: 0.65rem;
   margin-bottom: 1.4rem;
+}
+.project-actions {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+  padding: clamp(0.75rem, 2vw, 1rem);
+  border: 1px solid var(--color-slate-200);
+  border-radius: 0.9rem;
+  background: var(--color-white);
+}
+.project-action-group,
+.catalog-service-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.project-action-group + .project-action-group {
+  border-top: 1px solid var(--color-slate-200);
+  padding-top: 0.75rem;
+}
+.project-action-group > button {
+  max-width: 100%;
+  text-align: center;
+}
+.catalog-service-actions {
+  gap: 0.3rem 0.85rem;
+}
+.project-progress {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.85rem;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 0.75rem;
+}
+.project-progress-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+}
+.project-progress-heading > strong {
+  color: var(--color-teal-700);
+  font-size: 1.125rem;
+  font-variant-numeric: tabular-nums;
+}
+.project-progress-track {
+  display: block;
+  width: 100%;
+  height: 0.5rem;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-slate-200);
+}
+.project-progress-track::-webkit-progress-bar {
+  background: var(--color-slate-200);
+}
+.project-progress-track::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--color-teal-700);
+}
+.project-progress-track::-moz-progress-bar {
+  border-radius: 999px;
+  background: var(--color-teal-700);
+}
+@media (max-width: 639px) {
+  .project-action-group > button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .catalog-service-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+.dashboard-sections + section,
+.dashboard-sections + .panel,
+.dashboard-sections + div {
+  margin-top: 1rem;
 }
 .dashboard-sections button {
   padding: 0.5rem 0.8rem;
@@ -591,8 +675,174 @@ fieldset {
 .times-chart-row .chart-canvas {
   height: 230px;
 }
-.project-dashboard .analytics-grid > .chart-card:last-child {
-  grid-column: 1 / -1;
+.chart-card [data-chart-view][data-has-data='true'] {
+  min-height: 346px;
+}
+.chart-card [data-chart-view='table'][data-has-data='true'] {
+  height: 346px;
+  overflow: auto;
+}
+.chart-card [data-chart-view][data-has-data='false'] {
+  min-height: 0;
+  height: auto;
+}
+.chart-card > .panel > div > .empty-state {
+  padding-block: 1.25rem;
+}
+.chart-card .empty-state .icon-tile {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.chart-card .empty-state h2 {
+  margin-top: 0.6rem;
+}
+.analytics-grid > .chart-card > .panel {
+  height: 100%;
+}
+.analytics-grid {
+  align-items: stretch;
+  gap: 1.25rem;
+}
+.project-answer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+.project-answer-card {
+  min-width: 0;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  background: var(--answer-card-background, #f8fafc);
+}
+.project-answer-card dt {
+  margin-bottom: 0.45rem;
+  color: var(--color-slate-700);
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.project-answer-card dd {
+  color: var(--color-slate-600);
+  font-size: 0.95rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.project-form-version {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.answer-missing {
+  color: var(--color-slate-500);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+.answer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.answer-chips > span {
+  border: 1px solid var(--color-slate-200);
+  border-radius: 99px;
+  padding: 0.2rem 0.55rem;
+  background: var(--color-white);
+  font-size: 0.8rem;
+}
+.mobile-record-list {
+  display: none;
+}
+.ticket-date-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+.ticket-date-summary time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ticket-date-summary > div {
+  min-width: 0;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 0.75rem;
+  padding: 0.85rem;
+}
+.ticket-date-summary dt {
+  color: var(--color-slate-500);
+  font-size: 0.72rem;
+}
+.ticket-date-summary dd {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow-wrap: normal;
+}
+@media (min-width: 768px) and (max-width: 1100px) {
+  .ticket-date-summary {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 639px) {
+  .ticket-date-summary {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 767px) {
+  .mobile-record-list {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  .mobile-record-card {
+    min-width: 0;
+    border: 1px solid var(--color-slate-200);
+    border-radius: 0.8rem;
+    background: var(--color-white);
+    padding: 1rem;
+  }
+  .mobile-record-title {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 650;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .mobile-record-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem 0.65rem;
+    margin-top: 0.8rem;
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+  .mobile-record-meta > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .mobile-record-meta small {
+    display: block;
+    margin-bottom: 0.2rem;
+    color: var(--color-slate-500);
+    font-size: 0.68rem;
+  }
+  .desktop-record-table {
+    display: none;
+  }
+}
+.project-list-table {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.project-list-table td {
+  vertical-align: middle;
+}
+.project-list-table .ticket-number {
+  font-size: inherit;
+}
+#project-plan,
+#project-records {
+  scroll-margin-top: 6rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

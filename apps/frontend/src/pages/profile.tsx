@@ -3,9 +3,11 @@ import type { PublicUser } from '@helpdesk/contracts';
 import { updateProfileSchema } from '@helpdesk/contracts';
 import { authClient, AuthError } from '../lib/auth-client';
 export function Profile({
+  initialUser,
   onUpdated,
   onExpired,
 }: {
+  initialUser?: PublicUser;
   onUpdated: (user: PublicUser, reauthenticate: boolean) => void;
   onExpired: () => void;
 }) {
@@ -17,6 +19,7 @@ export function Profile({
     [success, setSuccess] = useState(''),
     [busy, setBusy] = useState(false);
   useEffect(() => {
+    if (initialUser?.role === 'ADMIN') return;
     let active = true;
     authClient
       .profile()
@@ -36,7 +39,7 @@ export function Profile({
     return () => {
       active = false;
     };
-  }, [onExpired]);
+  }, [onExpired, initialUser?.role]);
   const emailChanged = !!user && email.trim().toLowerCase() !== user.email;
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -79,6 +82,19 @@ export function Profile({
       setBusy(false);
     }
   }
+  if (initialUser?.role === 'ADMIN')
+    return (
+      <section className="panel form-body space-y-5">
+        <h1 className="text-xl font-semibold">Meu perfil</h1>
+        <p>{initialUser.name}</p>
+        <p className="break-all">{initialUser.email}</p>
+        <p>Administrador</p>
+        <a className="button-secondary" href="#/change-password">
+          Alterar senha
+        </a>
+      </section>
+    );
+
   return (
     <section className="panel p-6 space-y-5">
       <h1 className="text-xl font-semibold">Meu perfil</h1>

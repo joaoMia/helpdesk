@@ -180,7 +180,7 @@ describe('contratos e serviço interno real', () => {
     });
     expect(f.stored).toHaveLength(0);
   });
-  it('valida respostas e não promove anexos/condições da prévia a regras de produção', async () => {
+  it('valida respostas, mantém upload protegido e aceita condições declarativas aprovadas', async () => {
     const f = fixture();
     for (const answers of [
       {},
@@ -203,10 +203,10 @@ describe('contratos e serviço interno real', () => {
       required: false,
       condition: { field: 'context', includes: 'ok' },
     });
-    await expect(f.service.open(f.id, f.input)).rejects.toMatchObject({
-      code: 'FORM_RULES_PENDING',
+    await expect(f.service.open(f.id, f.input)).resolves.toMatchObject({
+      status: 'OPEN',
     });
-    expect(f.stored).toHaveLength(0);
+    expect(f.stored).toHaveLength(1);
   });
   it('recusa identidades de campo repetidas, seleções sem opções e condições inválidas', () => {
     const field = fixture().catalog.form!.fields[0]!;
@@ -384,4 +384,66 @@ describe('isolamento e superfície HTTP', () => {
     expect(response.body.error.code).toBe('PAYLOAD_TOO_LARGE');
     expect(response.headers['x-request-id']).not.toBe('valor-nao-confiavel');
   });
+});
+
+it('condições reais: obrigatoriedade só vale quando visível e respostas ocultas não são persistidas', async () => {
+  const f = fixture();
+  f.catalog.form!.fields.push({
+    id: randomUUID(),
+    key: 'detail',
+    label: 'Detalhe',
+    type: 'TEXT',
+    required: true,
+    condition: { field: 'context', includes: 'TOTVS' },
+  });
+  await expect(
+    f.service.open(f.id, { ...f.input, answers: { context: 'TOTVS' } }),
+  ).rejects.toMatchObject({ code: 'INVALID_ANSWERS' });
+  await f.service.open(f.id, {
+    ...f.input,
+    answers: { context: 'Spark', detail: 'Resposta oculta' },
+  });
+  expect(f.stored[0]!.answers.map((a) => a.fieldKey)).toEqual(['context']);
+  await f.service.open(f.id, {
+    ...f.input,
+    answers: { context: 'TOTVS', detail: 'Módulo autorizado' },
+  });
+  expect(f.stored[1]!.answers.map((a) => a.fieldKey)).toEqual([
+    'context',
+    'detail',
+  ]);
+  expect(f.stored[0]!.snapshot.fields[1]!.condition).toEqual({
+    field: 'context',
+    includes: 'TOTVS',
+  });
+});
+it('condições encadeadas não tornam descendentes visíveis por respostas manipuladas em campos ocultos', async () => {
+  const f = fixture();
+  f.catalog.form!.fields.push(
+    {
+      id: randomUUID(),
+      key: 'parent',
+      label: 'Pai',
+      type: 'TEXT',
+      required: false,
+      condition: { field: 'context', includes: 'TOTVS' },
+    },
+    {
+      id: randomUUID(),
+      key: 'child',
+      label: 'Filho',
+      type: 'TEXT',
+      required: true,
+      condition: { field: 'parent', includes: 'liberar' },
+    },
+  );
+  await f.service.open(f.id, {
+    ...f.input,
+    answers: {
+      context: 'Spark',
+      parent: 'liberar',
+      child: 'Não deve persistir',
+    },
+  });
+  expect(f.stored[0]!.answers.map((a) => a.fieldKey)).toEqual(['context']);
 });

@@ -26,7 +26,8 @@
     "db:config": "docker compose --env-file .env -f infra/docker-compose.yml config --quiet",
     "db:up": "docker compose --env-file .env -f infra/docker-compose.yml up -d --wait",
     "db:status": "docker compose --env-file .env -f infra/docker-compose.yml ps",
-    "db:check": "node scripts/check-database.mjs"
+    "db:check": "node scripts/check-database.mjs",
+    "catalog:sync:dev": "npm run catalog:sync:dev --workspace @helpdesk/backend --"
   },
   "workspaces": [
     "apps/*",

@@ -1,0 +1,176 @@
+{
+  "categories": [
+    {
+      "key": "windows",
+      "name": "Windows",
+      "description": "Equipamentos e aplicativos do ambiente Windows.",
+      "isActive": true,
+      "displayOrder": 0
+    },
+    {
+      "key": "totvs",
+      "name": "TOTVS",
+      "description": "Suporte e acessos ao sistema de gestão.",
+      "isActive": true,
+      "displayOrder": 1
+    },
+    {
+      "key": "office",
+      "name": "Pacote Office",
+      "description": "Aplicativos e ferramentas de produtividade.",
+      "isActive": true,
+      "displayOrder": 2
+    },
+    {
+      "key": "accounts",
+      "name": "Acessos e contas",
+      "description": "Contas e permissões para o trabalho.",
+      "isActive": true,
+      "displayOrder": 3
+    },
+    {
+      "key": "network",
+      "name": "Infraestrutura de rede",
+      "description": "Conectividade, pontos e rede interna.",
+      "isActive": true,
+      "displayOrder": 4
+    },
+    {
+      "key": "print",
+      "name": "Impressoras",
+      "description": "Impressão e configuração de equipamentos.",
+      "isActive": true,
+      "displayOrder": 5
+    }
+  ],
+  "services": [
+    {
+      "key": "s1",
+      "categoryKey": "accounts",
+      "name": "Criação de usuário",
+      "description": "Solicite acessos aos sistemas da empresa.",
+      "isActive": true,
+      "displayOrder": 0
+    },
+    {
+      "key": "s2",
+      "categoryKey": "windows",
+      "name": "Instalação de aplicativo",
+      "description": "Informe o aplicativo e os dados necessários, sem senhas.",
+      "isActive": true,
+      "displayOrder": 1
+    },
+    {
+      "key": "s3",
+      "categoryKey": "totvs",
+      "name": "Problema no sistema",
+      "description": "Descreva a falha e inclua uma evidência demonstrativa.",
+      "isActive": true,
+      "displayOrder": 2
+    },
+    {
+      "key": "s4",
+      "categoryKey": "print",
+      "name": "Configuração de impressora",
+      "description": "Configuração e suporte de impressão.",
+      "isActive": true,
+      "displayOrder": 3
+    },
+    {
+      "key": "s5",
+      "categoryKey": "accounts",
+      "name": "Redefinição de acesso",
+      "description": "Descreva a dificuldade de acesso, sem informar credenciais.",
+      "isActive": true,
+      "displayOrder": 4
+    },
+    {
+      "key": "s6",
+      "categoryKey": "windows",
+      "name": "Equipamentos legados",
+      "description": "Exemplo de serviço indisponível para novas solicitações.",
+      "isActive": false,
+      "displayOrder": 5
+    },
+    {
+      "key": "s7",
+      "categoryKey": "windows",
+      "name": "Máquina travando",
+      "description": "Lentidão e travamentos na rotina de trabalho.",
+      "isActive": true,
+      "displayOrder": 6
+    },
+    {
+      "key": "s8",
+      "categoryKey": "windows",
+      "name": "Problema de inicialização",
+      "description": "Dificuldade para iniciar o computador.",
+      "isActive": true,
+      "displayOrder": 7
+    },
+    {
+      "key": "s9",
+      "categoryKey": "windows",
+      "name": "Erro do sistema operacional",
+      "description": "Mensagens de erro do Windows.",
+      "isActive": true,
+      "displayOrder": 8
+    },
+    {
+      "key": "s10",
+      "categoryKey": "totvs",
+      "name": "Liberação de acesso",
+      "description": "Solicitação de acesso ao TOTVS.",
+      "isActive": true,
+      "displayOrder": 9
+    },
+    {
+      "key": "s11",
+      "categoryKey": "totvs",
+      "name": "Erro de execução",
+      "description": "Erro ao executar uma operação no sistema.",
+      "isActive": true,
+      "displayOrder": 10
+    },
+    {
+      "key": "s12",
+      "categoryKey": "office",
+      "name": "Problema no Outlook",
+      "description": "Dificuldade com o aplicativo de e-mail.",
+      "isActive": true,
+      "displayOrder": 11
+    },
+    {
+      "key": "s13",
+      "categoryKey": "office",
+      "name": "Problema no Excel",
+      "description": "Dificuldade com planilhas ou o aplicativo.",
+      "isActive": true,
+      "displayOrder": 12
+    },
+    {
+      "key": "s14",
+      "categoryKey": "office",
+      "name": "Instalação do Office",
+      "description": "Solicitação de instalação do pacote Office.",
+      "isActive": true,
+      "displayOrder": 13
+    },
+    {
+      "key": "s15",
+      "categoryKey": "accounts",
+      "name": "Solicitação de permissões",
+      "description": "Descreva o recurso e o acesso necessário.",
+      "isActive": true,
+      "displayOrder": 14
+    },
+    {
+      "key": "s16",
+      "categoryKey": "network",
+      "name": "Problema de conectividade",
+      "description": "Dificuldade de conexão à rede interna.",
+      "isActive": true,
+      "displayOrder": 15
+    }
+  ]
+}

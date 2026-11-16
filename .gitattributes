@@ -16,3 +16,7 @@
 *.zip binary
 *.woff binary
 *.woff2 binary
+
+# Preserve the exact bytes of applied migrations with mixed line endings.
+apps/backend/prisma/migrations/20261031010000_ocorrencias_compartilhadas/migration.sql -text
+apps/backend/prisma/migrations/20261106160000_workflow_projetos/migration.sql -text

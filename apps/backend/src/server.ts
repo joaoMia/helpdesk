@@ -1,4 +1,14 @@
+import { ProjectService } from './modules/projects/project.service.js';
+import { ProjectRepository } from './modules/projects/project.repository.js';
 import { createApp } from './app.js';
+import { LifecycleService } from './modules/tickets/lifecycle.service.js';
+import { LifecycleRepository } from './modules/tickets/lifecycle.repository.js';
+import { ConversationService } from './modules/tickets/conversation.service.js';
+import { ConversationRepository } from './modules/tickets/conversation.repository.js';
+import {
+  AttachmentStorage,
+  configureAttachmentLimits,
+} from './modules/tickets/attachment-storage.js';
 import { loadEnvironment } from './config/env.js';
 import { createDatabase } from './database/client.js';
 import { loadAuthConfig } from './modules/auth/auth.config.js';
@@ -13,6 +23,8 @@ import { CatalogService } from './modules/catalog/catalog.service.js';
 import { CatalogRepository } from './modules/catalog/catalog.repository.js';
 import { TicketApiService } from './modules/tickets/ticket-api.service.js';
 import { TicketApiRepository } from './modules/tickets/ticket-api.repository.js';
+import { AdministrationService } from './modules/administration/administration.service.js';
+import { AdministrationRepository } from './modules/administration/administration.repository.js';
 
 try {
   const env = loadEnvironment();
@@ -27,6 +39,17 @@ try {
     new TechnicianService(new TechnicianRepository(db)),
     new CatalogService(new CatalogRepository(db)),
     new TicketApiService(new TicketApiRepository(db)),
+    new AdministrationService(new AdministrationRepository(db)),
+    new ConversationService(
+      new ConversationRepository(db),
+      new AttachmentStorage(),
+      configureAttachmentLimits(
+        env.ATTACHMENT_MAX_BYTES,
+        env.ATTACHMENT_MAX_COUNT,
+      ),
+    ),
+    new LifecycleService(new LifecycleRepository(db)),
+    new ProjectService(new ProjectRepository(db)),
   ).listen(env.PORT, env.HOST, () => {
     console.log(`HelpDesk API disponível em http://${env.HOST}:${env.PORT}`);
   });

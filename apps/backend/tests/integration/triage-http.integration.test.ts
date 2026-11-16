@@ -170,7 +170,18 @@ describe('BLOCO 02: filas e classificação reais', () => {
     expect(list.status).toBe(200);
     expect(list.body.total).toBe(1);
     expect(Object.keys(list.body.items[0]).sort()).toEqual(
-      ['id', 'code', 'status', 'priority', 'createdAt'].sort(),
+      [
+        'id',
+        'code',
+        'status',
+        'priority',
+        'createdAt',
+        'categoryName',
+        'serviceName',
+        'requesterName',
+        'companyName',
+        'departmentName',
+      ].sort(),
     );
     let expectedPriority: 'LOW' | 'MEDIUM' | 'HIGH' | null = null;
     for (const priority of ['LOW', 'MEDIUM', 'HIGH'] as const) {
@@ -231,7 +242,7 @@ describe('BLOCO 02: filas e classificação reais', () => {
         (e: object) => !('oldValue' in e) && !('newValue' in e),
       ),
     ).toBe(true);
-    expect((await tech.c.agent.get('/tickets/' + ticket.id)).status).toBe(404);
+    expect((await tech.c.agent.get('/tickets/' + ticket.id)).status).toBe(200);
   });
   it('filas, união, busca por código, filtros e paginação são coerentes e estritos', async () => {
     const f = await fixture(),

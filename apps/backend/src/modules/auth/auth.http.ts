@@ -100,7 +100,7 @@ export function authHttp(config: AuthConfig, service: AuthService) {
   const corsPolicy = cors({
     origin: config.origins,
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'X-CSRF-Token'],
     maxAge: 600,
   });

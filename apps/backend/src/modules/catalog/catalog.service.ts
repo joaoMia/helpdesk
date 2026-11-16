@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { FormService } from './form.service.js';
+import { FormRepository } from './form.repository.js';
 import {
   categoryInputSchema,
   categoryUpdateSchema,
@@ -22,7 +24,10 @@ const invalid = () =>
     'Revise os campos permitidos do catálogo.',
   );
 export class CatalogService {
-  constructor(private repo: CatalogRepository) {}
+  readonly forms: FormService;
+  constructor(private repo: CatalogRepository) {
+    this.forms = new FormService(new FormRepository(repo.db));
+  }
   list(kind: CatalogKind, identity: Identity, input: unknown) {
     requirePermission(
       identity,

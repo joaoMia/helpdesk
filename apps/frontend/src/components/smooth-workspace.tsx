@@ -7,7 +7,13 @@ import { useMotionPreference } from '../hooks/use-motion-preference';
 import { cancelScrollNavigation, scrollToContent } from '../lib/motion';
 
 gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
-export function SmoothWorkspace({ children }: { children: ReactNode }) {
+export function SmoothWorkspace({
+  children,
+  enabled = true,
+}: {
+  children: ReactNode;
+  enabled?: boolean;
+}) {
   const wrapper = useRef<HTMLDivElement>(null),
     content = useRef<HTMLDivElement>(null);
   const { reduced } = useMotionPreference();
@@ -15,6 +21,10 @@ export function SmoothWorkspace({ children }: { children: ReactNode }) {
     const viewport = wrapper.current,
       root = content.current;
     if (!viewport || !root) return;
+    if (!enabled) {
+      viewport.dataset.scrollEngine = 'native';
+      return;
+    }
     const media = gsap.matchMedia();
     const interruptKeys = (event: KeyboardEvent) => {
       if (
@@ -187,11 +197,11 @@ export function SmoothWorkspace({ children }: { children: ReactNode }) {
       contexts.forEach((context) => context.revert());
       media.revert();
     };
-  }, [reduced]);
+  }, [reduced, enabled]);
   return (
     <div ref={wrapper} id="smooth-wrapper">
       <div ref={content} id="smooth-content">
-        <div className="workspace-body">{children}</div>
+        <div className="workspace-body flex flex-col">{children}</div>
       </div>
     </div>
   );

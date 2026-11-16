@@ -22,10 +22,11 @@ export interface OpeningRecord {
   answers: {
     fieldId: string;
     fieldKey: string;
-    value: string | string[] | boolean;
+    value: string | string[] | boolean | number;
   }[];
 }
 export interface TicketUnit {
+  supportsOpeningFiles?: boolean;
   findActor(
     id: string,
   ): Promise<{ id: string; role: UserRole; active: boolean } | null>;

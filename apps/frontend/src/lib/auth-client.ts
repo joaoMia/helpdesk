@@ -1,4 +1,53 @@
 import {
+  projectCategoriesSchema,
+  projectSubmissionSchema,
+  projectAttachmentsSchema,
+  projectPlanVersionsSchema,
+  projectWorkflowSchema,
+  projectWorkflowListSchema,
+  projectDashboardSchema,
+  projectWorkflowHistorySchema,
+  projectUpdatesSchema,
+} from '@helpdesk/contracts';
+import {
+  projectListSchema,
+  projectRequestSchema,
+  projectHistorySchema,
+} from '@helpdesk/contracts';
+import { personalDashboardSchema } from '@helpdesk/contracts';
+import { loadAllOptions } from './paginated-options';
+import {
+  serviceFormSchema,
+  openingUploadSchema,
+  conversationSchema,
+  attachmentSchema,
+  ticketMetricsSchema,
+  pendingReasonListSchema,
+  slaPolicyListSchema,
+  dashboardSchema,
+  adminUserListSchema,
+  adminUserSchema,
+  adminUserCreatedSchema,
+  companyListSchema,
+  companySchema,
+  departmentListSchema,
+  departmentSchema,
+  scheduleListSchema,
+  scheduleSchema,
+  scheduleVersionListSchema,
+  organizationDefaultSchema,
+} from '@helpdesk/contracts';
+import type {
+  AdminUserInput,
+  AdminUserUpdate,
+  AdminUserQuery,
+  AdminPageQuery,
+  CompanyInput,
+  DepartmentInput,
+  ScheduleInput,
+  ScheduleUpdate,
+} from '@helpdesk/contracts';
+import {
   publicUserSchema,
   profileResultSchema,
   technicianListSchema,
@@ -14,6 +63,10 @@ import {
   openedTicketSchema,
   triageListSchema,
   triageTicketSchema,
+  startedTicketSchema,
+  overviewListSchema,
+  assigneeListSchema,
+  assignedTicketSchema,
 } from '@helpdesk/contracts';
 import type { TechnicianInput, TechnicianUpdate } from '@helpdesk/contracts';
 import type { UpdateProfile } from '@helpdesk/contracts';
@@ -23,6 +76,8 @@ import type {
   CreateTicketHttp,
   TriageQuery,
   ClassifyPriority,
+  OverviewQuery,
+  AssigneeQuery,
 } from '@helpdesk/contracts';
 import type {
   CategoryInput,
@@ -176,8 +231,11 @@ export function createAuthClient(
         .filter(([, v]) => v !== undefined)
         .map(([k, v]) => [k, String(v)]),
     ).toString();
-  async function ticketGet(path: string) {
-    const target = base.replace(/\/auth$/, '/tickets');
+  async function ticketGet(
+    path: string,
+    resource: 'tickets' | 'projects' = 'tickets',
+  ) {
+    const target = base.replace(/\/auth$/, '/' + resource);
     let response = await request(
       path,
       { credentials: 'include', cache: 'no-store' },
@@ -193,8 +251,675 @@ export function createAuthClient(
     }
     return decode(response);
   }
+
+  async function projectRead(path: string) {
+    const target = base.replace(/\/auth$/, '/projects');
+    let r = await request(
+      path,
+      { credentials: 'include', cache: 'no-store' },
+      target,
+    );
+    if (r.status === 401) {
+      await refresh();
+      r = await request(
+        path,
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+    }
+    return decode(r);
+  }
+  async function adminGet(path: string, q: Record<string, unknown> = {}) {
+    const query = new URLSearchParams(
+      Object.entries(q)
+        .filter(([, v]) => v !== undefined && v !== '')
+        .map(([k, v]) => [k, String(v)]),
+    );
+    const target = base.replace(/\/auth$/, '/admin');
+    let response = await request(
+      path + '?' + query.toString(),
+      { credentials: 'include', cache: 'no-store' },
+      target,
+    );
+    if (response.status === 401) {
+      await refresh();
+      response = await request(
+        path + '?' + query.toString(),
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+    }
+    return decode(response);
+  }
+  async function adminWrite(path: string, input: unknown, method = 'POST') {
+    const target = base.replace(/\/auth$/, '/admin');
+    try {
+      return await mutate(path, input, method, target);
+    } catch (e) {
+      if (!(e instanceof AuthError) || e.code !== 'SESSION_INVALID') throw e;
+      await refresh();
+      return mutate(path, input, method, target);
+    }
+  }
   return {
+    async uploadProjectOpeningFile(
+      input: { categoryId: string; versionId: string; fieldKey: string },
+      file: File,
+    ) {
+      const { csrfToken } = await decode(await get('/csrf'));
+      const q = new URLSearchParams({ ...input, name: file.name });
+      return openingUploadSchema.parse(
+        (
+          await decode(
+            await request(
+              '/opening-uploads?' + q,
+              {
+                method: 'POST',
+                credentials: 'include',
+                cache: 'no-store',
+                headers: {
+                  'Content-Type': 'application/octet-stream',
+                  'X-CSRF-Token': csrfToken,
+                },
+                body: file,
+              },
+              base.replace(/\/auth$/, '/projects'),
+            ),
+          )
+        ).upload,
+      );
+    },
+    async discardProjectOpeningFile(id: string) {
+      return mutate(
+        '/opening-uploads/' + encodeURIComponent(id),
+        undefined,
+        'DELETE',
+        base.replace(/\/auth$/, '/projects'),
+      );
+    },
+    async projectAttachments(id: string) {
+      return projectAttachmentsSchema.parse(
+        await projectRead('/' + encodeURIComponent(id) + '/attachments'),
+      );
+    },
     me,
+    async uploadOpeningFile(
+      input: { serviceId: string; formVersionId: string; fieldKey: string },
+      file: File,
+    ) {
+      const { csrfToken } = await decode(await get('/csrf'));
+      const q = new URLSearchParams({ ...input, name: file.name });
+      return openingUploadSchema.parse(
+        (
+          await decode(
+            await request(
+              '/opening-uploads?' + q,
+              {
+                method: 'POST',
+                credentials: 'include',
+                cache: 'no-store',
+                headers: {
+                  'Content-Type': 'application/octet-stream',
+                  'X-CSRF-Token': csrfToken,
+                },
+                body: file,
+              },
+              base.replace(/\/auth$/, '/tickets'),
+            ),
+          )
+        ).upload,
+      );
+    },
+    async discardOpeningFile(id: string) {
+      return mutate(
+        '/opening-uploads/' + encodeURIComponent(id),
+        undefined,
+        'DELETE',
+        base.replace(/\/auth$/, '/tickets'),
+      );
+    },
+    async projectCategories() {
+      return projectCategoriesSchema.parse(await projectRead('/categories'));
+    },
+    async changeProjectCategory(id: string | null, input: unknown) {
+      return mutate(
+        '/categories' + (id ? '/' + id : ''),
+        input,
+        id ? 'PATCH' : 'POST',
+        base.replace(/\/auth$/, '/projects'),
+      );
+    },
+    async bootstrapProjectCategories() {
+      return mutate(
+        '/categories/bootstrap',
+        {},
+        'POST',
+        base.replace(/\/auth$/, '/projects'),
+      );
+    },
+    async projectCategoryForm(id: string, version?: number) {
+      return serviceFormSchema.parse(
+        await projectRead(
+          '/categories/' +
+            id +
+            '/form' +
+            (version ? '?version=' + version : ''),
+        ),
+      );
+    },
+    async saveProjectCategoryForm(id: string, input: unknown) {
+      return mutate(
+        '/categories/' + id + '/form/draft',
+        input,
+        'PATCH',
+        base.replace(/\/auth$/, '/projects'),
+      );
+    },
+    async publishProjectCategoryForm(id: string, input: unknown) {
+      return mutate(
+        '/categories/' + id + '/form/publish',
+        input,
+        'POST',
+        base.replace(/\/auth$/, '/projects'),
+      );
+    },
+    async projectSubmission(id: string) {
+      return projectSubmissionSchema.parse(
+        await projectRead('/' + id + '/submission'),
+      );
+    },
+    async serviceForm(id: string, version?: number) {
+      return serviceFormSchema.parse(
+        await catalogGet(
+          'services',
+          '/' +
+            encodeURIComponent(id) +
+            '/form' +
+            (version ? '?version=' + version : ''),
+        ),
+      );
+    },
+    async saveServiceForm(id: string, input: unknown) {
+      return mutate(
+        '/' + encodeURIComponent(id) + '/form/draft',
+        input,
+        'PATCH',
+        base.replace(/\/auth$/, '/services'),
+      );
+    },
+    async publishServiceForm(id: string, input: unknown) {
+      return mutate(
+        '/' + encodeURIComponent(id) + '/form/publish',
+        input,
+        'POST',
+        base.replace(/\/auth$/, '/services'),
+      );
+    },
+    async ticketMetrics(id: string) {
+      return ticketMetricsSchema.parse(
+        await ticketGet('/' + encodeURIComponent(id) + '/metrics'),
+      );
+    },
+    async ticketTransition(
+      id: string,
+      op: 'pending' | 'resume' | 'close',
+      input: unknown = {},
+    ) {
+      return mutate(
+        '/' + encodeURIComponent(id) + '/' + op,
+        input,
+        'POST',
+        base.replace(/\/auth$/, '/tickets'),
+      );
+    },
+    async pendingReasons(q: Record<string, unknown> = {}) {
+      return pendingReasonListSchema.parse(
+        await (async () => {
+          const query = new URLSearchParams(
+            Object.entries(q)
+              .filter(([, v]) => v !== undefined && v !== '')
+              .map(([k, v]) => [k, String(v)]),
+          );
+          const target = base.replace(/\/auth$/, '/pending-reasons');
+          let r = await request(
+            '?' + query,
+            { credentials: 'include', cache: 'no-store' },
+            target,
+          );
+          if (r.status === 401) {
+            await refresh();
+            r = await request(
+              '?' + query,
+              { credentials: 'include', cache: 'no-store' },
+              target,
+            );
+          }
+          return decode(r);
+        })(),
+      );
+    },
+    async savePendingReason(input: unknown, id?: string) {
+      return adminWrite(
+        '/pending-reasons' + (id ? '/' + encodeURIComponent(id) : ''),
+        input,
+        id ? 'PATCH' : 'POST',
+      );
+    },
+    async slaPolicies(page = 1) {
+      return slaPolicyListSchema.parse(
+        await adminGet('/sla-policies', { page, pageSize: 10 }),
+      );
+    },
+    async saveSlaPolicy(input: unknown) {
+      return adminWrite('/sla-policies', input);
+    },
+    async dashboard(q: Record<string, unknown> = {}) {
+      return dashboardSchema.parse(await adminGet('/dashboard', q));
+    },
+    async downloadAttachment(
+      id: string,
+      fileId: string,
+      resource: 'tickets' | 'projects' | 'project-conversation' = 'tickets',
+    ) {
+      const apiResource =
+          resource === 'project-conversation' ? 'projects' : resource,
+        target = base.replace(/\/auth$/, '/' + apiResource),
+        path =
+          resource === 'project-conversation'
+            ? '/' +
+              encodeURIComponent(id) +
+              '/conversation/attachments/' +
+              encodeURIComponent(fileId)
+            : '/' +
+              encodeURIComponent(id) +
+              '/attachments/' +
+              encodeURIComponent(fileId);
+      let response = await request(
+        path,
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+      if (response.status === 401) {
+        await refresh();
+        response = await request(
+          path,
+          { credentials: 'include', cache: 'no-store' },
+          target,
+        );
+      }
+      if (!response.ok) await decode(response);
+      return response.blob();
+    },
+    async conversation(
+      id: string,
+      page = 1,
+      resource: 'tickets' | 'projects' | 'project-conversation' = 'tickets',
+    ) {
+      return conversationSchema.parse(
+        await ticketGet(
+          '/' +
+            encodeURIComponent(id) +
+            '/conversation?page=' +
+            page +
+            '&pageSize=50',
+          resource === 'project-conversation' ? 'projects' : resource,
+        ),
+      );
+    },
+    conversationStreamUrl(
+      id: string,
+      resource: 'tickets' | 'projects' | 'project-conversation' = 'tickets',
+    ) {
+      const apiResource =
+        resource === 'project-conversation' ? 'projects' : resource;
+      return (
+        base.replace(/\/auth$/, '/' + apiResource) +
+        '/' +
+        encodeURIComponent(id) +
+        '/conversation/stream'
+      );
+    },
+    async discardAttachment(
+      id: string,
+      fileId: string,
+      resource: 'tickets' | 'projects' | 'project-conversation' = 'tickets',
+    ) {
+      const apiResource =
+          resource === 'project-conversation' ? 'projects' : resource,
+        path =
+          resource === 'project-conversation'
+            ? '/' +
+              encodeURIComponent(id) +
+              '/conversation/attachments/' +
+              encodeURIComponent(fileId) +
+              '/draft'
+            : '/' +
+              encodeURIComponent(id) +
+              '/attachments/' +
+              encodeURIComponent(fileId) +
+              '/draft';
+      const { csrfToken } = await decode(await get('/csrf'));
+      const response = await request(
+        path,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+          cache: 'no-store',
+          headers: { 'X-CSRF-Token': csrfToken },
+        },
+        base.replace(/\/auth$/, '/' + apiResource),
+      );
+      if (!response.ok) await decode(response);
+    },
+    async addComment(
+      id: string,
+      content: string,
+      attachmentIds: string[] = [],
+      clientMessageId?: string,
+      resource: 'tickets' | 'projects' | 'project-conversation' = 'tickets',
+    ) {
+      const apiResource =
+        resource === 'project-conversation' ? 'projects' : resource;
+      return mutate(
+        '/' +
+          encodeURIComponent(id) +
+          (resource === 'project-conversation'
+            ? '/conversation/messages'
+            : '/comments'),
+        {
+          content,
+          attachmentIds,
+          ...(clientMessageId ? { clientMessageId } : {}),
+        },
+        'POST',
+        base.replace(/\/auth$/, '/' + apiResource),
+      );
+    },
+    async solveTicket(
+      id: string,
+      description: string,
+      attachmentIds: string[] = [],
+      resource: 'tickets' | 'projects' | 'project-conversation' = 'tickets',
+      solvedAt?: string,
+    ) {
+      return mutate(
+        '/' + encodeURIComponent(id) + '/solution',
+        { description, attachmentIds, ...(solvedAt ? { solvedAt } : {}) },
+        'POST',
+        base.replace(/\/auth$/, '/' + resource),
+      );
+    },
+    attachmentUrl(
+      id: string,
+      fileId: string,
+      preview = false,
+      resource: 'tickets' | 'projects' | 'project-conversation' = 'tickets',
+    ) {
+      const apiResource =
+          resource === 'project-conversation' ? 'projects' : resource,
+        path =
+          resource === 'project-conversation'
+            ? '/' +
+              encodeURIComponent(id) +
+              '/conversation/attachments/' +
+              encodeURIComponent(fileId)
+            : '/' +
+              encodeURIComponent(id) +
+              '/attachments/' +
+              encodeURIComponent(fileId);
+      return (
+        base.replace(/\/auth$/, '/' + apiResource) +
+        path +
+        (preview ? '?preview=true' : '')
+      );
+    },
+    async uploadAttachment(
+      id: string,
+      file: File,
+      draft = false,
+      resource: 'tickets' | 'projects' | 'project-conversation' = 'tickets',
+    ) {
+      const { csrfToken } = await decode(await get('/csrf'));
+      const apiResource =
+          resource === 'project-conversation' ? 'projects' : resource,
+        path =
+          resource === 'project-conversation'
+            ? '/' +
+              encodeURIComponent(id) +
+              '/conversation/attachments?name=' +
+              encodeURIComponent(file.name)
+            : '/' +
+              encodeURIComponent(id) +
+              '/attachments?name=' +
+              encodeURIComponent(file.name) +
+              (draft ? '&draft=true' : '');
+      return attachmentSchema.parse(
+        (
+          await decode(
+            await request(
+              path,
+              {
+                method: 'POST',
+                credentials: 'include',
+                cache: 'no-store',
+                headers: {
+                  'Content-Type': 'application/octet-stream',
+                  'X-CSRF-Token': csrfToken,
+                },
+                body: file,
+              },
+              base.replace(/\/auth$/, '/' + apiResource),
+            ),
+          )
+        ).attachment,
+      );
+    },
+    async assigneeOptions(cancelled: () => boolean = () => false) {
+      return loadAllOptions(
+        async (page) =>
+          assigneeListSchema.parse(
+            await ticketGet('/assignees?page=' + page + '&pageSize=50'),
+          ),
+        cancelled,
+      );
+    },
+    async retireRecord(
+      kind: 'ticket' | 'service' | 'category',
+      id: string,
+      reason: string,
+    ) {
+      return kind === 'ticket'
+        ? mutate(
+            '/' + encodeURIComponent(id) + '/retirement',
+            { reason },
+            'POST',
+            base.replace(/\/auth$/, '/tickets'),
+          )
+        : mutate(
+            '/retirements',
+            { kind, id, reason },
+            'POST',
+            base.replace(/\/auth$/, '/admin'),
+          );
+    },
+    async deleteAdminUser(id: string) {
+      return mutate(
+        '/users/' + encodeURIComponent(id),
+        {},
+        'DELETE',
+        base.replace(/\/auth$/, '/admin'),
+      );
+    },
+    async adminUsers(q: Partial<AdminUserQuery> = {}) {
+      return adminUserListSchema.parse(await adminGet('/users', q));
+    },
+    async adminUser(id: string) {
+      return adminUserSchema.parse(
+        (await adminGet('/users/' + encodeURIComponent(id))).user,
+      );
+    },
+    async createAdminUser(input: AdminUserInput) {
+      return adminUserCreatedSchema.parse(await adminWrite('/users', input));
+    },
+    async updateAdminUser(id: string, input: AdminUserUpdate) {
+      return adminUserSchema.parse(
+        (await adminWrite('/users/' + encodeURIComponent(id), input, 'PATCH'))
+          .user,
+      );
+    },
+    async resetAdminPassword(id: string) {
+      const response = await adminWrite(
+        '/users/' + encodeURIComponent(id) + '/reset-password',
+        {},
+      );
+      if (
+        typeof response?.temporaryPassword !== 'string' ||
+        response.temporaryPassword.length < 12
+      )
+        throw new AuthError(
+          0,
+          'INVALID_RESPONSE',
+          'Não foi possível confirmar a redefinição.',
+        );
+      return response.temporaryPassword as string;
+    },
+    async adminCompanies(q: Partial<AdminPageQuery> = {}) {
+      return companyListSchema.parse(await adminGet('/companies', q));
+    },
+    async saveCompany(input: Partial<CompanyInput>, id?: string) {
+      return companySchema.parse(
+        (
+          await adminWrite(
+            '/companies' + (id ? '/' + encodeURIComponent(id) : ''),
+            input,
+            id ? 'PATCH' : 'POST',
+          )
+        ).item,
+      );
+    },
+    async adminDepartments(
+      q: Partial<AdminPageQuery> & { companyId?: string } = {},
+    ) {
+      return departmentListSchema.parse(await adminGet('/departments', q));
+    },
+    async saveDepartment(input: Partial<DepartmentInput>, id?: string) {
+      return departmentSchema.parse(
+        (
+          await adminWrite(
+            '/departments' + (id ? '/' + encodeURIComponent(id) : ''),
+            input,
+            id ? 'PATCH' : 'POST',
+          )
+        ).item,
+      );
+    },
+    async adminSchedules(q: Partial<AdminPageQuery> = {}) {
+      return scheduleListSchema.parse(await adminGet('/schedules', q));
+    },
+    async saveSchedule(input: ScheduleInput | ScheduleUpdate, id?: string) {
+      return scheduleSchema.parse(
+        (
+          await adminWrite(
+            '/schedules' + (id ? '/' + encodeURIComponent(id) : ''),
+            input,
+            id ? 'PATCH' : 'POST',
+          )
+        ).item,
+      );
+    },
+    async scheduleVersions(id: string, page = 1) {
+      return scheduleVersionListSchema.parse(
+        await adminGet('/schedules/' + encodeURIComponent(id) + '/versions', {
+          page,
+          pageSize: 10,
+        }),
+      );
+    },
+    async organizationDefault() {
+      return organizationDefaultSchema
+        .nullable()
+        .parse((await adminGet('/organization-default')).settings);
+    },
+    async setOrganizationDefault(workScheduleId: string) {
+      return organizationDefaultSchema.parse(
+        (await adminWrite('/organization-default', { workScheduleId }, 'PATCH'))
+          .settings,
+      );
+    },
+
+    async triageTicket(id: string) {
+      return triageTicketSchema.parse(
+        (await ticketGet('/' + encodeURIComponent(id) + '/triage')).ticket,
+      );
+    },
+    async assignTicket(
+      id: string,
+      input: {
+        technicianId: string;
+        expectedPriority: 'LOW' | 'MEDIUM' | 'HIGH';
+      },
+    ) {
+      const target = base.replace(/\/auth$/, '/tickets');
+      return assignedTicketSchema.parse(
+        (
+          await mutate(
+            '/' + encodeURIComponent(id) + '/assign',
+            input,
+            'POST',
+            target,
+          )
+        ).ticket,
+      );
+    },
+    async overview(query: Partial<OverviewQuery> = {}) {
+      const search = new URLSearchParams(
+        Object.entries(query)
+          .filter(([, v]) => v !== undefined && v !== '')
+          .map(([k, v]) => [k, String(v)]),
+      );
+      return overviewListSchema.parse(
+        await ticketGet('/overview?' + search.toString()),
+      );
+    },
+    async assignees(query: Partial<AssigneeQuery> = {}) {
+      const search = new URLSearchParams(
+        Object.entries(query)
+          .filter(([, v]) => v !== undefined && v !== '')
+          .map(([k, v]) => [k, String(v)]),
+      );
+      return assigneeListSchema.parse(
+        await ticketGet('/assignees?' + search.toString()),
+      );
+    },
+    async startTicket(id: string) {
+      const target = base.replace(/\/auth$/, '/tickets');
+      // Never retry a possibly committed assignment after transport/5xx/409.
+      try {
+        return startedTicketSchema.parse(
+          (
+            await mutate(
+              '/' + encodeURIComponent(id) + '/start',
+              {},
+              'POST',
+              target,
+            )
+          ).ticket,
+        );
+      } catch (e) {
+        if (!(e instanceof AuthError) || e.code !== 'SESSION_INVALID') throw e;
+        await refresh();
+        return startedTicketSchema.parse(
+          (
+            await mutate(
+              '/' + encodeURIComponent(id) + '/start',
+              {},
+              'POST',
+              target,
+            )
+          ).ticket,
+        );
+      }
+    },
     async triage(query: Partial<TriageQuery> = {}) {
       const search = new URLSearchParams(
         Object.entries(query)
@@ -388,6 +1113,188 @@ export function createAuthClient(
             .technician,
         );
       }
+    },
+    async operationalTicket(id: string) {
+      const target = base.replace(/\/auth$/, '/tickets');
+      let r = await request(
+        '/' + encodeURIComponent(id) + '/operational',
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+      if (r.status === 401) {
+        await refresh();
+        r = await request(
+          '/' + encodeURIComponent(id) + '/operational',
+          { credentials: 'include', cache: 'no-store' },
+          target,
+        );
+      }
+      return overviewListSchema.shape.items.element.parse(
+        (await decode(r)).ticket,
+      );
+    },
+    async projectWorkflows(query: Record<string, unknown> = {}) {
+      const q = new URLSearchParams(
+        Object.entries(query)
+          .filter(([, v]) => v !== undefined && v !== '')
+          .map(([k, v]) => [k, String(v)]),
+      );
+      return projectWorkflowListSchema.parse(
+        await projectRead('/workflows?' + q),
+      );
+    },
+    async projectWorkflow(id: string) {
+      return projectWorkflowSchema.parse(
+        await projectRead('/' + encodeURIComponent(id) + '/workflow'),
+      );
+    },
+    async projectDashboard() {
+      return projectDashboardSchema.parse(
+        await projectRead('/workflows/dashboard'),
+      );
+    },
+    async projectUpdates(id: string, page = 1) {
+      return projectUpdatesSchema.parse(
+        await projectRead(
+          '/' + encodeURIComponent(id) + '/updates?page=' + page,
+        ),
+      );
+    },
+    async projectWorkflowHistory(id: string, page = 1) {
+      return projectWorkflowHistorySchema.parse(
+        await projectRead(
+          '/' + encodeURIComponent(id) + '/workflow/history?page=' + page,
+        ),
+      );
+    },
+    async projectVersions(id: string, page = 1) {
+      return projectPlanVersionsSchema.parse(
+        await projectRead(
+          '/' + encodeURIComponent(id) + '/plan-versions?page=' + page,
+        ),
+      );
+    },
+    async projectVersion(id: string, version: number) {
+      return projectWorkflowSchema.shape.plan
+        .unwrap()
+        .parse(
+          await projectRead(
+            '/' + encodeURIComponent(id) + '/plan-versions/' + version,
+          ),
+        );
+    },
+    async projectWrite(
+      id: string,
+      operation: string,
+      input: object,
+      method: 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'POST',
+    ) {
+      const target = base.replace(/\/auth$/, '/projects');
+      const path = '/' + encodeURIComponent(id) + '/' + operation;
+      try {
+        return projectWorkflowSchema.parse(
+          await mutate(path, input, method, target),
+        );
+      } catch (e) {
+        if (!(e instanceof AuthError) || e.code !== 'SESSION_INVALID') throw e;
+        await refresh();
+        return projectWorkflowSchema.parse(
+          await mutate(path, input, method, target),
+        );
+      }
+    },
+    async projects(
+      query: { page?: number; pageSize?: number; search?: string } = {},
+    ) {
+      const target = base.replace(/\/auth$/, '/projects');
+      const params = new URLSearchParams(
+        Object.entries(query)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, String(v)]),
+      );
+      let r = await request(
+        '?' + params,
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+      if (r.status === 401) {
+        await refresh();
+        r = await request(
+          '?' + params,
+          { credentials: 'include', cache: 'no-store' },
+          target,
+        );
+      }
+      return projectListSchema.parse(await decode(r));
+    },
+    async project(id: string) {
+      const target = base.replace(/\/auth$/, '/projects');
+      const read = async (suffix: string) => {
+        let r = await request(
+          '/' + encodeURIComponent(id) + suffix,
+          { credentials: 'include', cache: 'no-store' },
+          target,
+        );
+        if (r.status === 401) {
+          await refresh();
+          r = await request(
+            '/' + encodeURIComponent(id) + suffix,
+            { credentials: 'include', cache: 'no-store' },
+            target,
+          );
+        }
+        return decode(r);
+      };
+      const [detail, history] = await Promise.all([read(''), read('/history')]);
+      return {
+        project: projectRequestSchema.parse(detail.project),
+        history: projectHistorySchema.parse(history),
+      };
+    },
+    async requestProject(input: {
+      form?: {
+        categoryId: string;
+        versionId: string;
+        answers: Record<string, string | string[] | number | boolean>;
+      };
+      clientOperationId?: string;
+      title: string;
+      objective: string;
+      need: string;
+    }) {
+      const payload = {
+        ...input,
+        clientOperationId: input.clientOperationId ?? crypto.randomUUID(),
+      };
+      const target = base.replace(/\/auth$/, '/projects');
+      try {
+        return projectRequestSchema.parse(
+          (await mutate('', payload, 'POST', target)).project,
+        );
+      } catch (e) {
+        if (!(e instanceof AuthError) || e.code !== 'SESSION_INVALID') throw e;
+        await refresh();
+        return projectRequestSchema.parse(
+          (await mutate('', input, 'POST', target)).project,
+        );
+      }
+    },
+    async personalDashboard() {
+      const target = base.replace(/\/auth$/, '/dashboard');
+      let response = await request(
+        '/me',
+        { credentials: 'include', cache: 'no-store' },
+        target,
+      );
+      if (response.status === 401) {
+        await refresh();
+        response = await request(
+          '/me',
+          { credentials: 'include', cache: 'no-store' },
+          target,
+        );
+      }
+      return personalDashboardSchema.parse(await decode(response));
     },
     async profile() {
       const target = base.replace(/\/auth$/, '/users');

@@ -11,6 +11,21 @@ import { developmentMigrationTarget } from '../src/database/test-target.js';
 const reviewed = [
   '20261026222500_fundacao_nucleo',
   '20261026234800_auth_sessions',
+  '20261029234000_distribuicao_sem_inicio',
+  '20261030001000_organizacao_jornadas',
+  '20261030101000_comunicacao_solucao',
+  '20261030110000_sla_pendencias_metricas',
+  '20261030150000_chat_rascunhos',
+  '20261030170000_formularios_rascunhos',
+  '20261030180000_formularios_uploads',
+  '20261031010000_ocorrencias_compartilhadas',
+  '20261102150000_retirada_operacional',
+  '20261104150000_solicitacoes_projetos',
+  '20261106160000_workflow_projetos',
+  '20261108120000_formularios_projetos',
+  '20261108160000_anexos_projetos',
+  '20261108200000_conversa_projetos',
+  '20261109110000_project_priority_retirement_checkbox_group',
 ];
 const coreTables = [
   '_prisma_migrations',
@@ -97,8 +112,77 @@ async function migrate() {
       )
         throw new Error('Histórico divergente ou incompleto.');
       const expectedTables = [
+        ...(count >= 15
+          ? ['project_attachments', 'project_attachment_events']
+          : []),
+        ...(count >= 16
+          ? [
+              'project_conversation_messages',
+              'project_conversation_attachments',
+              'project_conversation_attachment_events',
+            ]
+          : []),
+        ...(count >= 14
+          ? [
+              'project_categories',
+              'project_category_drafts',
+              'project_category_versions',
+              'project_form_submissions',
+              'project_catalog_events',
+            ]
+          : []),
         ...coreTables,
+        ...(count >= 13
+          ? [
+              'project_workflows',
+              'project_plan_drafts',
+              'project_plan_versions',
+              'project_plan_stages',
+              'project_activity_states',
+              'project_plan_activities',
+              'project_workflow_updates',
+              'project_workflow_events',
+              'project_operations',
+            ]
+          : []),
+        ...(count >= 12 ? ['project_requests', 'project_request_events'] : []),
+        ...(count >= 11 ? ['operational_retirements'] : []),
+        ...(count >= 10
+          ? [
+              'shared_occurrences',
+              'occurrence_links',
+              'occurrence_messages',
+              'occurrence_solutions',
+              'occurrence_attachments',
+              'occurrence_events',
+              'ticket_solution_attempts',
+            ]
+          : []),
+        ...(count >= 9 ? ['opening_uploads'] : []),
+        ...(count >= 8 ? ['service_form_drafts'] : []),
         ...(count >= 2 ? ['auth_sessions', 'auth_refresh_tokens'] : []),
+        ...(count >= 4
+          ? [
+              'companies',
+              'departments',
+              'work_schedules',
+              'work_schedule_versions',
+              'organization_settings',
+              'ticket_calendar_segments',
+              'admin_audit_events',
+            ]
+          : []),
+        ...(count >= 5
+          ? ['ticket_comments', 'ticket_solutions', 'ticket_attachments']
+          : []),
+        ...(count >= 6
+          ? [
+              'pending_reasons',
+              'ticket_pending_periods',
+              'sla_policy_versions',
+              'ticket_sla_revisions',
+            ]
+          : []),
       ].sort();
       if (JSON.stringify(tables) !== JSON.stringify(expectedTables))
         throw new Error('Objetos inesperados.');

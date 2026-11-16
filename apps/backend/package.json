@@ -24,13 +24,15 @@
     "db:migrate:dev": "tsx scripts/migrate-development.ts",
     "db:migrate:status": "prisma migrate status",
     "db:prisma:check": "tsx scripts/check-prisma.ts",
+    "attachments:cleanup:dev": "tsx scripts/clean-attachment-orphans.ts",
     "test:db": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config jest.integration.config.mjs --runInBand",
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config jest.config.mjs --runInBand"
+    "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config jest.config.mjs --runInBand",
+    "catalog:sync:dev": "tsx scripts/sync-development-catalog.ts"
   },
   "dependencies": {
     "@helpdesk/contracts": "0.0.0",
@@ -44,6 +46,7 @@
     "express-rate-limit": "8.7.1",
     "jose": "6.2.13",
     "pg": "8.23.1",
+    "sharp": "0.35.5",
     "zod": "4.6.7"
   },
   "devDependencies": {

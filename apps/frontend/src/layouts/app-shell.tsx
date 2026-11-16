@@ -23,18 +23,40 @@ export function AppShell({
 }) {
   const [menu, setMenu] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
+  const sidebar = useRef<HTMLElement>(null);
   const health = useApiHealth();
   const actor = roles[role];
+  useEffect(() => {
+    if (menu) sidebar.current?.querySelector<HTMLElement>('a, button')?.focus();
+  }, [menu]);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !document.querySelector('dialog[open]')) {
         setMenu(false);
         menuButton.current?.focus();
+      } else if (menu && event.key === 'Tab') {
+        const items = sidebar.current?.querySelectorAll<HTMLElement>(
+          'a[href],button:not(:disabled)',
+        );
+        if (!items?.length) return;
+        const first = items[0]!,
+          last = items[items.length - 1]!;
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          menuButton.current?.focus();
+        } else if (
+          !event.shiftKey &&
+          (document.activeElement === last ||
+            document.activeElement === menuButton.current)
+        ) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener('keydown', escape);
     return () => window.removeEventListener('keydown', escape);
-  }, []);
+  }, [menu]);
   return (
     <div className="app-shell">
       <a
@@ -48,6 +70,8 @@ export function AppShell({
         Ir para o conteúdo
       </a>
       <aside
+        ref={sidebar}
+        id="primary-navigation"
         className={`sidebar ${menu ? 'sidebar-open' : ''}`}
         aria-label="Navegação principal"
       >
@@ -127,6 +151,7 @@ export function AppShell({
               className="icon-button lg:hidden"
               aria-label={menu ? 'Fechar menu' : 'Abrir menu'}
               aria-expanded={menu}
+              aria-controls="primary-navigation"
               onClick={() => setMenu(!menu)}
             >
               <Icon name={menu ? 'close' : 'menu'} />

@@ -257,7 +257,7 @@ describe('BLOCO 01: abertura e consulta HTTP reais', () => {
       expect(await database.db.ticket.count()).toBe(0);
     },
   );
-  it('ADMIN possui leitura global; TECHNICIAN não lê livres ou alheios, apenas atribuídos', async () => {
+  it('ADMIN e TECHNICIAN possuem leitura integral global sem ampliar mutações', async () => {
     const f = await fixture(),
       ticket = await create(f),
       tech = await logged('TECHNICIAN'),
@@ -266,11 +266,11 @@ describe('BLOCO 01: abertura e consulta HTTP reais', () => {
     expect((await f.admin.c.agent.get('/tickets/' + ticket.id)).status).toBe(
       200,
     );
-    expect((await tech.c.agent.get('/tickets')).body.total).toBe(0);
+    expect((await tech.c.agent.get('/tickets')).body.total).toBe(1);
     for (const suffix of ['', '/history'])
       expect(
         (await tech.c.agent.get('/tickets/' + ticket.id + suffix)).status,
-      ).toBe(404);
+      ).toBe(200);
     // Fixture only: prepare an assigned ticket without exposing an operation API.
     await database.db.ticket.update({
       where: { id: ticket.id },
@@ -285,7 +285,7 @@ describe('BLOCO 01: abertura e consulta HTTP reais', () => {
     expect(
       (await tech.c.agent.get('/tickets/' + ticket.id + '/history')).status,
     ).toBe(200);
-    expect((await other.c.agent.get('/tickets/' + ticket.id)).status).toBe(404);
+    expect((await other.c.agent.get('/tickets/' + ticket.id)).status).toBe(200);
   });
   it('serviço/categoria inativos e catálogo inexistente são recusados sem gravação parcial', async () => {
     const f = await fixture();
@@ -348,22 +348,30 @@ describe('BLOCO 01: abertura e consulta HTTP reais', () => {
     ).toBe(400);
     expect(await database.db.ticket.count()).toBe(0);
   });
-  it('formulários personalizados e uploads não são habilitados pelo novo HTTP', async () => {
+  it('upload na abertura não aceita UUID de arquivo sem estágio autenticado', async () => {
     const f = await fixture();
-    const form = await database.db.serviceFormVersion.findFirstOrThrow({
-      where: { serviceId: f.service.id },
-    });
-    await database.db.serviceFormField.create({
+    await database.db.serviceFormVersion.create({
       data: {
-        formVersionId: form.id,
-        key: 'extra',
-        label: 'Campo futuro',
-        type: 'TEXT',
+        serviceId: f.service.id,
+        version: 2,
+        fields: {
+          create: {
+            key: 'extra',
+            label: 'Arquivo',
+            type: 'FILE',
+            required: true,
+          },
+        },
       },
     });
     expect(
-      (await mutate(f.requester.c, '/tickets', f.input)).body.error.code,
-    ).toBe('FORM_NOT_SUPPORTED');
+      (
+        await mutate(f.requester.c, '/tickets', {
+          ...f.input,
+          answers: { extra: [randomUUID()] },
+        })
+      ).body.error.code,
+    ).toBe('INVALID_UPLOAD');
     expect(await database.db.ticket.count()).toBe(0);
   });
   it('renomear/desativar catálogo não altera lista, detalhes e histórico preservados', async () => {
@@ -438,7 +446,7 @@ describe('BLOCO 01: abertura e consulta HTTP reais', () => {
     await mutate(f.requester.c, '/auth/logout', {});
     expect((await f.requester.c.agent.get('/tickets')).status).toBe(401);
   });
-  it('nenhuma operação de atendimento ou escrita histórica é exposta', async () => {
+  it('operações futuras permanecem ausentes e ADMIN não recebe assunção', async () => {
     const f = await fixture(),
       ticket = await create(f);
     for (const action of [
@@ -452,7 +460,7 @@ describe('BLOCO 01: abertura e consulta HTTP reais', () => {
       expect(
         (await mutate(f.admin.c, '/tickets/' + ticket.id + '/' + action, {}))
           .status,
-      ).toBe(404);
+      ).toBe(action === 'start' ? 403 : 404);
     expect((await f.admin.c.agent.delete('/tickets/' + ticket.id)).status).toBe(
       404,
     );

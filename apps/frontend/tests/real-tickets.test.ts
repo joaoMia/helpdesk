@@ -86,7 +86,6 @@ test('contrato de abertura real aceita um serviço e não aceita identidade, té
     { price: 12 },
     { serviceSnapshot: snapshot },
     { scheduledAt: createdAt },
-    { answers: { campo: 'extra' } },
   ])
     assert.equal(
       createTicketHttpSchema.safeParse({ ...input, ...extra }).success,
@@ -97,6 +96,13 @@ test('contrato de abertura real aceita um serviço e não aceita identidade, té
     false,
   );
   assert.equal(ticketQuerySchema.safeParse({ requesterId: id }).success, false);
+  assert.equal(
+    createTicketHttpSchema.safeParse({
+      ...input,
+      answers: { campo: 'Resposta' },
+    }).success,
+    true,
+  );
 });
 test('API cliente abre com cookies/CSRF e lê lista, detalhes e histórico reais', async () => {
   const calls: { url: string; options?: RequestInit }[] = [];
@@ -209,6 +215,10 @@ test('tabela real reutiliza composição visual aprovada e usa número, link e n
     );
     for (const value of [
       'ticket-table',
+      'mobile-record-list',
+      'mobile-record-card',
+      'Prioridade',
+      'Abertura',
       'ticket-link',
       'HD-42',
       `#/requester/chamado/${id}`,

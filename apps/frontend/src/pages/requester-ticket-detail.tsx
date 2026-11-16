@@ -1,9 +1,6 @@
+import { visibleFormKeys } from '@helpdesk/contracts';
 import { useEffect, useState } from 'react';
-import type {
-  PublicUser,
-  TicketDetail,
-  TicketHistory,
-} from '@helpdesk/contracts';
+import type { PublicUser, TicketDetail } from '@helpdesk/contracts';
 import { authClient, AuthError } from '../lib/auth-client';
 import {
   PageHeading,
@@ -12,32 +9,40 @@ import {
   StatusBadge,
 } from '../components/ui';
 import { MotionRegion } from '../components/motion-region';
-import { TicketPagination } from '../components/ticket-pagination';
 import { date } from '../lib/presentation';
+import { TicketOpenActions } from '../components/ticket-open-actions';
+import { TicketPriorityEditor } from '../components/ticket-priority-editor';
+import { TicketHistoryPanel } from '../components/ticket-history-panel';
+import { TicketConversation } from '../components/ticket-conversation';
+import { TicketLifecycle } from '../components/ticket-lifecycle';
 export function RequesterTicketDetail({
   id,
   user,
   onExpired,
   created = false,
+  technician = false,
 }: {
   id: string;
   user: PublicUser;
   onExpired: () => void;
   created?: boolean;
+  technician?: boolean;
 }) {
   const [ticket, setTicket] = useState<TicketDetail | null>(null),
-    [history, setHistory] = useState<TicketHistory | null>(null),
-    [page, setPage] = useState(1),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [revision, setRevision] = useState(0);
+  const [solutionOpen, setSolutionOpen] = useState(false);
+  const responsible =
+    user.role === 'TECHNICIAN' && ticket?.assignedTechnicianId === user.id;
+  const reload = () => setRevision((n) => n + 1);
   useEffect(() => {
     let active = true;
-    Promise.all([authClient.ticket(id), authClient.ticketHistory(id, page, 10)])
-      .then(([t, h]) => {
+    authClient
+      .ticket(id)
+      .then((t) => {
         if (active) {
           setTicket(t);
-          setHistory(h);
           setError('');
         }
       })
@@ -46,7 +51,6 @@ export function RequesterTicketDetail({
           if (e instanceof AuthError && e.status === 401) onExpired();
           else {
             setTicket(null);
-            setHistory(null);
             setError(
               e instanceof AuthError && e.status === 404
                 ? 'Chamado não encontrado ou indisponível para sua conta.'
@@ -61,11 +65,22 @@ export function RequesterTicketDetail({
     return () => {
       active = false;
     };
-  }, [id, page, revision, onExpired]);
+  }, [id, revision, onExpired]);
   return (
     <>
-      <a className="back-link" href="#/requester/chamados">
-        ← Voltar aos chamados
+      <a
+        className="back-link"
+        href={
+          user.role === 'ADMIN'
+            ? '#/admin/chamados'
+            : technician
+              ? '#/technician/atendimentos'
+              : '#/requester/chamados'
+        }
+      >
+        {technician
+          ? '← Voltar aos meus atendimentos'
+          : '← Voltar aos chamados'}
       </a>
       {error && (
         <p role="alert" className="form-error">
@@ -94,19 +109,51 @@ export function RequesterTicketDetail({
             </div>
           </PageHeading>
           <MotionRegion motionKey={'real-ticket-detail-' + id}>
-            <div className="detail-grid">
-              <div className="space-y-6">
-                <Panel title="Descrição da solicitação">
+            <div className="mb-6">
+              <TicketLifecycle
+                id={id}
+                status={ticket.status}
+                createdAt={ticket.createdAt}
+                resolvedAt={ticket.resolvedAt ?? null}
+                canOperate={responsible}
+                canClose={responsible || user.role === 'ADMIN'}
+                refreshKey={revision}
+                additionalActions={
+                  ticket.status === 'OPEN' && user.role !== 'REQUESTER' ? (
+                    <TicketOpenActions
+                      ticket={ticket}
+                      user={user}
+                      onExpired={onExpired}
+                      onChanged={reload}
+                    />
+                  ) : responsible &&
+                    (ticket.status === 'IN_PROGRESS' ||
+                      ticket.status === 'PENDING') ? (
+                    <TicketPriorityEditor
+                      id={ticket.id}
+                      priority={ticket.priority}
+                      label="Alterar prioridade"
+                      onExpired={onExpired}
+                      onSaved={reload}
+                    />
+                  ) : null
+                }
+                onSolve={() => setSolutionOpen(true)}
+                onExpired={onExpired}
+                onChanged={reload}
+              />
+            </div>
+            <div className="detail-grid items-start">
+              <div className="min-w-0 space-y-6">
+                <Panel title="Solicitação e contexto">
                   <div className="form-body">
-                    <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600">
+                    <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600 dark:text-slate-300">
                       {ticket.description}
                     </p>
                   </div>
-                </Panel>
-                <Panel
-                  title="Serviço solicitado"
-                  subtitle="Informações preservadas no momento da abertura"
-                >
+                  <h3 className="px-6 mt-4 font-semibold">
+                    Serviço solicitado · contexto histórico
+                  </h3>
                   <div className="form-body space-y-6">
                     <section>
                       <p className="eyebrow">
@@ -125,107 +172,129 @@ export function RequesterTicketDetail({
                         <p className="mt-3 text-sm">Sem campos adicionais.</p>
                       ) : (
                         <dl className="space-y-3 mt-3">
-                          {ticket.serviceSnapshot.fields.map((f) => (
-                            <div key={f.id}>
-                              <dt className="detail-label">{f.label}</dt>
-                              <dd>
-                                {String(
-                                  ticket.answers.find(
-                                    (a) => a.fieldKey === f.key,
-                                  )?.value ?? 'Não informado',
-                                )}
-                              </dd>
-                            </div>
-                          ))}
+                          {ticket.serviceSnapshot.fields
+                            .filter((f) =>
+                              visibleFormKeys(
+                                ticket.serviceSnapshot.fields,
+                                Object.fromEntries(
+                                  ticket.answers.map((a) => [
+                                    a.fieldKey,
+                                    a.value,
+                                  ]),
+                                ),
+                              ).has(f.key),
+                            )
+                            .map((f) => (
+                              <div key={f.id}>
+                                <dt className="detail-label">{f.label}</dt>
+                                <dd>
+                                  {f.type === 'FILE'
+                                    ? Array.isArray(
+                                        ticket.answers.find(
+                                          (a) => a.fieldKey === f.key,
+                                        )?.value,
+                                      ) &&
+                                      (
+                                        ticket.answers.find(
+                                          (a) => a.fieldKey === f.key,
+                                        )!.value as string[]
+                                      ).length
+                                      ? 'Arquivo(s) enviado(s). Consulte os anexos da abertura na conversa abaixo.'
+                                      : 'Nenhum arquivo informado.'
+                                    : String(
+                                        ticket.answers.find(
+                                          (a) => a.fieldKey === f.key,
+                                        )?.value ?? 'Não informado',
+                                      )}
+                                </dd>
+                              </div>
+                            ))}
                         </dl>
                       )}
                     </section>
                   </div>
                 </Panel>
-                <Panel
-                  title="Acompanhamento"
-                  subtitle="Histórico registrado no HelpDesk"
-                >
-                  <ol className="timeline">
-                    {history?.items.map((event) => (
-                      <li key={event.id}>
-                        <span className="timeline-dot" />
-                        <div className="flex flex-wrap items-center justify-between gap-1">
-                          <span className="text-sm font-semibold text-slate-800">
-                            {event.actorId === user.id
-                              ? user.name
-                              : 'Equipe de suporte'}
-                          </span>
-                          <time
-                            className="text-xs text-slate-400"
-                            dateTime={event.createdAt}
-                          >
-                            {date(event.createdAt)}
-                          </time>
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">
-                          {event.eventType === 'OPENED'
-                            ? 'Chamado aberto. Aguardando classificação.'
-                            : event.eventType === 'PRIORITY_CLASSIFIED'
-                              ? 'Prioridade classificada pela equipe técnica. Classificar não inicia o atendimento.'
-                              : `Evento registrado: ${event.eventType}`}
-                        </p>
-                      </li>
-                    ))}
-                  </ol>
-                  {history && !history.items.length && (
-                    <p className="form-body">
-                      Nenhum evento disponível nesta página.
-                    </p>
-                  )}
-                  <TicketPagination
-                    page={page}
-                    total={history?.total ?? 0}
-                    busy={loading}
-                    onPage={(p) => {
-                      setPage(p);
-                      setLoading(true);
-                    }}
-                  />
-                  <p className="info-note m-5">
-                    Comentários, anexos e ações de atendimento não estão
-                    disponíveis nesta etapa.
-                  </p>
-                </Panel>
+                <TicketConversation
+                  key={user.id + ':' + id}
+                  id={id}
+                  status={ticket.status}
+                  user={user}
+                  onExpired={onExpired}
+                  onChanged={reload}
+                  allowSolve={responsible && ticket.status === 'IN_PROGRESS'}
+                  solutionControl={{
+                    open: solutionOpen,
+                    onOpenChange: setSolutionOpen,
+                  }}
+                />
+                <TicketHistoryPanel
+                  key={id}
+                  id={id}
+                  revision={revision}
+                  onExpired={onExpired}
+                />
               </div>
-              <aside className="space-y-6">
+              <aside className="min-w-0 space-y-6">
                 <Panel title="Informações do chamado">
                   <dl className="form-body space-y-5">
                     <div>
-                      <dt className="detail-label">Solicitante</dt>
-                      <dd>{user.name}</dd>
+                      <dt className="detail-label">Abertura</dt>
+                      <dd>{date(ticket.createdAt)}</dd>
                     </div>
+                    <div>
+                      <dt className="detail-label">Status e prioridade</dt>
+                      <dd className="flex flex-wrap gap-2">
+                        <StatusBadge status={ticket.status} />
+                        <PriorityBadge priority={ticket.priority} />
+                      </dd>
+                    </div>
+                    {
+                      <div>
+                        <dt className="detail-label">Solicitante</dt>
+                        <dd>
+                          {ticket.requesterName ??
+                            (user.id === ticket.requesterId
+                              ? user.name
+                              : 'Solicitante do chamado')}
+                        </dd>
+                      </div>
+                    }
                     <div>
                       <dt className="detail-label">Responsável</dt>
                       <dd>
-                        {ticket.assignedTechnicianId
-                          ? 'Técnico atribuído'
-                          : 'Sem responsável'}
+                        {ticket.responsibleName ??
+                          (ticket.assignedTechnicianId === user.id
+                            ? user.name
+                            : ticket.assignedTechnicianId
+                              ? 'Técnico atribuído'
+                              : 'Sem responsável')}
                       </dd>
                     </div>
-                    <div>
-                      <dt className="detail-label">
-                        Tempo útil total / após início
-                      </dt>
-                      <dd className="text-sm text-slate-500">
-                        Cálculo ainda não disponível.
-                      </dd>
-                    </div>
+                    {ticket.firstStartedAt && (
+                      <div>
+                        <dt className="detail-label">Primeiro atendimento</dt>
+                        <dd>
+                          <time dateTime={ticket.firstStartedAt}>
+                            {date(ticket.firstStartedAt)}
+                          </time>
+                        </dd>
+                      </div>
+                    )}
+                    {ticket.resolvedAt && (
+                      <div>
+                        <dt className="detail-label">Solução registrada</dt>
+                        <dd>{date(ticket.resolvedAt)}</dd>
+                      </div>
+                    )}
                   </dl>
                 </Panel>
                 <button
                   className="button-secondary"
                   onClick={() => {
-                    setLoading(true);
                     setRevision((n) => n + 1);
                   }}
                 >
-                  Atualizar acompanhamento
+                  Atualizar chamado
                 </button>
               </aside>
             </div>
@@ -236,7 +305,6 @@ export function RequesterTicketDetail({
         <button
           className="button-secondary mt-4"
           onClick={() => {
-            setLoading(true);
             setRevision((n) => n + 1);
           }}
         >

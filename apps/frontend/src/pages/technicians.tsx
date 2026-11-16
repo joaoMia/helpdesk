@@ -1,3 +1,4 @@
+import { useDebouncedValue } from '../hooks/use-debounced-value';
 import { useEffect, useRef, useState } from 'react';
 import type { Technician } from '@helpdesk/contracts';
 import { createTechnicianSchema } from '@helpdesk/contracts';
@@ -5,7 +6,6 @@ import { authClient, AuthError } from '../lib/auth-client';
 export function Technicians({ onExpired }: { onExpired: () => void }) {
   const [items, setItems] = useState<Technician[]>([]),
     [search, setSearch] = useState(''),
-    [filter, setFilter] = useState(''),
     [page, setPage] = useState(1),
     [total, setTotal] = useState(0),
     [loading, setLoading] = useState(true),
@@ -21,6 +21,9 @@ export function Technicians({ onExpired }: { onExpired: () => void }) {
       email: string;
       password: string;
     } | null>(null);
+  const filter = useDebouncedValue(search.trim());
+  const [loadedQuery, setLoadedQuery] = useState('');
+  const queryKey = JSON.stringify([page, filter, refresh]);
   const alive = useRef(true),
     dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -48,12 +51,15 @@ export function Technicians({ onExpired }: { onExpired: () => void }) {
         }
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setLoadedQuery(queryKey);
+        }
       });
     return () => {
       active = false;
     };
-  }, [page, filter, refresh, onExpired]);
+  }, [page, filter, refresh, queryKey, onExpired]);
   useEffect(() => {
     if (created) dialog.current?.showModal();
   }, [created]);
@@ -168,7 +174,6 @@ export function Technicians({ onExpired }: { onExpired: () => void }) {
         onSubmit={(e) => {
           e.preventDefault();
           setPage(1);
-          setFilter(search.trim());
           setLoading(true);
           setRefresh((n) => n + 1);
         }}
@@ -181,7 +186,10 @@ export function Technicians({ onExpired }: { onExpired: () => void }) {
             maxLength={120}
             placeholder="Buscar por nome ou e-mail"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
         </label>
         <button className="button-secondary">Buscar</button>
@@ -190,7 +198,6 @@ export function Technicians({ onExpired }: { onExpired: () => void }) {
           type="button"
           onClick={() => {
             setSearch('');
-            setFilter('');
             setPage(1);
             setRefresh((n) => n + 1);
             setLoading(true);
@@ -263,7 +270,7 @@ export function Technicians({ onExpired }: { onExpired: () => void }) {
         </form>
       )}
       <div className="panel overflow-x-auto">
-        {loading ? (
+        {loadedQuery !== queryKey || loading || search.trim() !== filter ? (
           <p className="p-5" role="status">
             Carregando técnicos…
           </p>
@@ -310,7 +317,12 @@ export function Technicians({ onExpired }: { onExpired: () => void }) {
       <div className="flex flex-wrap items-center gap-4">
         <button
           className="button-secondary"
-          disabled={page === 1 || loading}
+          disabled={
+            page === 1 ||
+            loading ||
+            loadedQuery !== queryKey ||
+            search.trim() !== filter
+          }
           onClick={() => {
             setPage((p) => p - 1);
             setLoading(true);
@@ -323,7 +335,12 @@ export function Technicians({ onExpired }: { onExpired: () => void }) {
         </span>
         <button
           className="button-secondary"
-          disabled={page * 10 >= total || loading}
+          disabled={
+            page * 10 >= total ||
+            loading ||
+            loadedQuery !== queryKey ||
+            search.trim() !== filter
+          }
           onClick={() => {
             setPage((p) => p + 1);
             setLoading(true);

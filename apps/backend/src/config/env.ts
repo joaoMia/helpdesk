@@ -10,6 +10,13 @@ const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   DATABASE_URL: z.url().optional(),
   TEST_DATABASE_URL: z.url().optional(),
+  ATTACHMENT_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1024)
+    .max(20 * 1024 * 1024)
+    .default(10 * 1024 * 1024),
+  ATTACHMENT_MAX_COUNT: z.coerce.number().int().min(1).max(20).default(10),
   AUTH_JWT_SECRET: z.string().optional(),
   AUTH_CSRF_SECRET: z.string().optional(),
   AUTH_ORIGINS: z.string().optional(),

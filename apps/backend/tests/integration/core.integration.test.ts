@@ -479,3 +479,61 @@ describe('Prisma 7 / PostgreSQL 18: DDL e dados somente em transações desfeita
     // reviewTransaction verifies namespace absence in finally, also on failure.
   });
 });
+
+it('condições persistidas: respostas ocultas descartadas, obrigatoriedade validada e nova versão não muda snapshot anterior', async () => {
+  await reviewTransaction(async (tx) => {
+    const f = await coreFixture(tx);
+    await tx.serviceFormField.create({
+      data: {
+        formVersionId: f.form.id,
+        key: 'module',
+        label: 'Módulo',
+        type: 'TEXT',
+        required: true,
+        displayOrder: 1,
+        condition: { field: 'context', includes: 'TOTVS' },
+      },
+    });
+    const old = await f.useCase.open(f.requester.id, {
+      ...f.input,
+      answers: { context: 'Spark', module: 'Não persistir' },
+    });
+    expect(await tx.ticketAnswer.count({ where: { ticketId: old.id } })).toBe(
+      1,
+    );
+    await expect(
+      f.useCase.open(f.requester.id, {
+        ...f.input,
+        answers: { context: 'TOTVS' },
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_ANSWERS' });
+    const selected = await f.useCase.open(f.requester.id, {
+      ...f.input,
+      answers: { context: 'TOTVS', module: 'Estoque' },
+    });
+    expect(
+      await tx.ticketAnswer.count({ where: { ticketId: selected.id } }),
+    ).toBe(2);
+    await tx.serviceFormVersion.create({
+      data: {
+        serviceId: f.service.id,
+        version: 2,
+        fields: {
+          create: {
+            key: 'context',
+            label: 'Novo rótulo',
+            type: 'TEXT',
+            required: true,
+          },
+        },
+      },
+    });
+    const newer = await f.useCase.open(f.requester.id, f.input);
+    expect(newer.serviceSnapshot.formVersion).toBe(2);
+    expect(
+      (await tx.ticket.findUniqueOrThrow({ where: { id: old.id } }))
+        .serviceSnapshot,
+    ).toEqual(old.serviceSnapshot);
+    expect(old.serviceSnapshot.fields).toHaveLength(2);
+  });
+});

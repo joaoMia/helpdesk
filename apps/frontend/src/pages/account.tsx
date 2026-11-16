@@ -1,7 +1,8 @@
 import type { PublicUser } from '@helpdesk/contracts';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ThemeToggle } from '../components/theme-toggle';
+import { SmoothWorkspace } from '../components/smooth-workspace';
 import { useApiHealth } from '../hooks/use-api-health';
 import { Icon, PageHeading } from '../components/ui';
 import { authenticatedHome, profileAreas } from '../navigation/auth-routes';
@@ -20,15 +21,30 @@ export function Account({
 }) {
   const health = useApiHealth();
   const [menu, setMenu] = useState(false);
+  const sidebar = useRef<HTMLElement>(null),
+    menuButton = useRef<HTMLButtonElement>(null);
+  const wasMenuOpen = useRef(false);
+  useEffect(() => {
+    if (menu)
+      sidebar.current
+        ?.querySelector<HTMLElement>('a[href],button:not(:disabled)')
+        ?.focus();
+    else if (wasMenuOpen.current) menuButton.current?.focus();
+    wasMenuOpen.current = menu;
+  }, [menu]);
   const area = profileAreas[user.role];
   const currentPath = window.location.hash;
-  const catalogPath = '#/admin/catalogo';
-  const modules =
-    user.role === 'REQUESTER'
-      ? ['Abrir chamado', 'Meus chamados', 'Meus projetos']
+  const projectPath =
+    '#/' +
+    (user.role === 'ADMIN'
+      ? 'admin'
       : user.role === 'TECHNICIAN'
-        ? ['Fila de chamados', 'Meus atendimentos']
-        : ['Gestão de usuários', 'Catálogo de serviços'];
+        ? 'technician'
+        : 'requester') +
+    '/projetos';
+  const projectActive =
+    currentPath === projectPath || currentPath.startsWith(projectPath + '/');
+  const catalogPath = '#/admin/catalogo';
   return (
     <div className="app-shell">
       <a
@@ -42,10 +58,29 @@ export function Account({
         Ir para o conteúdo
       </a>
       <aside
+        ref={sidebar}
+        id="primary-navigation"
         className={`sidebar ${menu ? 'sidebar-open' : ''}`}
         aria-label="Navegação da área autenticada"
         onKeyDown={(event) => {
-          if (event.key === 'Escape') setMenu(false);
+          if (event.key === 'Escape') {
+            setMenu(false);
+            menuButton.current?.focus();
+          } else if (event.key === 'Tab') {
+            const items = sidebar.current?.querySelectorAll<HTMLElement>(
+              'a[href],button:not(:disabled)',
+            );
+            if (!items?.length) return;
+            const first = items[0]!,
+              last = items[items.length - 1]!;
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              menuButton.current?.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first.focus();
+            }
+          }
         }}
       >
         <a className="brand" href={authenticatedHome(user)}>
@@ -58,19 +93,17 @@ export function Account({
         <div className="workspace-label">{area.label}</div>
         <nav className="mt-6">
           <a
-            className={`nav-item ${children ? '' : 'nav-active'}`}
-            aria-current={children ? undefined : 'page'}
+            className={`nav-item ${currentPath === authenticatedHome(user) ? 'nav-active' : ''}`}
+            aria-current={
+              currentPath === authenticatedHome(user) ? 'page' : undefined
+            }
             href={authenticatedHome(user)}
             onClick={() => setMenu(false)}
           >
             <Icon name="grid" />
             Início
           </a>
-          <a className="nav-item" href="#/change-password">
-            <Icon name="users" />
-            Alterar senha
-          </a>
-          {['REQUESTER', 'TECHNICIAN'].includes(user.role) && (
+          {
             <a
               className={`nav-item ${currentPath.endsWith('/perfil') ? 'nav-active' : ''}`}
               aria-current={
@@ -79,14 +112,16 @@ export function Account({
               href={
                 user.role === 'TECHNICIAN'
                   ? '#/technician/perfil'
-                  : '#/requester/perfil'
+                  : user.role === 'ADMIN'
+                    ? '#/admin/perfil'
+                    : '#/requester/perfil'
               }
               onClick={() => setMenu(false)}
             >
               <Icon name="users" />
               Meu perfil
             </a>
-          )}
+          }
           {user.role === 'REQUESTER' && (
             <>
               <a
@@ -116,32 +151,64 @@ export function Account({
               </a>
             </>
           )}
+          {['ADMIN', 'TECHNICIAN', 'REQUESTER'].includes(user.role) && (
+            <a
+              className={`nav-item ${projectActive ? 'nav-active' : ''}`}
+              aria-current={projectActive ? 'page' : undefined}
+              href={projectPath}
+              onClick={() => setMenu(false)}
+            >
+              <Icon name="grid" />
+              Projetos
+            </a>
+          )}
           {user.role === 'ADMIN' && (
             <a
-              className={`nav-item ${currentPath === '#/admin/usuarios' ? 'nav-active' : ''}`}
+              className={`nav-item ${currentPath.startsWith('#/admin/usuarios') ? 'nav-active' : ''}`}
               aria-current={
-                currentPath === '#/admin/usuarios' ? 'page' : undefined
+                currentPath.startsWith('#/admin/usuarios') ? 'page' : undefined
               }
               href="#/admin/usuarios"
               onClick={() => setMenu(false)}
             >
               <Icon name="users" />
-              Gestão de usuários
+              Central Administrativa
             </a>
           )}
-          {user.role === 'TECHNICIAN' && (
+          {['TECHNICIAN', 'ADMIN'].includes(user.role) && (
             <a
-              className={`nav-item ${currentPath.startsWith('#/technician/chamados') ? 'nav-active' : ''}`}
+              className={`nav-item ${currentPath.startsWith('#/technician/chamados') || currentPath === '#/admin/chamados' ? 'nav-active' : ''}`}
               aria-current={
-                currentPath.startsWith('#/technician/chamados')
+                currentPath.startsWith('#/technician/chamados') ||
+                currentPath === '#/admin/chamados'
                   ? 'page'
                   : undefined
               }
-              href="#/technician/chamados/nao-classificados"
+              href={
+                user.role === 'ADMIN'
+                  ? '#/admin/chamados'
+                  : '#/technician/chamados/nao-classificados'
+              }
               onClick={() => setMenu(false)}
             >
               <Icon name="ticket" />
               Chamados
+            </a>
+          )}
+          {user.role === 'TECHNICIAN' && (
+            <a
+              className={`nav-item ${currentPath === '#/technician/atendimentos' || currentPath.startsWith('#/technician/chamado/') ? 'nav-active' : ''}`}
+              aria-current={
+                currentPath === '#/technician/atendimentos' ||
+                currentPath.startsWith('#/technician/chamado/')
+                  ? 'page'
+                  : undefined
+              }
+              href="#/technician/atendimentos"
+              onClick={() => setMenu(false)}
+            >
+              <Icon name="tool" />
+              Meus atendimentos
             </a>
           )}
           {user.role === 'ADMIN' && (
@@ -170,7 +237,10 @@ export function Account({
         <button
           className="sidebar-backdrop"
           aria-label="Fechar menu"
-          onClick={() => setMenu(false)}
+          onClick={() => {
+            setMenu(false);
+            menuButton.current?.focus();
+          }}
         />
       )}
       <div className="workspace">
@@ -178,6 +248,8 @@ export function Account({
           <div className="flex min-w-0 items-center gap-3">
             <button
               className="icon-button lg:hidden"
+              ref={menuButton}
+              aria-controls="primary-navigation"
               aria-label={menu ? 'Fechar menu' : 'Abrir menu'}
               aria-expanded={menu}
               onClick={() => setMenu(!menu)}
@@ -199,7 +271,7 @@ export function Account({
             </button>
           </div>
         </header>
-        <div className="workspace-body flex flex-col">
+        <SmoothWorkspace enabled={!currentPath.includes('/chamado/')}>
           <main
             id="authenticated-content"
             tabIndex={-1}
@@ -217,60 +289,9 @@ export function Account({
                     {error}
                   </p>
                 )}
-                <section
-                  className="info-note"
-                  aria-label="Disponibilidade dos módulos"
-                >
-                  Os módulos de chamados e projetos estão em desenvolvimento.
-                  Nenhum chamado, projeto ou indicador fictício é apresentado
-                  como dado da sua conta.
-                </section>
-                <div className="grid gap-4 md:grid-cols-3">
-                  {modules.map((name) => (
-                    <section key={name} className="panel p-5">
-                      <h2 className="font-semibold">{name}</h2>
-                      <p className="mt-3 text-sm text-slate-500">
-                        {user.role === 'ADMIN'
-                          ? name === 'Gestão de usuários'
-                            ? 'Cadastro e edição de técnicos'
-                            : 'Categorias e serviços reais'
-                          : 'Em desenvolvimento'}
-                      </p>
-                      {user.role === 'ADMIN' ? (
-                        <a
-                          className="button-secondary mt-4 inline-block"
-                          href={
-                            name === 'Gestão de usuários'
-                              ? '#/admin/usuarios'
-                              : catalogPath
-                          }
-                        >
-                          {name === 'Gestão de usuários'
-                            ? 'Gerenciar técnicos'
-                            : 'Gerenciar catálogo'}
-                        </a>
-                      ) : (
-                        <button
-                          className="button-secondary mt-4"
-                          disabled
-                          aria-label={`${name} — em desenvolvimento`}
-                        >
-                          Indisponível nesta etapa
-                        </button>
-                      )}
-                    </section>
-                  ))}
-                </div>
-                <section className="panel p-5 space-y-3">
-                  <h2 className="font-semibold">Laboratório visual separado</h2>
-                  <p className="text-sm text-slate-500">
-                    A prévia usa somente dados fictícios e operações em memória.
-                    O seletor de perfis do laboratório não concede acesso real.
-                  </p>
-                  <a className="text-button" href="#/demo/requester/painel">
-                    Explorar demonstração · dados fictícios
-                  </a>
-                </section>
+                <a className="button-primary" href={authenticatedHome(user)}>
+                  Abrir painel
+                </a>
                 <p className="text-xs text-slate-500" role="status">
                   {health === 'available'
                     ? 'API disponível'
@@ -284,7 +305,7 @@ export function Account({
           <footer className="workspace-footer">
             HelpDesk · Área autenticada · {area.label}
           </footer>
-        </div>
+        </SmoothWorkspace>
       </div>
     </div>
   );

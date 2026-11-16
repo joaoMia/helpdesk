@@ -1,5 +1,5 @@
-// DEV-002: minimum core authorized for the first development migration.
-// Pending permissions, conditional forms, calendars and projects are not implemented.
+// Core and additive evolutions authorized through integrated BLOCOS 03.1/04/05/06.
+// Projects and transfers remain out of scope; forms/OC are explicitly authorized.
 // PostgreSQL checks/triggers live in the reviewed migration, not in PSL.
 generator client {
   provider            = "prisma-client"
@@ -22,6 +22,7 @@ enum TicketStatus {
   OPEN
   IN_PROGRESS
   PENDING
+  RESOLVED
   CLOSED
 }
 
@@ -32,6 +33,10 @@ enum TicketPriority {
 }
 
 enum ServiceFieldType {
+  NUMBER
+  DATE
+  EMAIL
+  URL
   TEXT
   LONG_TEXT
   SELECT
@@ -39,51 +44,88 @@ enum ServiceFieldType {
   DATE_TIME
   FILE
   CHECKBOX
+  CHECKBOX_GROUP
 }
 
 model User {
-  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  role               UserRole
-  name               String
-  email              String        @unique
-  passwordHash       String        @map("password_hash")
-  mustChangePassword Boolean       @default(false) @map("must_change_password")
-  isActive           Boolean       @default(true) @map("is_active")
-  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  requestedTickets   Ticket[]      @relation("Requester")
-  assignedTickets    Ticket[]      @relation("Technician")
-  classifiedTickets  Ticket[]      @relation("Classifier")
-  closedTickets      Ticket[]      @relation("Closer")
-  events             TicketEvent[]
-  authSessions       AuthSession[]
+  projectConversationMessages         ProjectConversationMessage[]
+  projectConversationAttachments      ProjectConversationAttachment[]      @relation("ProjectConversationFileOwner")
+  projectConversationAttachmentEvents ProjectConversationAttachmentEvent[]
+  projectFiles                        ProjectAttachment[]                  @relation("ProjectFileOwner")
+  projectFileEvents                   ProjectAttachmentEvent[]
+  projectFormDrafts                   ProjectCategoryDraft[]
+  projectFormVersions                 ProjectCategoryVersion[]
+  projectCatalogEvents                ProjectCatalogEvent[]
+  ownedProjectWorkflows               ProjectWorkflow[]                    @relation("ProjectOwner")
+  projectPlanDrafts                   ProjectPlanDraft[]                   @relation("ProjectDraftActor")
+  projectPlans                        ProjectPlanVersion[]                 @relation("ProjectPlanActor")
+  projectActivityStates               ProjectActivityState[]               @relation("ProjectActivityActor")
+  projectWorkflowUpdates              ProjectWorkflowUpdate[]              @relation("ProjectUpdateActor")
+  projectWorkflowEvents               ProjectWorkflowEvent[]               @relation("ProjectEventActor")
+  projectOperations                   ProjectOperation[]                   @relation("ProjectOperationActor")
+
+  projectRequests      ProjectRequest[]
+  projectRequestEvents ProjectRequestEvent[]
+  retirements          OperationalRetirement[]
+  openingUploads       OpeningUpload[]
+  pendingStarted       TicketPendingPeriod[]   @relation("PendingStarter")
+  pendingEnded         TicketPendingPeriod[]   @relation("PendingEnder")
+  id                   String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role                 UserRole
+  name                 String
+  email                String                  @unique
+  passwordHash         String                  @map("password_hash")
+  mustChangePassword   Boolean                 @default(false) @map("must_change_password")
+  isActive             Boolean                 @default(true) @map("is_active")
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  username             String?                 @unique
+  companyId            String?                 @map("company_id") @db.Uuid
+  departmentId         String?                 @map("department_id") @db.Uuid
+  workScheduleId       String?                 @map("work_schedule_id") @db.Uuid
+  company              Company?                @relation(fields: [companyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  department           Department?             @relation(fields: [companyId, departmentId], references: [companyId, id], onDelete: Restrict, onUpdate: Restrict)
+  workSchedule         WorkSchedule?           @relation(fields: [workScheduleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  adminActions         AdminAuditEvent[]
+  requestedTickets     Ticket[]                @relation("Requester")
+  assignedTickets      Ticket[]                @relation("Technician")
+  classifiedTickets    Ticket[]                @relation("Classifier")
+  closedTickets        Ticket[]                @relation("Closer")
+  events               TicketEvent[]
+  authSessions         AuthSession[]
+  comments             TicketComment[]
+  attachments          TicketAttachment[]
+  solutions            TicketSolution[]
 
   @@map("users")
 }
 
 model ServiceCategory {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  retirement   OperationalRetirement?
+  id           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name         String
-  description  String    @default("")
-  isActive     Boolean   @default(true) @map("is_active")
-  displayOrder Int       @default(0) @map("display_order")
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  description  String                 @default("")
+  isActive     Boolean                @default(true) @map("is_active")
+  displayOrder Int                    @default(0) @map("display_order")
+  createdAt    DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   services     Service[]
 
   @@map("service_categories")
 }
 
 model Service {
-  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  categoryId   String               @map("category_id") @db.Uuid
-  category     ServiceCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  retirement   OperationalRetirement?
+  id           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId   String                 @map("category_id") @db.Uuid
+  category     ServiceCategory        @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   name         String
-  description  String               @default("")
-  isActive     Boolean              @default(true) @map("is_active")
-  displayOrder Int                  @default(0) @map("display_order")
-  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  description  String                 @default("")
+  isActive     Boolean                @default(true) @map("is_active")
+  displayOrder Int                    @default(0) @map("display_order")
+  createdAt    DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  formDraft    ServiceFormDraft?
   forms        ServiceFormVersion[]
   tickets      Ticket[]
 
@@ -91,14 +133,28 @@ model Service {
   @@map("services")
 }
 
+model ServiceFormDraft {
+  serviceId         String   @id @map("service_id") @db.Uuid
+  service           Service  @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  publishedRevision Int      @default(0) @map("published_revision")
+  revision          Int      @default(1)
+  definition        Json     @db.JsonB
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("service_form_drafts")
+}
+
 model ServiceFormVersion {
-  id        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  serviceId String             @map("service_id") @db.Uuid
-  service   Service            @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  version   Int
-  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  fields    ServiceFormField[]
-  tickets   Ticket[]
+  openingUploads OpeningUpload[]
+  title          String             @default("")
+  description    String             @default("")
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  serviceId      String             @map("service_id") @db.Uuid
+  service        Service            @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  version        Int
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  fields         ServiceFormField[]
+  tickets        Ticket[]
 
   @@unique([serviceId, version])
   @@unique([serviceId, id])
@@ -106,17 +162,20 @@ model ServiceFormVersion {
 }
 
 model ServiceFormField {
-  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  formVersionId String             @map("form_version_id") @db.Uuid
-  formVersion   ServiceFormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade, onUpdate: Restrict)
-  key           String
-  label         String
-  type          ServiceFieldType
-  required      Boolean            @default(false)
-  displayOrder  Int                @default(0) @map("display_order")
-  options       Json?              @db.JsonB
-  condition     Json?              @db.JsonB
-  answers       TicketAnswer[]
+  openingUploads OpeningUpload[]
+  help           String             @default("")
+  description    String             @default("")
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  formVersionId  String             @map("form_version_id") @db.Uuid
+  formVersion    ServiceFormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  key            String
+  label          String
+  type           ServiceFieldType
+  required       Boolean            @default(false)
+  displayOrder   Int                @default(0) @map("display_order")
+  options        Json?              @db.JsonB
+  condition      Json?              @db.JsonB
+  answers        TicketAnswer[]
 
   @@unique([formVersionId, key])
   @@unique([formVersionId, id, key])
@@ -124,32 +183,42 @@ model ServiceFormField {
 }
 
 model Ticket {
-  id                   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code                 Int                @unique @default(autoincrement())
-  requesterId          String             @map("requester_id") @db.Uuid
-  requester            User               @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade, onUpdate: Restrict)
-  serviceId            String             @map("service_id") @db.Uuid
-  service              Service            @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  formVersionId        String             @map("form_version_id") @db.Uuid
-  formVersion          ServiceFormVersion @relation(fields: [serviceId, formVersionId], references: [serviceId, id], onDelete: Restrict, onUpdate: Restrict)
+  retirement           OperationalRetirement?
+  finalMetrics         Json?                   @map("final_metrics") @db.JsonB
+  pendingPeriods       TicketPendingPeriod[]
+  slaRevisions         TicketSlaRevision[]
+  id                   String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                 Int                     @unique @default(autoincrement())
+  requesterId          String                  @map("requester_id") @db.Uuid
+  requester            User                    @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  serviceId            String                  @map("service_id") @db.Uuid
+  service              Service                 @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  formVersionId        String                  @map("form_version_id") @db.Uuid
+  formVersion          ServiceFormVersion      @relation(fields: [serviceId, formVersionId], references: [serviceId, id], onDelete: Restrict, onUpdate: Restrict)
   subject              String
   description          String
-  status               TicketStatus       @default(OPEN)
+  status               TicketStatus            @default(OPEN)
   priority             TicketPriority?
-  assignedTechnicianId String?            @map("assigned_technician_id") @db.Uuid
-  assignedTechnician   User?              @relation("Technician", fields: [assignedTechnicianId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  classifiedAt         DateTime?          @map("classified_at") @db.Timestamptz(3)
-  classifiedById       String?            @map("classified_by_id") @db.Uuid
-  classifiedBy         User?              @relation("Classifier", fields: [classifiedById], references: [id], onDelete: SetNull, onUpdate: Restrict)
-  firstStartedAt       DateTime?          @map("first_started_at") @db.Timestamptz(3)
-  closedAt             DateTime?          @map("closed_at") @db.Timestamptz(3)
-  closedById           String?            @map("closed_by_id") @db.Uuid
-  closedBy             User?              @relation("Closer", fields: [closedById], references: [id], onDelete: SetNull, onUpdate: Restrict)
-  serviceSnapshot      Json               @map("service_snapshot") @db.JsonB
-  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt            DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  assignedTechnicianId String?                 @map("assigned_technician_id") @db.Uuid
+  assignedTechnician   User?                   @relation("Technician", fields: [assignedTechnicianId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  classifiedAt         DateTime?               @map("classified_at") @db.Timestamptz(3)
+  classifiedById       String?                 @map("classified_by_id") @db.Uuid
+  classifiedBy         User?                   @relation("Classifier", fields: [classifiedById], references: [id], onDelete: SetNull, onUpdate: Restrict)
+  firstStartedAt       DateTime?               @map("first_started_at") @db.Timestamptz(3)
+  closedAt             DateTime?               @map("closed_at") @db.Timestamptz(3)
+  closedById           String?                 @map("closed_by_id") @db.Uuid
+  closedBy             User?                   @relation("Closer", fields: [closedById], references: [id], onDelete: SetNull, onUpdate: Restrict)
+  serviceSnapshot      Json                    @map("service_snapshot") @db.JsonB
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  organizationSnapshot Json?                   @map("organization_snapshot") @db.JsonB
+  calendarSegments     TicketCalendarSegment[]
   answers              TicketAnswer[]
   events               TicketEvent[]
+  resolvedAt           DateTime?               @map("resolved_at") @db.Timestamptz(3)
+  comments             TicketComment[]
+  attachments          TicketAttachment[]
+  solution             TicketSolution?
 
   @@unique([id, formVersionId])
   @@index([requesterId, createdAt])
@@ -157,6 +226,81 @@ model Ticket {
   @@index([assignedTechnicianId, status])
   @@index([serviceId, formVersionId])
   @@map("tickets")
+}
+
+model TicketComment {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId    String             @map("ticket_id") @db.Uuid
+  ticket      Ticket             @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  authorId    String             @map("author_id") @db.Uuid
+  author      User               @relation(fields: [authorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  content     String
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  attachments TicketAttachment[]
+
+  @@unique([ticketId, id])
+  @@index([ticketId, createdAt])
+  @@map("ticket_comments")
+}
+
+model TicketSolution {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId    String             @unique @map("ticket_id") @db.Uuid
+  ticket      Ticket             @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  authorId    String             @map("author_id") @db.Uuid
+  author      User               @relation(fields: [authorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  description String
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  attachments TicketAttachment[]
+
+  @@unique([ticketId, id])
+  @@map("ticket_solutions")
+}
+
+model TicketAttachment {
+  isDraft    Boolean         @default(false) @map("is_draft")
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId   String          @map("ticket_id") @db.Uuid
+  ticket     Ticket          @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  uploaderId String          @map("uploader_id") @db.Uuid
+  uploader   User            @relation(fields: [uploaderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  commentId  String?         @map("comment_id") @db.Uuid
+  comment    TicketComment?  @relation(fields: [ticketId, commentId], references: [ticketId, id], onDelete: Restrict, onUpdate: Restrict)
+  solutionId String?         @map("solution_id") @db.Uuid
+  solution   TicketSolution? @relation(fields: [ticketId, solutionId], references: [ticketId, id], onDelete: Restrict, onUpdate: Restrict)
+  name       String
+  mime       String
+  size       Int
+  sha256     String          @db.VarChar(64)
+  storageKey String          @unique @map("storage_key")
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_attachments")
+}
+
+// Temporary private files. Claimed atomically by the opening transaction;
+// the immutable ticket attachment keeps the same id and storage key.
+model OpeningUpload {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId       String             @map("owner_id") @db.Uuid
+  owner         User               @relation(fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  serviceId     String             @map("service_id") @db.Uuid
+  formVersionId String             @map("form_version_id") @db.Uuid
+  formVersion   ServiceFormVersion @relation(fields: [serviceId, formVersionId], references: [serviceId, id], onDelete: Restrict, onUpdate: Restrict)
+  fieldId       String             @map("field_id") @db.Uuid
+  fieldKey      String             @map("field_key")
+  field         ServiceFormField   @relation(fields: [formVersionId, fieldId, fieldKey], references: [formVersionId, id, key], onDelete: Restrict, onUpdate: Restrict)
+  name          String
+  mime          String
+  size          Int
+  sha256        String             @db.VarChar(64)
+  storageKey    String             @unique @map("storage_key")
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt     DateTime           @map("expires_at") @db.Timestamptz(3)
+
+  @@index([ownerId, expiresAt])
+  @@map("opening_uploads")
 }
 
 model TicketAnswer {
@@ -218,4 +362,542 @@ model AuthRefreshToken {
   @@index([sessionId])
   @@index([expiresAt])
   @@map("auth_refresh_tokens")
+}
+
+model Company {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String        @default("")
+  isActive       Boolean       @default(true) @map("is_active")
+  workScheduleId String?       @map("work_schedule_id") @db.Uuid
+  workSchedule   WorkSchedule? @relation(fields: [workScheduleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  departments    Department[]
+  users          User[]
+
+  @@map("companies")
+}
+
+model Department {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  users     User[]
+
+  @@unique([companyId, id])
+  @@index([companyId, isActive])
+  @@map("departments")
+}
+
+model WorkSchedule {
+  id        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  isActive  Boolean                @default(true) @map("is_active")
+  createdAt DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  versions  WorkScheduleVersion[]
+  users     User[]
+  companies Company[]
+  defaults  OrganizationSettings[]
+
+  @@map("work_schedules")
+}
+
+model WorkScheduleVersion {
+  id         String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scheduleId String                  @map("schedule_id") @db.Uuid
+  schedule   WorkSchedule            @relation(fields: [scheduleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  version    Int
+  timezone   String
+  weekly     Json                    @db.JsonB
+  exceptions Json                    @db.JsonB
+  createdAt  DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  segments   TicketCalendarSegment[]
+
+  @@unique([scheduleId, version])
+  @@map("work_schedule_versions")
+}
+
+model OrganizationSettings {
+  id             String       @id
+  workScheduleId String       @map("work_schedule_id") @db.Uuid
+  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("organization_settings")
+}
+
+model TicketCalendarSegment {
+  id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId  String              @map("ticket_id") @db.Uuid
+  ticket    Ticket              @relation(fields: [ticketId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  versionId String              @map("version_id") @db.Uuid
+  version   WorkScheduleVersion @relation(fields: [versionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  startsAt  DateTime            @map("starts_at") @db.Timestamptz(3)
+  endsAt    DateTime?           @map("ends_at") @db.Timestamptz(3)
+
+  @@index([ticketId, startsAt])
+  @@map("ticket_calendar_segments")
+}
+
+model AdminAuditEvent {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId      String?  @map("actor_id") @db.Uuid
+  actor        User?    @relation(fields: [actorId], references: [id], onDelete: SetNull, onUpdate: Restrict)
+  resourceType String   @map("resource_type")
+  resourceId   String   @map("resource_id") @db.Uuid
+  action       String
+  details      Json     @db.JsonB
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([resourceType, resourceId, createdAt])
+  @@map("admin_audit_events")
+}
+
+model PendingReason {
+  id                            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                          String
+  isActive                      Boolean               @default(true) @map("is_active")
+  countsTowardSolution          Boolean               @default(false) @map("counts_toward_solution")
+  autoResumeOnRequesterActivity Boolean               @default(false) @map("auto_resume_on_requester_activity")
+  createdAt                     DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                     DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  periods                       TicketPendingPeriod[]
+
+  @@map("pending_reasons")
+}
+
+model TicketPendingPeriod {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId      String        @map("ticket_id") @db.Uuid
+  ticket        Ticket        @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reasonId      String        @map("reason_id") @db.Uuid
+  reason        PendingReason @relation(fields: [reasonId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  snapshot      Json          @db.JsonB
+  justification String
+  startsAt      DateTime      @map("starts_at") @db.Timestamptz(3)
+  endsAt        DateTime?     @map("ends_at") @db.Timestamptz(3)
+  startedById   String        @map("started_by_id") @db.Uuid
+  startedBy     User          @relation("PendingStarter", fields: [startedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  endedById     String?       @map("ended_by_id") @db.Uuid
+  endedBy       User?         @relation("PendingEnder", fields: [endedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([ticketId, startsAt])
+  @@map("ticket_pending_periods")
+}
+
+model SlaPolicyVersion {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  priority      TicketPriority
+  version       Int
+  targetMinutes Int                 @map("target_minutes")
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  revisions     TicketSlaRevision[]
+
+  @@unique([priority, version])
+  @@unique([id, priority])
+  @@map("sla_policy_versions")
+}
+
+model TicketSlaRevision {
+  carriedSeconds   Float?             @default(0) @map("carried_seconds")
+  continuationOfId String?            @unique @map("continuation_of_id") @db.Uuid
+  continuationOf   TicketSlaRevision? @relation("SlaContinuation", fields: [continuationOfId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  continuedBy      TicketSlaRevision? @relation("SlaContinuation")
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId         String             @map("ticket_id") @db.Uuid
+  ticket           Ticket             @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  priority         TicketPriority
+  policyVersionId  String             @map("policy_version_id") @db.Uuid
+  policyVersion    SlaPolicyVersion   @relation(fields: [policyVersionId, priority], references: [id, priority], onDelete: Restrict, onUpdate: Restrict)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt        DateTime?          @map("started_at") @db.Timestamptz(3)
+  endedAt          DateTime?          @map("ended_at") @db.Timestamptz(3)
+  consumedSeconds  Float?             @map("consumed_seconds")
+  met              Boolean?
+  finishReason     String?            @map("finish_reason")
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_sla_revisions")
+}
+
+// Separate operational visibility; historical tickets and snapshots are never deleted.
+model OperationalRetirement {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId    String           @map("actor_id") @db.Uuid
+  actor      User             @relation(fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ticketId   String?          @unique @map("ticket_id") @db.Uuid
+  ticket     Ticket?          @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  serviceId  String?          @unique @map("service_id") @db.Uuid
+  service    Service?         @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  categoryId String?          @unique @map("category_id") @db.Uuid
+  category   ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  projectId  String?          @unique @map("project_id") @db.Uuid
+  project    ProjectRequest?  @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reason     String
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("operational_retirements")
+}
+
+model ProjectRequest {
+  conversationMessages         ProjectConversationMessage[]
+  conversationAttachments      ProjectConversationAttachment[]
+  conversationAttachmentEvents ProjectConversationAttachmentEvent[]
+  files                        ProjectAttachment[]
+  fileEvents                   ProjectAttachmentEvent[]
+  formSubmission               ProjectFormSubmission?
+  workflow                     ProjectWorkflow?
+  operations                   ProjectOperation[]
+  retirement                   OperationalRetirement?
+
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        Int                   @unique @default(autoincrement())
+  requesterId String                @map("requester_id") @db.Uuid
+  requester   User                  @relation(fields: [requesterId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  title       String
+  objective   String
+  need        String
+  priority    String?               @db.VarChar(6)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  events      ProjectRequestEvent[]
+
+  @@index([requesterId, createdAt, id], map: "project_requests_requester_created_idx")
+  @@index([createdAt, id], map: "project_requests_created_idx")
+  @@map("project_requests")
+}
+
+model ProjectConversationMessage {
+  id              String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId       String                          @map("project_id") @db.Uuid
+  project         ProjectRequest                  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  authorId        String                          @map("author_id") @db.Uuid
+  author          User                            @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  clientMessageId String                          @map("client_message_id") @db.Uuid
+  content         String
+  createdAt       DateTime                        @map("created_at") @db.Timestamptz(3)
+  attachments     ProjectConversationAttachment[]
+
+  @@unique([projectId, authorId, clientMessageId], map: "project_conversation_message_idempotency")
+  @@index([projectId, createdAt, id], map: "project_conversation_messages_page_idx")
+  @@map("project_conversation_messages")
+}
+
+model ProjectConversationAttachment {
+  id         String                               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId  String                               @map("project_id") @db.Uuid
+  project    ProjectRequest                       @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  ownerId    String                               @map("owner_id") @db.Uuid
+  owner      User                                 @relation("ProjectConversationFileOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  messageId  String?                              @map("message_id") @db.Uuid
+  message    ProjectConversationMessage?          @relation(fields: [messageId], references: [id], onDelete: Restrict)
+  name       String
+  mime       String
+  size       Int
+  sha256     String
+  storageKey String                               @unique @map("storage_key")
+  createdAt  DateTime                             @map("created_at") @db.Timestamptz(3)
+  expiresAt  DateTime                             @map("expires_at") @db.Timestamptz(3)
+  claimedAt  DateTime?                            @map("claimed_at") @db.Timestamptz(3)
+  events     ProjectConversationAttachmentEvent[]
+
+  @@index([projectId, createdAt, id], map: "project_conversation_attachments_project_idx")
+  @@index([ownerId, expiresAt], map: "project_conversation_attachments_owner_expiry_idx")
+  @@map("project_conversation_attachments")
+}
+
+model ProjectConversationAttachmentEvent {
+  id                              String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fileId                          String                         @map("file_id") @db.Uuid
+  projectId                       String                         @map("project_id") @db.Uuid
+  project                         ProjectRequest                 @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  actorId                         String?                        @map("actor_id") @db.Uuid
+  actor                           User?                          @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  kind                            String
+  createdAt                       DateTime                       @default(now()) @map("created_at") @db.Timestamptz(3)
+  projectConversationAttachment   ProjectConversationAttachment? @relation(fields: [projectConversationAttachmentId], references: [id])
+  projectConversationAttachmentId String?                        @db.Uuid
+
+  @@index([fileId, createdAt, id], map: "project_conversation_attachment_events_file_idx")
+  @@map("project_conversation_attachment_events")
+}
+
+model ProjectCategory {
+  files        ProjectAttachment[]
+  id           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceKey String?                  @unique @map("reference_key")
+  name         String
+  description  String                   @default("")
+  isActive     Boolean                  @default(true) @map("is_active")
+  revision     Int                      @default(1)
+  createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  draft        ProjectCategoryDraft?
+  versions     ProjectCategoryVersion[]
+  submissions  ProjectFormSubmission[]
+  events       ProjectCatalogEvent[]
+
+  @@index([isActive, name, id], map: "project_categories_active_idx")
+  @@map("project_categories")
+}
+
+model ProjectCategoryDraft {
+  categoryId        String          @id @map("category_id") @db.Uuid
+  category          ProjectCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  definition        Json
+  revision          Int
+  publishedRevision Int?            @map("published_revision")
+  actorId           String          @map("actor_id") @db.Uuid
+  actor             User            @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  updatedAt         DateTime        @map("updated_at") @db.Timestamptz(3)
+
+  @@map("project_category_drafts")
+}
+
+model ProjectCategoryVersion {
+  files       ProjectAttachment[]
+  id          String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId  String                  @map("category_id") @db.Uuid
+  category    ProjectCategory         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  version     Int
+  definition  Json
+  actorId     String                  @map("actor_id") @db.Uuid
+  actor       User                    @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  createdAt   DateTime                @map("created_at") @db.Timestamptz(3)
+  submissions ProjectFormSubmission[]
+
+  @@unique([categoryId, version])
+  @@unique([id, categoryId])
+  @@map("project_category_versions")
+}
+
+model ProjectFormSubmission {
+  projectId  String                 @id @map("project_id") @db.Uuid
+  project    ProjectRequest         @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  categoryId String                 @map("category_id") @db.Uuid
+  category   ProjectCategory        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  versionId  String                 @map("version_id") @db.Uuid
+  version    ProjectCategoryVersion @relation(fields: [versionId, categoryId], references: [id, categoryId], onDelete: Restrict)
+  snapshot   Json
+  answers    Json
+
+  @@map("project_form_submissions")
+}
+
+model ProjectCatalogEvent {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId String          @map("category_id") @db.Uuid
+  category   ProjectCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  actorId    String          @map("actor_id") @db.Uuid
+  actor      User            @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  kind       String
+  details    Json
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([categoryId, createdAt, id], map: "project_catalog_events_category_idx")
+  @@map("project_catalog_events")
+}
+
+model ProjectAttachment {
+  id         String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId    String                 @map("owner_id") @db.Uuid
+  owner      User                   @relation("ProjectFileOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  categoryId String                 @map("category_id") @db.Uuid
+  category   ProjectCategory        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  versionId  String                 @map("version_id") @db.Uuid
+  version    ProjectCategoryVersion @relation(fields: [versionId, categoryId], references: [id, categoryId], onDelete: Restrict)
+  fieldId    String                 @map("field_id") @db.Uuid
+  fieldKey   String                 @map("field_key")
+  projectId  String?                @map("project_id") @db.Uuid
+  project    ProjectRequest?        @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  name       String
+  mime       String
+  size       Int
+  sha256     String
+  storageKey String                 @unique @map("storage_key")
+  createdAt  DateTime               @map("created_at") @db.Timestamptz(3)
+  expiresAt  DateTime               @map("expires_at") @db.Timestamptz(3)
+  claimedAt  DateTime?              @map("claimed_at") @db.Timestamptz(3)
+
+  @@index([ownerId, expiresAt], map: "project_attachments_owner_expiry_idx")
+  @@index([projectId, createdAt, id], map: "project_attachments_project_idx")
+  @@map("project_attachments")
+}
+
+model ProjectAttachmentEvent {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fileId    String          @map("file_id") @db.Uuid
+  projectId String?         @map("project_id") @db.Uuid
+  project   ProjectRequest? @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  actorId   String?         @map("actor_id") @db.Uuid
+  actor     User?           @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  kind      String
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([fileId, createdAt, id], map: "project_attachment_events_file_idx")
+  @@map("project_attachment_events")
+}
+
+model ProjectRequestEvent {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId String         @map("project_id") @db.Uuid
+  project   ProjectRequest @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actorId   String         @map("actor_id") @db.Uuid
+  actor     User           @relation(fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  type      String
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([projectId, createdAt, id], map: "project_request_events_project_created_idx")
+  @@map("project_request_events")
+}
+
+model ProjectWorkflow {
+  projectId   String                  @id @map("project_id") @db.Uuid
+  request     ProjectRequest          @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  state       String                  @default("REQUESTED")
+  ownerId     String?                 @map("owner_id") @db.Uuid
+  owner       User?                   @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  revision    Int                     @default(1)
+  startedAt   DateTime?               @map("started_at") @db.Timestamptz(3)
+  completedAt DateTime?               @map("completed_at") @db.Timestamptz(3)
+  canceledAt  DateTime?               @map("canceled_at") @db.Timestamptz(3)
+  draft       ProjectPlanDraft?
+  plans       ProjectPlanVersion[]
+  activities  ProjectActivityState[]
+  updates     ProjectWorkflowUpdate[]
+  events      ProjectWorkflowEvent[]
+
+  @@index([ownerId, state], map: "project_workflows_owner_state_idx")
+  @@map("project_workflows")
+}
+
+model ProjectPlanDraft {
+  projectId  String          @id @map("project_id") @db.Uuid
+  workflow   ProjectWorkflow @relation(fields: [projectId], references: [projectId], onDelete: Restrict)
+  definition Json
+  updatedAt  DateTime        @map("updated_at") @db.Timestamptz(3)
+  actorId    String          @map("actor_id") @db.Uuid
+  actor      User            @relation("ProjectDraftActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@map("project_plan_drafts")
+}
+
+model ProjectPlanVersion {
+  id         String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId  String                @map("project_id") @db.Uuid
+  workflow   ProjectWorkflow       @relation(fields: [projectId], references: [projectId], onDelete: Restrict)
+  version    Int
+  sealed     Boolean               @default(false)
+  createdAt  DateTime              @map("created_at") @db.Timestamptz(3)
+  actorId    String                @map("actor_id") @db.Uuid
+  actor      User                  @relation("ProjectPlanActor", fields: [actorId], references: [id], onDelete: Restrict)
+  stages     ProjectPlanStage[]
+  activities ProjectPlanActivity[]
+
+  @@unique([projectId, version])
+  @@unique([id, projectId])
+  @@map("project_plan_versions")
+}
+
+model ProjectPlanStage {
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId      String                @map("plan_id") @db.Uuid
+  plan        ProjectPlanVersion    @relation(fields: [planId], references: [id], onDelete: Restrict)
+  logicalId   String                @map("logical_id") @db.Uuid
+  position    Int
+  title       String
+  description String                @default("")
+  activities  ProjectPlanActivity[]
+
+  @@unique([planId, logicalId])
+  @@unique([planId, position])
+  @@unique([id, planId])
+  @@map("project_plan_stages")
+}
+
+model ProjectActivityState {
+  projectId   String                @map("project_id") @db.Uuid
+  workflow    ProjectWorkflow       @relation(fields: [projectId], references: [projectId], onDelete: Restrict)
+  logicalId   String                @map("logical_id") @db.Uuid
+  state       String                @default("TODO")
+  updatedAt   DateTime              @map("updated_at") @db.Timestamptz(3)
+  actorId     String                @map("actor_id") @db.Uuid
+  actor       User                  @relation("ProjectActivityActor", fields: [actorId], references: [id], onDelete: Restrict)
+  definitions ProjectPlanActivity[]
+
+  @@id([projectId, logicalId])
+  @@map("project_activity_states")
+}
+
+model ProjectPlanActivity {
+  id          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId      String               @map("plan_id") @db.Uuid
+  projectId   String               @map("project_id") @db.Uuid
+  plan        ProjectPlanVersion   @relation(fields: [planId, projectId], references: [id, projectId], onDelete: Restrict)
+  stageId     String               @map("stage_id") @db.Uuid
+  stage       ProjectPlanStage     @relation(fields: [stageId, planId], references: [id, planId], onDelete: Restrict)
+  logicalId   String               @map("logical_id") @db.Uuid
+  execution   ProjectActivityState @relation(fields: [projectId, logicalId], references: [projectId, logicalId], onDelete: Restrict)
+  position    Int
+  title       String
+  description String               @default("")
+
+  @@unique([planId, logicalId])
+  @@unique([stageId, position])
+  @@index([projectId, planId], map: "project_activities_project_idx")
+  @@map("project_plan_activities")
+}
+
+model ProjectWorkflowUpdate {
+  id           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId    String                  @map("project_id") @db.Uuid
+  workflow     ProjectWorkflow         @relation(fields: [projectId], references: [projectId], onDelete: Restrict)
+  actorId      String                  @map("actor_id") @db.Uuid
+  actor        User                    @relation("ProjectUpdateActor", fields: [actorId], references: [id], onDelete: Restrict)
+  content      String
+  correctionOf String?                 @map("correction_of") @db.Uuid
+  original     ProjectWorkflowUpdate?  @relation("ProjectCorrections", fields: [correctionOf], references: [id], onDelete: Restrict)
+  corrections  ProjectWorkflowUpdate[] @relation("ProjectCorrections")
+  revision     Int
+  createdAt    DateTime                @map("created_at") @db.Timestamptz(3)
+
+  @@unique([id, projectId], map: "project_update_identity")
+  @@index([projectId, createdAt, id], map: "project_updates_page_idx")
+  @@map("project_workflow_updates")
+}
+
+model ProjectWorkflowEvent {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId String          @map("project_id") @db.Uuid
+  workflow  ProjectWorkflow @relation(fields: [projectId], references: [projectId], onDelete: Restrict)
+  actorId   String          @map("actor_id") @db.Uuid
+  actor     User            @relation("ProjectEventActor", fields: [actorId], references: [id], onDelete: Restrict)
+  kind      String
+  summary   String
+  details   Json            @default("{}")
+  revision  Int
+  createdAt DateTime        @map("created_at") @db.Timestamptz(3)
+
+  @@unique([projectId, revision])
+  @@index([projectId, createdAt, id], map: "project_events_page_idx")
+  @@map("project_workflow_events")
+}
+
+model ProjectOperation {
+  actorId     String         @map("actor_id") @db.Uuid
+  actor       User           @relation("ProjectOperationActor", fields: [actorId], references: [id], onDelete: Restrict)
+  operationId String         @map("operation_id") @db.Uuid
+  projectId   String         @map("project_id") @db.Uuid
+  project     ProjectRequest @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  payloadHash String         @map("payload_hash")
+  result      Json
+  createdAt   DateTime       @map("created_at") @db.Timestamptz(3)
+
+  @@id([actorId, operationId])
+  @@index([projectId], map: "project_operations_project_idx")
+  @@map("project_operations")
 }

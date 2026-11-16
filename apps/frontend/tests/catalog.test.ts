@@ -4,6 +4,7 @@ import * as React from 'react';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Account } from '../src/pages/account';
+import { CatalogServiceActions } from '../src/pages/catalog';
 import {
   categoryInputSchema,
   categoryUpdateSchema,
@@ -22,6 +23,35 @@ const item = {
   createdAt: '2026-10-28T00:00:00.000Z',
   updatedAt: '2026-10-28T00:00:00.000Z',
 };
+test('ações de serviço compartilham um contêiner e mantêm três controles distintos', () => {
+  const previousReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+  Object.defineProperty(globalThis, 'React', {
+    configurable: true,
+    value: React,
+  });
+  try {
+    const html = renderToStaticMarkup(
+      createElement(CatalogServiceActions, {
+        id,
+        busy: false,
+        onEdit: () => {},
+        onForm: () => {},
+        onRemoved: () => {},
+        onExpired: () => {},
+      }),
+    );
+    assert.match(html, /class="catalog-service-actions"/);
+    assert.match(
+      html,
+      /Editar serviço<\/button>.*Retirar da operação<\/button>.*Formulário<\/button>/,
+    );
+    assert.equal(html.match(/<button/g)?.length, 3);
+  } finally {
+    if (previousReact)
+      Object.defineProperty(globalThis, 'React', previousReact);
+    else Reflect.deleteProperty(globalThis, 'React');
+  }
+});
 test('DEV-008.1: menu e início exibem catálogo somente para ADMIN', () => {
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const previousDocument = Object.getOwnPropertyDescriptor(

@@ -1,15 +1,26 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { PersonalDashboardPage } from '../pages/personal-dashboard';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+} from 'react';
 import { Profile } from '../pages/profile';
-import { Technicians } from '../pages/technicians';
+import { Administration } from '../pages/administration';
 import { Catalog } from '../pages/catalog';
 import { RequesterNewTicket } from '../pages/requester-new-ticket';
 import { RequesterTickets } from '../pages/requester-tickets';
 import { RequesterTicketDetail } from '../pages/requester-ticket-detail';
 import { TechnicianTriage } from '../pages/technician-triage';
+import { TicketOverview } from '../pages/ticket-overview';
+import { TriageTicketPage } from '../pages/triage-ticket';
 import type { PublicUser } from '@helpdesk/contracts';
 import { App as DemoApp } from './app';
 import { RealLogin } from '../pages/real-login';
 import { Account } from '../pages/account';
+import { AdminDashboard } from '../pages/admin-dashboard';
 import { ChangePassword } from '../pages/change-password';
 import { AuthError, authClient } from '../lib/auth-client';
 import {
@@ -17,8 +28,16 @@ import {
   authenticatedHome,
   requesterTicketPage,
   technicianTriageQueue,
+  technicianTicketPage,
+  adminManagementTab,
+  isProjectRequestPath,
 } from '../navigation/auth-routes';
 
+const ProjectRequests = lazy(() =>
+  import('../pages/project-requests').then((m) => ({
+    default: m.ProjectRequests,
+  })),
+);
 export function AuthEntry() {
   const [path, setPath] = useState(window.location.hash),
     [user, setUser] = useState<PublicUser | null>(null),
@@ -29,6 +48,8 @@ export function AuthEntry() {
   const [createdTicket, setCreatedTicket] = useState('');
   const ticketPage =
     user?.role === 'REQUESTER' ? requesterTicketPage(path) : undefined;
+  const assignedPage =
+    user?.role === 'TECHNICIAN' ? technicianTicketPage(path) : undefined;
   const epoch = useRef(0);
   const profileExpired = useCallback(() => {
     epoch.current++;
@@ -180,9 +201,30 @@ export function AuthEntry() {
         busy={busy}
         error={message}
       >
-        {(user.role === 'REQUESTER' && path === '#/requester/perfil') ||
-        (user.role === 'TECHNICIAN' && path === '#/technician/perfil') ? (
+        {['ADMIN', 'TECHNICIAN', 'REQUESTER'].includes(user.role) &&
+        isProjectRequestPath(path) ? (
+          <Suspense fallback={<p role="status">Preparando projetos…</p>}>
+            <ProjectRequests
+              key={user.id + ':' + (path.split('/')[3] ?? 'list')}
+              user={user}
+              id={path.split('/')[3]}
+              onExpired={profileExpired}
+            />
+          </Suspense>
+        ) : user.role === 'ADMIN' && path === '#/admin/painel' ? (
+          <AdminDashboard user={user} onExpired={profileExpired} />
+        ) : (user.role === 'REQUESTER' || user.role === 'TECHNICIAN') &&
+          path === authenticatedHome(user) ? (
+          <PersonalDashboardPage
+            key={user.id}
+            user={user}
+            onExpired={profileExpired}
+          />
+        ) : (user.role === 'REQUESTER' && path === '#/requester/perfil') ||
+          (user.role === 'TECHNICIAN' && path === '#/technician/perfil') ||
+          (user.role === 'ADMIN' && path === '#/admin/perfil') ? (
           <Profile
+            initialUser={user}
             onExpired={profileExpired}
             onUpdated={(value, reauthenticate) => {
               epoch.current++;
@@ -195,13 +237,41 @@ export function AuthEntry() {
               } else setUser(value);
             }}
           />
-        ) : user.role === 'ADMIN' && path === '#/admin/usuarios' ? (
-          <Technicians onExpired={profileExpired} />
+        ) : user.role === 'ADMIN' && adminManagementTab(path) ? (
+          <Administration user={user} path={path} onExpired={profileExpired} />
         ) : user.role === 'ADMIN' && path === '#/admin/catalogo' ? (
           <Catalog user={user} onExpired={profileExpired} />
+        ) : (user.role === 'ADMIN' && path === '#/admin/chamados') ||
+          (user.role === 'TECHNICIAN' &&
+            technicianTriageQueue(path) === 'ALL') ? (
+          <TicketOverview
+            user={user}
+            admin={user.role === 'ADMIN'}
+            onExpired={profileExpired}
+          />
+        ) : user.role === 'ADMIN' &&
+          /^#\/admin\/chamado\/[a-f0-9-]{36}$/i.test(path) ? (
+          <RequesterTicketDetail
+            key={path}
+            id={path.split('/').at(-1)!}
+            user={user}
+            onExpired={profileExpired}
+          />
         ) : user.role === 'TECHNICIAN' && technicianTriageQueue(path) ? (
           <TechnicianTriage
             queue={technicianTriageQueue(path)!}
+            onExpired={profileExpired}
+          />
+        ) : assignedPage?.page === 'triage' && assignedPage.id ? (
+          <TriageTicketPage id={assignedPage.id} onExpired={profileExpired} />
+        ) : assignedPage?.page === 'list' ? (
+          <RequesterTickets technician={user} onExpired={profileExpired} />
+        ) : assignedPage?.page === 'detail' && assignedPage.id ? (
+          <RequesterTicketDetail
+            key={assignedPage.id}
+            technician
+            id={assignedPage.id}
+            user={user}
             onExpired={profileExpired}
           />
         ) : ticketPage?.page === 'new' ? (

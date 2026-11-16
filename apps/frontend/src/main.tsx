@@ -4,6 +4,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthEntry } from './app/auth-entry';
 import './styles.css';
+import './components/ticket-chat.css';
 import './styles/vis004.css';
 import './styles/vis0041.css';
 

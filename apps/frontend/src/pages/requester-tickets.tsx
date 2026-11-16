@@ -1,22 +1,35 @@
+import { useDebouncedValue } from '../hooks/use-debounced-value';
 import { useEffect, useState } from 'react';
-import type { TicketSummary, TicketQuery } from '@helpdesk/contracts';
+import type {
+  TicketSummary,
+  TicketQuery,
+  PublicUser,
+} from '@helpdesk/contracts';
 import { authClient, AuthError } from '../lib/auth-client';
 import { PageHeading, Icon } from '../components/ui';
 import { MotionRegion } from '../components/motion-region';
 import { RealTicketTable } from '../components/real-ticket-table';
 import { TicketPagination } from '../components/ticket-pagination';
 import { statusLabels, priorityLabels } from '../lib/presentation';
-export function RequesterTickets({ onExpired }: { onExpired: () => void }) {
+export function RequesterTickets({
+  onExpired,
+  technician,
+}: {
+  onExpired: () => void;
+  technician?: PublicUser;
+}) {
   const [items, setItems] = useState<TicketSummary[]>([]),
     [total, setTotal] = useState(0),
     [page, setPage] = useState(1),
     [text, setText] = useState(''),
-    [search, setSearch] = useState(''),
     [status, setStatus] = useState<TicketQuery['status']>(),
     [priority, setPriority] = useState<TicketQuery['priority']>(),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [revision, setRevision] = useState(0);
+  const search = useDebouncedValue(text.trim());
+  const [loadedQuery, setLoadedQuery] = useState('');
+  const queryKey = JSON.stringify([page, search, status, priority, revision]);
   useEffect(() => {
     let active = true;
     authClient
@@ -38,12 +51,15 @@ export function RequesterTickets({ onExpired }: { onExpired: () => void }) {
         }
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setLoadedQuery(queryKey);
+        }
       });
     return () => {
       active = false;
     };
-  }, [page, search, status, priority, revision, onExpired]);
+  }, [page, search, status, priority, revision, queryKey, onExpired]);
   function reload() {
     setLoading(true);
     setRevision((n) => n + 1);
@@ -52,13 +68,19 @@ export function RequesterTickets({ onExpired }: { onExpired: () => void }) {
     <>
       <PageHeading
         eyebrow="ACOMPANHAMENTO"
-        title="Meus chamados"
-        description="Encontre solicitações e acompanhe o andamento dos atendimentos."
+        title={technician ? 'Meus atendimentos' : 'Meus chamados'}
+        description={
+          technician
+            ? 'Chamados atribuídos à sua identidade autenticada. Consulte os detalhes e o histórico real.'
+            : 'Encontre solicitações e acompanhe o andamento dos atendimentos.'
+        }
       >
-        <a className="button-primary" href="#/requester/novo">
-          <Icon name="plus" />
-          Abrir chamado
-        </a>
+        {!technician && (
+          <a className="button-primary" href="#/requester/novo">
+            <Icon name="plus" />
+            Abrir chamado
+          </a>
+        )}
       </PageHeading>
       {error && (
         <p role="alert" className="form-error">
@@ -71,7 +93,6 @@ export function RequesterTickets({ onExpired }: { onExpired: () => void }) {
             className="filter-bar"
             onSubmit={(e) => {
               e.preventDefault();
-              setSearch(text.trim());
               setPage(1);
               reload();
             }}
@@ -82,7 +103,10 @@ export function RequesterTickets({ onExpired }: { onExpired: () => void }) {
               <input
                 value={text}
                 maxLength={120}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Buscar por número ou assunto"
               />
             </label>
@@ -100,6 +124,7 @@ export function RequesterTickets({ onExpired }: { onExpired: () => void }) {
                 }}
               >
                 <option value="">Todos os status</option>
+                <option value="RESOLVED">Resolvido</option>
                 {Object.entries(statusLabels).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
@@ -135,7 +160,6 @@ export function RequesterTickets({ onExpired }: { onExpired: () => void }) {
               type="button"
               onClick={() => {
                 setText('');
-                setSearch('');
                 setStatus(undefined);
                 setPriority(undefined);
                 setPage(1);
@@ -153,17 +177,24 @@ export function RequesterTickets({ onExpired }: { onExpired: () => void }) {
               Atualizar
             </button>
           </form>
-          {loading ? (
+          {items.length > 0 &&
+            (loadedQuery !== queryKey || loading || text.trim() !== search) && (
+              <p role="status" className="px-5 text-sm text-slate-500">
+                Atualizando chamados…
+              </p>
+            )}
+          {(loadedQuery !== queryKey || loading || text.trim() !== search) &&
+          !items.length ? (
             <p role="status" className="p-6">
               Carregando chamados…
             </p>
           ) : !error ? (
-            <RealTicketTable tickets={items} />
+            <RealTicketTable tickets={items} technician={technician} />
           ) : null}
           <TicketPagination
             page={page}
             total={total}
-            busy={loading}
+            busy={loading || loadedQuery !== queryKey || text.trim() !== search}
             onPage={(p) => {
               setPage(p);
               setLoading(true);

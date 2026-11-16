@@ -2,8 +2,9 @@ import { useMotionPreference } from '../hooks/use-motion-preference';
 import { useRef } from 'react';
 import type { ReactNode } from 'react';
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
-gsap.registerPlugin(useGSAP);
+gsap.registerPlugin(useGSAP, ScrollTrigger);
 export function MotionRegion({
   children,
   motionKey,
@@ -54,6 +55,15 @@ export function MotionRegion({
               stagger: 0.09,
               ease: 'power2.out',
               clearProps: 'transform,opacity',
+              ...(reveal
+                ? {
+                    scrollTrigger: {
+                      trigger: scope.current,
+                      start: 'top 92%',
+                      once: true,
+                    },
+                  }
+                : {}),
               ...trace,
             },
           );

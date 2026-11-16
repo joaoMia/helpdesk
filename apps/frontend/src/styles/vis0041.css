@@ -41,3 +41,6 @@ html:has(body > dialog[open]) {
     z-index: 25;
   }
 }
+[data-theme='dark'] .project-answer-card {
+  --answer-card-background: #172437;
+}
