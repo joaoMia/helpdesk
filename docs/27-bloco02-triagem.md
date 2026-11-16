@@ -1,5 +1,7 @@
 # BLOCO 02 — Triagem e classificação reais
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 HD-035, HD-036 e a parte de triagem da HD-037 implementadas para revisão. Reutiliza o núcleo de chamados, autenticação, grants, ticketScope, triageSelect e TicketEvent. Nenhuma migration, alteração de schema, infraestrutura, matriz de permissões, abertura ou dashboard. Não aprova ADRs pendentes e não inicia o BLOCO 03.
 
 ## API e privacidade

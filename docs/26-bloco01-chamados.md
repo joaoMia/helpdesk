@@ -1,5 +1,7 @@
 # BLOCO 01 — Abertura e acompanhamento reais
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 Implementação autorizada em 29/10/2026, em revisão. Reutiliza a modelagem, as duas migrations publicadas, TicketService, prismaTicketUnit e ticketScope. Não altera tabelas, índices, constraints, infraestrutura, papéis ou permissões. Backlog e ADRs pendentes não são aprovados por consequência desta entrega.
 
 | Subtarefa      | Entrega no bloco                                                                     | Limite                                                      |

@@ -24,8 +24,8 @@ O Compose recebe explicitamente o `.env` raiz. Não execute `docker compose conf
 - Banco de desenvolvimento: `helpdesk_dev`.
 - Banco de testes: `helpdesk_test`, criado pelo script de init somente em volume novo. Nenhuma tabela funcional é criada.
 
-Os bancos usam URLs distintas no mesmo cluster local. A futura suíte de persistência deve usar exclusivamente TEST_DATABASE_URL e rejeitar o banco de desenvolvimento. O usuário do entrypoint é administrativo no ambiente local e não é modelo de permissões para produção.
+Os bancos usam URLs distintas no mesmo cluster local. A suíte de persistência exige TEST_DATABASE_URL local em helpdesk_test, com schemas descartáveis, e verifica que o desenvolvimento foi preservado. O usuário do entrypoint é administrativo no ambiente local e não é modelo de permissões para produção.
 
 Não apague volumes, não execute `down -v` nem prune e não reutilize recursos de outros projetos. Alterações de ambiente não recriam bancos ou usuários em volumes existentes. Se o volume já estiver inicializado e faltar o banco de testes, diagnostique e faça a preparação específica sem destruir dados.
 
-Persistência em volume não substitui backup. Política de backups e restauração, DNS, certificados e recursos do Server 10 serão definidos com a TI em tarefa de implantação futura. Veja a [ADR-10](../docs/18-adr10-stack-e-fundacao.md).
+O backup local combina PostgreSQL e armazenamento privado. Consulte o [runbook de recuperação](../docs/v1-operacao-local.md) e a [ADR-10](../docs/18-adr10-stack-e-fundacao.md). Implantação e infraestrutura externa ficam fora da v1.0 pessoal.

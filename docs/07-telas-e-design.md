@@ -1,5 +1,7 @@
 # 07 — Inventário de telas, UI e design system
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 ## Layout e navegação
 
 O Figma referenciado é **base visual**, mas os frames completos ainda não foram validados. Não afirmar equivalência visual até inspeção das telas e estilo: https://www.figma.com/pt-br/comunidade/file/1506654636739959765/plataforma-de-chamados

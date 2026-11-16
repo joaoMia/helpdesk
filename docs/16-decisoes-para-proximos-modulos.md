@@ -1,5 +1,9 @@
 # 16 — Pendências priorizadas para futuras sprints
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
+Solicitações do BLOCO 03.1: [distribuição sem início, gestão ampliada de contas/empresas/setores, comunicação/anexos, soluções e SLA](29-bloco031-visao-e-distribuicao.md). São requisitos para os módulos correspondentes, sem autorização de implementação antecipada ou aprovação automática das decisões pendentes.
+
 A estrutura geral foi aprovada para início do M1. **Nenhuma destas pendências bloqueia o scaffold**, mas algumas bloqueiam o módulo indicado. Recomendações abaixo são propostas, não regras automaticamente aprovadas.
 
 ## Antes de M2 (contas e segurança)
@@ -42,7 +46,7 @@ A estrutura geral foi aprovada para início do M1. **Nenhuma destas pendências 
 
 Esta prévia antecipa experiência e navegação, sem homologar novos requisitos de produção, concluir tarefas funcionais ou encerrar a HD-003. Todos os dados são fictícios e permanecem em memória; somente a preferência de tema é armazenada localmente.
 
-- **Catálogo e formulários:** criação de usuário (TOTVS, Spark e Portal Permetal), instalação Windows e problema TOTVS têm definições tipadas no frontend. A seleção de múltiplos sistemas, campos condicionais, obrigatoriedade de anexo TOTVS, formatos e validações ainda precisam de aprovação definitiva. Spark usa somente dados gerais. Não solicitar senhas. Anexos guardam apenas nomes, sem upload.
+- **Catálogo e formulários:** criação de usuário (TOTVS, Spark e Portal Interno Fictício), instalação Windows e problema TOTVS têm definições tipadas no frontend. A seleção de múltiplos sistemas, campos condicionais, obrigatoriedade de anexo TOTVS, formatos e validações ainda precisam de aprovação definitiva. Spark usa somente dados gerais. Não solicitar senhas. Anexos guardam apenas nomes, sem upload.
 - **Preços — registro histórico:** a VIS-002 retirou cobrança apenas da prévia. A divergência foi posteriormente resolvida na DEV-001: RN-006 substituída, sem preço/cobrança no modelo real; snapshots de nomes, categoria e formulário preservados.
 - **Referência TOTVS:** número externo opcional, distinto do identificador HelpDesk, demonstrativamente editável pelo técnico responsável e visível ao solicitante. Definir formato, possibilidade de alteração após encerramento, permissões e auditoria antes da API. Não há integração real nem mudança automática de status ou pendência.
 - **Triagem:** abas Não classificados, Classificados e Todos reorganizam a navegação. Todos combina a fila livre com os próprios atendimentos do técnico, sem ampliar acesso a terceiros enquanto ADR-03/HD-004 estiverem pendentes. Não é autorização real aplicada no cliente.

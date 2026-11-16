@@ -1,5 +1,7 @@
 # 10 — Segurança, qualidade e estratégia de testes
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 ## DEV-003 — Autenticação implementada
 
 Decisões autorizadas e políticas executadas estão na [ADR-12](20-adr12-autenticacao.md): Argon2id, senha 12–128 caracteres, JWT de 15 minutos, refresh de sete dias rotativo/revogável e persistido só como hash, cookies HttpOnly/Strict/Secure em HTTPS, CSRF assinado vinculado à sessão e CORS restrito. A exceção HTTP é exclusivamente local e explícita. Não guardar tokens no storage do navegador.

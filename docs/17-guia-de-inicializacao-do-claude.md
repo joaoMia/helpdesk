@@ -1,6 +1,9 @@
 # 17 — Início seguro com Claude Code (versão 1.5)
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 ## Ordem de início
+
 1. Localize a pasta `dev` já existente em seu computador.
 2. Crie `dev/helpdesk` se não existir; confirme que está vazia ou revise arquivos antes de sobrescrever.
 3. Extraia o **conteúdo** de `HelpDesk_Kit_Claude_v1_5.zip` em `dev/helpdesk/`, sem criar uma subpasta com o nome do ZIP.
@@ -12,6 +15,7 @@
 9. Ao terminar HD-009, traga ao ChatGPT o relatório da execução, alterações e resultado dos comandos para revisão técnica.
 
 ## Como funcionam as instruções
+
 - `CLAUDE.md`: regras permanentes que Claude Code considera a cada sessão.
 - `.claude/skills/helpdesk-task/SKILL.md`: procedimento opcional para executar uma tarefa por vez, invocado manualmente com `/helpdesk-task HD-XXX`.
 - Instrução explícita na conversa ou issue aprovada: solicitação específica e limites da tarefa atual.
@@ -19,6 +23,7 @@
 - `planning/backlog.csv`: sequência de trabalho.
 
 ## Segurança e limitações
+
 - Não forneça senhas da Rocketseat, tokens GitHub/Miro nem credenciais de banco ao chat.
 - Usar a pasta de projeto e o modo de permissão correto **não** significa isolamento absoluto do computador. Revise os pedidos de acesso do Claude Code e não autorize comandos fora do necessário.
 - `CLAUDE.md` e Skills são instruções, não garantias técnicas de bloqueio; permissões e revisão continuam necessárias.

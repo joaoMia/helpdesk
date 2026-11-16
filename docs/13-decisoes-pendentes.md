@@ -1,5 +1,7 @@
 # 13 — Registro de decisões a validar (ADRs em aberto)
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 As decisões abaixo permanecem propostas e devem ser confirmadas antes do módulo correspondente, exceto a ADR-10, a cardinalidade/categorias da ADR-01 (VIS-003) e a ADR-12 de autenticação expressamente aprovada na DEV-003. Essas aprovações específicas não encerram a HD-003 nem aprovam outros ADRs.
 
 | ID     | Prioridade | Decisão                                                                    | Proposta padrão                                                                                                                                                       |
@@ -29,11 +31,11 @@ As decisões abaixo permanecem propostas e devem ser confirmadas antes do módul
 
 - Cliente **não** escolhe técnico; chamado começa sem atribuição.
 - Técnico classifica prioridade sem assumir.
-- Quatro status: OPEN, IN_PROGRESS, PENDING, CLOSED.
+- Estados vigentes: OPEN, IN_PROGRESS, PENDING, RESOLVED e CLOSED.
 - Motivo de pendência tem flags de contagem e auto-retomada por interação do solicitante.
 - Expediente padrão ou personalizado e não contabilização de pausas/fora do turno.
 - Dois indicadores de solução: desde criação e desde início de atendimento.
-- Três dashboards por papel; Apache ECharts e GSAP no frontend.
+- Dashboard real de ADMIN na v1; técnico e solicitante usam áreas operacionais. Apache ECharts e GSAP no frontend.
 
 A aprovação parcial da ADR-01 na VIS-003 não encerra a HD-003 nem aprova automaticamente campos, permissões administrativas ou modelagem de projetos. Na DEV-001, o responsável aprovou separadamente serviços sem preço/cobrança e substituiu a RN-006, preservando snapshots de nomes, categoria e formulário.
 

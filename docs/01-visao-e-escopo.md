@@ -1,5 +1,7 @@
 # 01 — Visão, objetivos e escopo
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 ## Produto
 
 Aplicação web responsiva HelpDesk para gerenciamento de solicitações de suporte de TI. Três papéis: **ADMIN**, **TECHNICIAN** e **REQUESTER** (Solicitante, originalmente chamado Cliente). O sistema permite abertura, triagem, atendimento, pendência configurável, conclusão, controle de serviços e painéis por perfil.

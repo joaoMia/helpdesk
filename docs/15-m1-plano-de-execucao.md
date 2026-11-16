@@ -1,13 +1,17 @@
 # 15 — Plano de execução M1: Fundação do HelpDesk
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 **Estado:** fundação local implementada para revisão em HD-008/HD-010/HD-011/HD-012, conforme a [ADR-10 aprovada](18-adr10-stack-e-fundacao.md). Features de negócio permanecem bloqueadas até as decisões correspondentes; a HD-003 e os demais ADRs não foram encerrados.
 
 ## Pré-condições
+
 - Diretório correto `<PASTA_DEV_EXISTENTE>/helpdesk` confirmado; sem apagar arquivos pré-existentes.
 - Acesso a terminal local, editor e Claude Code configurado pelo usuário.
 - Diagnóstico de Node.js, npm, Git, Docker Engine/Compose; se algo faltar, parar a ação dependente e orientar instalação, sem mudar o SO unilateralmente.
 
 ## Decisões técnicas provisórias deste marco
+
 - Monorepositório com `apps/frontend`, `apps/backend`, `packages/contracts`, `docs`, `infra`.
 - **npm workspaces** para evitar ferramentas extras no primeiro bootstrap.
 - Frontend executado no host por Vite. Backend Express no host; PostgreSQL em Docker Compose com volume persistente.
@@ -15,6 +19,7 @@
 - Layout e dados de negócio não são implementados no M1.
 
 ## Sequência de tarefas independentes dentro de M1
+
 A primeira execução é **somente HD-009 (workspace Git e READMEs)**, sem instalar dependências nem criar aplicações, serviços de infraestrutura ou modelos de domínio. O escopo é preparar os diretórios, o `package.json` raiz com npm workspaces, as configurações de Git/editor e os READMEs, além de documentar os próximos comandos sem executá-los. A sequência abaixo representa o marco inteiro, distribuído pelas tarefas HD-009 a HD-015, e **não** deve ser realizada toda de uma vez.
 
 1. Confirmar diretório de trabalho correto e auditar arquivos existentes.
@@ -28,6 +33,7 @@ A primeira execução é **somente HD-009 (workspace Git e READMEs)**, sem insta
 9. Não iniciar módulos de login, cadastro, triagem, pendência, métricas, dashboards ou uploads.
 
 ## Critérios de aceite do marco M1 completo (não apenas HD-009)
+
 - `git status` mostra apenas arquivos deste projeto; sem segredos.
 - Frontend abre localmente e exibe uma página neutra de placeholder técnico, sem apresentar dados simulados como reais.
 - API responde GET `/health` com status 200 e objeto JSON documentado.
@@ -37,4 +43,5 @@ A primeira execução é **somente HD-009 (workspace Git e READMEs)**, sem insta
 - Nenhuma conta externa, deployment ou outro diretório foi modificado.
 
 ## O que devolver ao ChatGPT após executar
+
 Caminho absoluto do projeto (pode ocultar nome pessoal da pasta se desejar); versões instaladas; árvore de pastas gerada; diffs/resumo dos arquivos; saídas de teste/build; eventuais conflitos; decisões técnicas tomadas.

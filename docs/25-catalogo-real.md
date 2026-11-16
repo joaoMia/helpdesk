@@ -1,5 +1,7 @@
 # DEV-008 / HD-025 — Catálogo real
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 Implementação autorizada em 28/10/2026, usando ServiceCategory e Service existentes, sem migration ou seed. Catálogo de TI sem preços/cobrança; cada chamado referencia exatamente um serviço. Não há API HTTP de abertura nesta entrega.
 
 ## Endpoints e contratos

@@ -1,5 +1,7 @@
 # 04 — Arquitetura e organização de código
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 ## Diretório local obrigatório
 
 O projeto reside exclusivamente na pasta `helpdesk` dentro da pasta `dev` já existente no computador do usuário; o caminho absoluto depende do SO. Não modificar projetos irmãos.
@@ -89,4 +91,4 @@ Rotas por papel e layouts distintos, mas componentes e tokens compartilhados. AP
 
 ## Infraestrutura futura
 
-Destino atual definido pelo responsável: Server 10 Linux da empresa, containers Linux e acesso apenas pela rede interna; DNS, certificados e backups administrados pela TI. Deploy somente depois da homologação local e de autorização própria. Render/Vercel/Netlify permanecem referências históricas da entrega educacional, não destinos desta implantação corporativa. A persistência e o armazenamento de anexos serão planejados sem acoplamento ao disco efêmero da aplicação.
+Destino atual definido pelo responsável: ambiente futuro de implantação Linux da empresa, containers Linux e acesso apenas pela rede interna; DNS, certificados e backups administrados pela TI. Deploy somente depois da homologação local e de autorização própria. Render/Vercel/Netlify permanecem referências históricas da entrega educacional, não destinos desta implantação corporativa. A persistência e o armazenamento de anexos serão planejados sem acoplamento ao disco efêmero da aplicação.

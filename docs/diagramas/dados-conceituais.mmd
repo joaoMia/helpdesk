@@ -1,9 +1,12 @@
+%% Modelo conceitual. Entidades lógicas não equivalem a tabelas físicas.
 erDiagram
   USER ||--o{ TICKET : abre
   USER o|--o{ TICKET : atende
   CATEGORY ||--o{ SERVICE : agrupa
-  TICKET ||--|| TICKET_SERVICE : snapshot_unico
-  SERVICE ||--o{ TICKET_SERVICE : origem
+  SERVICE ||--o{ TICKET : referencia_unica
+  TICKET ||--|| SERVICE_SNAPSHOT : preserva
+  SERVICE ||--o{ FORM_VERSION : versiona
+  FORM_VERSION ||--o{ TICKET : aplicado_em
   TICKET ||--o{ TICKET_COMMENT : possui
   USER ||--o{ TICKET_COMMENT : escreve
   TICKET ||--o{ TICKET_ATTACHMENT : possui

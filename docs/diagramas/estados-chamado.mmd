@@ -1,7 +1,9 @@
 stateDiagram-v2
   [*] --> OPEN: criar
-  OPEN --> IN_PROGRESS: classificado + assumir
+  OPEN --> OPEN: classificar ou atribuir sem início
+  OPEN --> IN_PROGRESS: técnico inicia
   IN_PROGRESS --> PENDING: motivo ativo + justificativa
   PENDING --> IN_PROGRESS: manual ou auto-retomada válida
-  IN_PROGRESS --> CLOSED: encerrar
+  IN_PROGRESS --> RESOLVED: adicionar solução com data efetiva
+  RESOLVED --> CLOSED: API com métricas finais completas
   CLOSED --> [*]

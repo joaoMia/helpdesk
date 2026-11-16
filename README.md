@@ -1,104 +1,93 @@
-# HelpDesk — Fundação técnica local
+# HelpDesk
 
-Monorepositório em npm workspaces para suporte de TI. DEV-001/002 consolidaram contratos, núcleo interno e migration inicial; DEV-003 implementa cadastro de solicitante, login, sessão, troca de senha e logout reais em PostgreSQL. Chamados/projetos/dashboards continuam demonstrativos e separados da autenticação.
+HelpDesk é um projeto pessoal de portfólio para organizar solicitações de suporte de TI, do registro à solução. A v1.0 candidata demonstra como combinar autorização por papel, histórico auditável e cálculo de SLA com uma interface web responsiva.
 
-O projeto oficial fica em `C:\dev\helpdesk`. As instruções permanentes estão em [AGENTS.md](AGENTS.md) e [CLAUDE.md](CLAUDE.md). As Skills de Codex e Claude usam o [procedimento compartilhado](skills/helpdesk-task/procedimento.md); sua presença não concede autorização para novas tarefas, commits ou publicações.
+| Papel         | Experiência                                                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Solicitante   | Dashboard próprio, abertura por categoria e serviço, formulário dinâmico, anexos privados, conversa e solicitação de projeto |
+| Técnico       | Dashboard próprio, filas, triagem, prioridade, atribuição, início, pendência, retomada e solução com data efetiva            |
+| Administrador | Dashboard, gestão de pessoas, organização, calendário, catálogo, formulários versionados e políticas de SLA                  |
 
-## Pré-requisitos
+A ação **Adicionar solução** leva o chamado a `RESOLVED`. O SLA de solução usa a data efetiva validada, e a auditoria mantém a hora do registro. `CLOSED` permanece disponível na API para o encerramento com métricas finais A/B. O laboratório visual é uma área separada com simulações.
 
-- Node.js 24 LTS e npm 11. A fundação reaproveita Node 24.21.0 e npm 11.19.0 instalados, sem atualizações globais.
-- Docker Engine e plugin Docker Compose funcionando com Linux containers. Ambiente auditado: Docker Desktop 4.93.0, Engine 29.8.1 e Compose 5.5.1.
-- Portas locais 5173 (frontend), 3001 (API) e 5432 (PostgreSQL) livres. Os serviços fazem bind apenas em loopback.
+## Arquitetura
 
-Versões fixadas e decisões estão na [ADR-10](docs/18-adr10-stack-e-fundacao.md). Requisitos funcionais e decisões ainda pendentes continuam em [docs/](docs/) e no [backlog](planning/backlog.csv). HD-003 permanece pendente.
+Monorepo npm com frontend React, TypeScript, Vite, Tailwind, ECharts e GSAP. O backend Express valida contratos Zod e usa Prisma com PostgreSQL. O pacote de contratos é compartilhado entre frontend e backend. Os anexos ficam em armazenamento privado, com metadados e hashes no banco. O chat usa SSE para notificar alterações.
 
-## Instalação reproduzível
+- `apps/frontend` — aplicação web e laboratório visual
+- `apps/backend` — API, migrations, serviços, scripts e testes
+- `packages/contracts` — contratos compartilhados
+- `infra` — PostgreSQL local com Docker Compose
+- `docs` e `planning` — contrato da v1, decisões, histórico e backlog
 
-Na raiz do repositório:
+## Executar localmente
 
-```text
+Requer Node.js 24, npm 11 e Docker com Compose. O ensaio de instalação e restauração foi feito no Windows com PostgreSQL 18.6. Escolha um workspace novo e use apenas dados sintéticos.
+
+```powershell
 npm ci
 npm run env:setup
 npm run auth:env:setup
 npm run db:config
 npm run db:up
-npm run db:check
+npm run prepare:core --workspace @helpdesk/backend
+npm run db:migrate:dev --workspace @helpdesk/backend
+npm run db:migrate:status --workspace @helpdesk/backend
 ```
 
-O único lockfile é `package-lock.json`, na raiz. Não é necessário instalar TypeScript, Prisma ou outras ferramentas globalmente. O script de ambiente cria `.env` com credencial local aleatória somente se esse arquivo não existir; nunca o sobrescreve nem mostra os valores. [.env.example](.env.example) contém somente os nomes e valores não sensíveis. Não use as credenciais locais em produção.
+Os scripts criam a configuração local a partir das variáveis de [.env.example](.env.example). Confira o destino antes de aplicar a cadeia de treze migrations. O runner exige `helpdesk_dev` local, com `helpdesk_test` separado para testes. A configuração padrão usa PostgreSQL em `127.0.0.1:5432`, API em `127.0.0.1:3001` e Vite em `127.0.0.1:5173`. Use volumes, portas e credenciais próprios ao executar uma segunda instância. O Compose padrão declara um nome fixo de container.
 
-Se já houver `.env`, confira os nomes e URLs sem publicar seu conteúdo. Alterar nomes de bancos/usuários no arquivo não modifica automaticamente um volume PostgreSQL já inicializado.
+Para provisionar ADMIN e técnicos, use um PowerShell interativo no qual seja possível digitar senhas ocultas:
 
-`npm run auth:env:setup` acrescenta apenas chaves AUTH_* ausentes, aleatórias e distintas, sem mostrar valores nem sobrescrever credenciais do banco. Configuração local HTTP é explícita; não copiar essa exceção para produção.
+```powershell
+# O Client já foi gerado em prepare:core.
+cd apps/backend
+node ../../node_modules/tsx/dist/cli.mjs scripts/provision-development.ts
+cd ../..
+```
 
-`npm run db:migrate:dev --workspace @helpdesk/backend` aplica somente as migrations revisadas DEV-002/003, recusando destinos diferentes de helpdesk_dev local e histórico/objetos inesperados. Não executa reset ou seed administrativo. `npm run prisma:generate --workspace @helpdesk/backend` gera o Client; `npm run db:migrate:status --workspace @helpdesk/backend` consulta o histórico. Futuras migrations exigem revisão própria; não editar migrations aplicadas.
+Crie o solicitante pelo cadastro da aplicação. Na Central Administrativa, crie empresa, setor e expediente fictícios e associe um calendário padrão. Em Catálogo, crie uma categoria e um serviço sintéticos, edite o rascunho e publique o formulário. Para reproduzir o ensaio, adicione um campo de arquivo obrigatório. Veja o [roteiro local](docs/v1-operacao-local.md) e o [fluxo de provisionamento](docs/22-provisionamento-desenvolvimento.md).
 
-## Executar as aplicações
+Em terminais separados, com as dependências e o Client já preparados:
 
-Em dois terminais separados, a partir da raiz:
+```powershell
+# Terminal 1, na raiz
+cd apps/backend
+node ../../node_modules/tsx/dist/cli.mjs src/server.ts
+```
 
-```text
-npm run dev:backend
+```powershell
+# Terminal 2, na raiz
 npm run dev:frontend
 ```
 
-- Frontend: [http://127.0.0.1:5173](http://127.0.0.1:5173).
-- Conta real: [login](http://127.0.0.1:5173/#/login) e [cadastro](http://127.0.0.1:5173/#/register). Cadastre um solicitante fictício com senha própria de 12–128 caracteres; nenhum usuário/senha padrão é fornecido.
-- Laboratório visual isolado: [prévia sem autenticação](http://127.0.0.1:5173/#/demo/requester/painel). Seu seletor de perfis não altera a identidade real da API.
-- API: [http://127.0.0.1:3001/health](http://127.0.0.1:3001/health).
-- Resposta de integridade: `{"status":"ok","service":"helpdesk-api"}`.
+Abra o endereço local informado pelo Vite. Consulte `/health` na API ou `/api/health` pelo frontend. O backend compilado deve ser executado dentro da instalação do workspace, com as dependências raiz e locais disponíveis.
 
-O frontend consulta a API por `/api/health`, usando o proxy de desenvolvimento do Vite. Com configuração válida, o processo responde ao healthcheck mesmo com PostgreSQL indisponível. A verificação da persistência é feita separadamente por `npm run db:check`.
+## Qualidade
 
-Na DEV-003, o bootstrap exige DATABASE_URL e configuração AUTH_* válidas; não exige conexão com o banco para servir /health. O formulário real usa cookies HttpOnly e CSRF. Logout revoga sessão no servidor; troca de senha revoga todas e exige novo login. E-mail ainda não é verificado por envio. Recuperação de acesso permanece pendente; consulte a [ADR-12](docs/20-adr12-autenticacao.md). O provisionamento local manual da HD-019 está descrito abaixo.
-
-## Provisionamento de desenvolvimento
-
-`npm run provision:dev` prepara um administrador inicial e três técnicos mediante credenciais informadas diretamente em terminal seguro, sem senha padrão. Não roda automaticamente nem altera contas preservadas. Os quatro exigem troca da senha inicial. Consulte o [procedimento HD-019](docs/22-provisionamento-desenvolvimento.md) antes de executar; não compartilhe senhas no chat ou na linha de comando.
-
-`npm run provision:dev:auto` é a alternativa Windows autorizada pela DEV-005.1: gera senhas aleatórias próprias e entrega os acessos em `%LOCALAPPDATA%\HelpDesk\credenciais-iniciais-dev.txt`, com ACL exclusiva do usuário atual. Recusa contas ou arquivo já existentes; não redefine senhas. Consulte o mesmo procedimento e apague o arquivo após a troca das senhas.
-
-## Qualidade e build
-
-DEV-006: o solicitante pode consultar e editar **Meu perfil** em `#/requester/perfil`, com persistência real por `GET/PATCH /users/me`. Mudança de e-mail exige senha atual e novo login. Limites e pendência de verificação do endereço estão no [procedimento do perfil](docs/23-perfil-solicitante.md).
-
-```text
-npm run typecheck
+```powershell
 npm run lint
-npm test
-npm run build
 npm run format:check
+npm run prisma:validate --workspace @helpdesk/backend
+node --import tsx --test apps/frontend/tests/*.test.ts
+npm run build --workspace @helpdesk/frontend
+
+cd apps/backend
+node ../../node_modules/typescript/bin/tsc --noEmit
+node ../../node_modules/typescript/bin/tsc -p tsconfig.build.json
+node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config jest.config.mjs --runInBand
+node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config jest.integration.config.mjs --runInBand
+cd ../..
 ```
 
-Jest/Supertest permanecem no backend em ESM, com `--experimental-vm-modules`. Testes dos modelos demonstrativos frontend: `node --import tsx --test apps/frontend/tests/*.test.ts`. Contratos compartilhados são compilados e Prisma Client gerado na preparação dos comandos do backend; artefatos não são versionados.
+Execute a integração em ambiente local isolado. O alvo dos testes é `helpdesk_test` e os schemas descartáveis não são compartilhados com desenvolvimento. Prepare o Prisma Client antes da suíte e mantenha a geração sequencial.
 
-`npm run test:db --workspace @helpdesk/backend` executa a migration canônica e integração real somente em helpdesk_test local, com DDL/dados em transações integralmente desfeitas. `npm run db:prisma:check --workspace @helpdesk/backend` confere por SELECT. A migration inicial DEV-002 contém oito tabelas fundamentais e proteções de histórico; migrations não criam credenciais ou executam provisionamento. Regras/ADRs restantes não foram aprovadas por consequência dessa entrega. Serviço interno não está exposto sem autenticação.
+## Recuperação, segurança e limites
 
-`npm run format` aplica Prettier aos aplicativos, infraestrutura, scripts, configurações e ADR desta fundação. A configuração preserva os documentos funcionais históricos e o CSV do backlog e ignora segredos, caches e artefatos.
+A recuperação completa combina dump PostgreSQL, bytes privados dos anexos, manifesto e checksums. O ensaio restaurou esse conjunto em outro destino e verificou integridade e acesso autorizado. O [runbook](docs/v1-operacao-local.md) descreve o procedimento e a política proposta para sessões restauradas.
 
-## Organização
+A aplicação usa cookies HttpOnly, CSRF, sessões revogáveis e autorização no servidor. Upload e download são privados. O ambiente HTTP local é restrito a loopback. Esta é uma candidata de demonstração local. Homologação visual final, revisão das referências históricas e decisão sobre licença antecedem a publicação.
 
-| Pasta                                              | Conteúdo                                                      |
-| -------------------------------------------------- | ------------------------------------------------------------- |
-| [apps/frontend](apps/frontend/README.md)           | Prévia React/Tailwind navegável, mocks isolados, GSAP/ECharts |
-| [apps/backend](apps/backend/README.md)             | Express/Zod, healthcheck e núcleo Prisma interno em revisão   |
-| [packages/contracts](packages/contracts/README.md) | Zod e tipos compartilhados ESM para a base em revisão         |
-| [infra](infra/README.md)                           | PostgreSQL de desenvolvimento e banco de testes isolado       |
-| `docs/`, `planning/`                               | Requisitos, arquitetura, decisões, diagramas e backlog        |
-| `skills/helpdesk-task/`                            | Procedimento e checklist compartilhados pelos agentes         |
+As capturas de portfólio devem ser produzidas em instância sintética após a homologação. Dashboards próprios de técnico e solicitante estão integrados às APIs reais. Projetos inclui solicitação, atribuição, planos versionados, atividades, progresso automático, atualizações e conclusão/cancelamento conforme o [contrato vigente](docs/37-workflow-projetos.md). Integrações e deploy permanecem fora deste escopo. Consulte o [contrato vigente e índice histórico](docs/v1-contrato.md) e o [backlog reconciliado](planning/backlog.csv).
 
-## Infraestrutura e limites
-
-O Compose cria somente os recursos com projeto `helpdesk`, sem utilizar containers, redes ou bancos de outros projetos. O volume PostgreSQL é persistente; não execute `down -v` nem prune. Para verificar o estado, use `npm run db:status`.
-
-A implantação futura é no Server 10 Linux da empresa, pela rede interna, com DNS, certificados e backups gerenciados pela TI. Nenhum deploy foi realizado. Vite não é servidor de produção; a prévia não representa autenticação/autorização. Próximos módulos seguem backlog e aprovações próprias.
-
-Respeite UTF-8/LF e a política específica do CSV em `.editorconfig` e `.gitattributes`. Alterações e próximas tarefas precisam de autorização própria; não há publicação automática.
-
-DEV-007 / HD-021: ADMIN acessa **Gestão de usuários** para listar, cadastrar e editar técnicos reais. TECHNICIAN acessa **Meu perfil**. Senha provisória é exibida apenas após cadastro e exige troca inicial. Consulte [gestão de técnicos](docs/24-gestao-tecnicos.md).
-
-DEV-008 / HD-025: **Catálogo de serviços** real, com página independente exclusiva de ADMIN (DEV-008.1). As consultas GET autenticadas de solicitantes/técnicos permanecem disponíveis para integração futura à abertura. Categorias, serviços e formulário básico v1 persistem no PostgreSQL; não há abertura HTTP de chamados nem editor persistente de campos. Consulte [catálogo real](docs/25-catalogo-real.md).
-
-BLOCO 01: solicitantes autenticados acessam **Abrir chamado** e **Meus chamados** na sidebar. Abertura real em quatro etapas, detalhes e histórico persistidos, com serviço único e snapshots. Sem atendimento, anexos ou formulários personalizados nesta etapa. Consulte [abertura e acompanhamento reais](docs/26-bloco01-chamados.md).
-
-BLOCO 02: técnicos autenticados acessam **Chamados**, com filas operacionais e classificação real de prioridade sem assumir atendimento. Projeção mínima, concorrência e auditoria preservadas. Consulte [triagem e classificação](docs/27-bloco02-triagem.md).
+Projeto pessoal de João Pedro Miá. A licença de reutilização do projeto está pendente de decisão. As dependências têm licenças próprias.

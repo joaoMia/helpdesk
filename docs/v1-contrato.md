@@ -1,0 +1,46 @@
+# Contrato vigente da v1.0 pessoal
+
+O HelpDesk atende três papéis. ADMIN opera a Central Administrativa, o catálogo e o dashboard analítico. TECHNICIAN usa filas, triagem e atendimentos próprios. REQUESTER abre e acompanha os próprios chamados pela Central. A evolução aprovada inclui dashboards próprios reais de TECHNICIAN e REQUESTER. Projetos inclui o workflow aprovado D1–D8: solicitação, responsável, planejamento versionado, execução, progresso por atividades, atualizações, conclusão e cancelamento. Ver [workflow vigente](37-workflow-projetos.md). Integrações e implantação permanecem futuras. Ver [evolução final](35-evolucao-dashboards-projetos.md).
+
+| Área         | Regra vigente e rastreabilidade                                                                                                                                                                                                                                                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Contas       | Cadastro e perfil do solicitante, provisão administrativa com troca inicial, sessões revogáveis e RBAC. Exclusão administrativa somente sem vínculos impeditivos. Desativação preserva histórico e protege o último ADMIN. Substitui a cascata histórica de RN-003/004 e HD-023. Ver [autorização](21-autorizacao-backend.md) e [continuidade](34-continuidade-controlada.md). |
+| Abertura     | Um serviço ativo por chamado, sem cobrança e sem escolha de técnico. O formulário publicado valida campos, condições e anexos obrigatórios no backend. Versões, respostas e snapshots anteriores são preservados. RF-TCK-01, RN-006–008 e [formulários](33-formularios-dinamicos.md).                                                                                          |
+| Triagem      | Classificar prioridade de OPEN livre não atribui nem inicia. ADMIN ou TECHNICIAN autorizado pode atribuir sem iniciar. O início é explícito pelo técnico habilitado e muda para IN_PROGRESS. RN-009–012 e [distribuição](30-execucao-integrada.md).                                                                                                                            |
+| Pendências   | IN_PROGRESS pode entrar em PENDING com motivo e justificativa. Retomada manual ou por atividade válida do solicitante, conforme snapshot da configuração. RN-015–019 e [atendimento](31-atendimento-tempos-e-sla.md).                                                                                                                                                          |
+| Conversa     | Chat individual em tempo real com SSE e anexos privados. A timeline técnica permanece como histórico auditável no backend, sem aparecer como conversa comum. RF-COM-01, RF-AUD-01 e [refinamento](32-refinamento-chat-solucao-e-catalogo.md).                                                                                                                                  |
+| Solução      | Adicionar solução é a ação da interface. O responsável registra uma data efetiva válida, distinta da data real da auditoria. IN_PROGRESS passa a RESOLVED. O SLA de solução termina no instante efetivo, conforme calendário e política aplicável. RN-013 e [continuidade](34-continuidade-controlada.md).                                                                     |
+| Encerramento | O detalhe oferece encerramento de RESOLVED para o técnico responsável ou ADMIN quando as métricas estiverem completas. A/B medem o tempo útil desde abertura/primeiro atendimento até encerramento e ficam congeladas. O dashboard separa status atual, datas de solução/encerramento e médias dos encerrados. RN-020–026 e [atendimento](31-atendimento-tempos-e-sla.md).     |
+| Retirada     | ADMIN ou técnico responsável pode retirar chamado da operação com justificativa e auditoria. Consultas e contagens excluem retirados. Histórico, arquivos e snapshots permanecem. [Continuidade](34-continuidade-controlada.md).                                                                                                                                               |
+| OC           | Ocorrências Compartilhadas canceladas. API, telas e permissões removidas. Migration e sete tabelas vazias permanecem como legado inativo. [Continuidade](34-continuidade-controlada.md).                                                                                                                                                                                       |
+
+[Arquitetura](diagramas/arquitetura.mmd) · [Fluxo](diagramas/fluxo-chamado.mmd) · [Estados](diagramas/estados-chamado.mmd) · [Modelo conceitual](diagramas/dados-conceituais.mmd) · [Operação local](v1-operacao-local.md)
+
+## Leitura histórica
+
+Os documentos numerados preservam propostas e entregas datadas. O contrato acima prevalece quando houver divergência. IDs de RF, RN, ADR e backlog continuam como rastreabilidade.
+
+| Faixa | Conteúdo                                                                                                                                                                          |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01–10 | Visão, requisitos, regras, arquitetura, modelo, API, interface, dashboards, tempos e testes                                                                                       |
+| 11–20 | Processo, roadmap, ADRs, fundação, VIS e autenticação. ADR-10 registra a stack e ADR-12 registra a autenticação. As demais propostas devem ser lidas com as decisões posteriores. |
+| 21–28 | Autorizações e entregas iniciais de contas, catálogo, abertura, triagem e assunção                                                                                                |
+| 29–34 | Evoluções de distribuição, administração, atendimento, SLA, chat, formulários e continuidade. Os docs 30–34 documentam as evoluções posteriores às propostas anteriores.          |
+
+No backlog, Concluída indica evidência funcional para o escopo registrado. Em revisão conserva pendências de aceite. Parcial indica que o critério original não foi todo atendido. Futura e Cancelada identificam itens que não compõem o aceite atual.
+
+O workflow de qualidade proposto executa verificações estáticas, builds, testes de frontend e unitários de backend. A integração PostgreSQL e o ensaio de restauração continuam no roteiro local isolado.
+
+## Projetos — evolução aprovada em 06/11/2026
+
+A [Etapa B1](39-anexos-privados-projetos.md) implementa anexos privados de formulários de Projetos, inclusive obrigatórios/condicionais, download e prévia autorizados. Substitui a restrição de FILE obrigatório da Etapa A. Chat/SSE de Projetos continuam pendentes e não foram iniciados.
+
+Em 08/11/2026, a [Etapa A de formulários reais](38-formularios-reais-projetos.md) acrescenta catálogo administrativo de Projetos, rascunhos/publicações e abertura com snapshot/respostas versionadas. Legado sem formulário é preservado. A [Etapa B1](39-anexos-privados-projetos.md) conclui anexos privados de abertura, inclusive obrigatórios/condicionais. A [Etapa B2](37-workflow-projetos.md) conclui conversa de Projetos persistida com SSE e anexos privados de mensagem, sem misturá-los a atualizações formais, histórico ou planos.
+
+A limitação anterior a solicitação/consulta foi substituída por aprovação expressa. O [doc37](37-workflow-projetos.md) descreve APIs, RBAC, idempotência persistida e separação plano/execução. Estados de Projetos são independentes de chamados. Anexos de formulário e de conversa são fluxos privados separados. Não há orçamento, cobrança ou reabertura de projeto.
+
+## Ajustes de homologação operacional — 10/11/2026
+
+REQUESTER abre Projetos sem prioridade; ADMIN e o técnico responsável atual classificam ou alteram prioridade, com auditoria e sem SLA de Projetos. A publicação integrada pela interface conserva as operações revisionadas de salvar rascunho e publicar. Etapas derivam estado e progresso de suas atividades existentes. TECHNICIAN e ADMIN consultam integralmente Chamados autorizados sem ampliar mutações; chat permanece somente leitura nos estados terminais. O prazo de solução só é apresentado como data quando calculável pelo calendário e períodos reais de pendência. Ver [workflow de Projetos](37-workflow-projetos.md), [SLA](31-atendimento-tempos-e-sla.md) e checkpoint operacional.
+
+Na conversa de Chamados, ADMIN e TECHNICIAN podem enviar mensagens e anexos nos Chamados autorizados em OPEN, IN_PROGRESS e PENDING. REQUESTER participa somente dos próprios Chamados. RESOLVED e CLOSED conservam a conversa em modo de leitura. Ver [autorização da conversa](32-refinamento-chat-solucao-e-catalogo.md).

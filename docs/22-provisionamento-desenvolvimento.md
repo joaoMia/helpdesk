@@ -1,5 +1,7 @@
 # HD-019 / DEV-005 — Provisionamento seguro de desenvolvimento
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 Procedimentos de desenvolvimento preparados em 27/10/2026. Criam um ADMIN inicial e três TECHNICIAN no User existente, sem migration, senha padrão ou alteração dos usuários já cadastrados. A DEV-005 mantém o modo manual; a DEV-005.1 acrescenta a opção automática expressamente autorizada, com entrega local protegida.
 
 ## Opção automática — DEV-005.1 / Windows

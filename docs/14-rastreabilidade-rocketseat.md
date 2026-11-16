@@ -1,5 +1,7 @@
 # 14 — Matriz Rocketseat x HelpDesk personalizado
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 | Tema               | Desafio original fornecido                                                  | HelpDesk personalizado                                                                 | Observação                                                      |
 | ------------------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | Seleção de técnico | Cliente escolhe técnico na abertura                                         | Não escolhe; técnico assume depois                                                     | Divergência funcional explícita                                 |

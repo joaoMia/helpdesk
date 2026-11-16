@@ -1,11 +1,15 @@
 # 09 — Calendários, pendências e cálculo de tempos úteis
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 ## Glossário
+
 - Tempo de relógio: diferença de instantes (inclui noites/pausas); **não é** indicador de solução.
 - Janela útil: união de intervalos definidos no expediente aplicável, considerando exceções cadastradas.
 - Pendência não contabilizável: trecho em que motivo configurado não conta tempo útil.
 
 ## Cálculo conceitual
+
 Para cada trecho de calendário relevante entre o início `a` e fim `b`, usar interseção com janelas úteis `W` e retirar interseção com pendências não contabilizáveis `P0`:
 
 `minutos_uteis(a,b) = duração([a,b] ∩ W) - duração([a,b] ∩ W ∩ P0)`.
@@ -16,9 +20,11 @@ Para cada trecho de calendário relevante entre o início `a` e fim `b`, usar in
 - Se não há expediente (almoço/noite/folga), não computar tempo mesmo em pendência contabilizável.
 
 ## Contexto de expediente
+
 Antes do primeiro atendimento, calendário padrão da empresa. Do início em diante, versão do expediente do técnico responsável. Preservar o calendário em eventos/segmentos versionados. Em v1, transferência entre técnicos não é implementada sem decisão. Se houver alteração de jornada, vale para períodos futuros; passado permanece congelado.
 
 ## Estados/eventos
+
 - Ao abrir: `created_at`, `status=OPEN`, `priority=NULL`, `owner=NULL`.
 - Classificar: gravar prioridade + quem + quando. Não iniciar métrica B.
 - Começar: atribuir + `first_started_at` + `status=IN_PROGRESS` (transação atômica).
@@ -28,6 +34,7 @@ Antes do primeiro atendimento, calendário padrão da empresa. Do início em dia
 - Encerrar: gravar `closed_at`, métricas finais, ator; estado imutável, salvo decisão de reabertura.
 
 ## Casos extremos obrigatórios
+
 1. 11:00-14:00 com pausa 12:00-13:00: 2h úteis.
 2. Chamado 18:00 terça a 08:30 quarta (jornada inicia às 08): 30 min úteis.
 3. Pendente counts=false das 11:30 às 14:30, almoço 12-13: subtrair só 2h úteis (11:30-12 e 13-14:30).
@@ -42,4 +49,5 @@ Antes do primeiro atendimento, calendário padrão da empresa. Do início em dia
 12. Horário local/fuso: preservar offsets e converter intervalos sem comparar strings de horários diretamente.
 
 ## Decisões pendentes
+
 Critério de calendário em exceções não cadastradas, mutabilidade de horário em jornadas em andamento, fechamento/admin e eventual reabertura ou transferência. Todas devem virar ADRs antes de implementação da métrica.

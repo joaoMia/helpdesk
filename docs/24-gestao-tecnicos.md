@@ -1,5 +1,7 @@
 # DEV-007 / HD-021 — Gestão real de técnicos
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 Implementação autorizada em 28/10/2026. Reutiliza autenticação, autorização e tabela users existentes. Não há migration, seed, alteração de credenciais existentes nem novos poderes operacionais para ADMIN.
 
 ## API e autorização

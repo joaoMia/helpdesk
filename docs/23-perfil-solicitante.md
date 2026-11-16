@@ -1,5 +1,7 @@
 # DEV-006 / HD-020 — Perfil real do solicitante
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 ## DEV-006.1 — Senha esquecida no desenvolvimento local
 
 No PowerShell interativo privado do responsável, execute na raiz `npm run requester:reset:dev`, sem argumentos. Informe o e-mail do solicitante, confirme com `REDEFINIR` e digite a nova senha duas vezes, sem eco (12–128 caracteres). Enter na confirmação da operação cancela. Não use pipes, transcrição, redirecionamento ou senhas em comandos. O agente não executa a redefinição real.

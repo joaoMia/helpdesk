@@ -1,5 +1,11 @@
 # 06 — Contratos REST preliminares
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
+## Execução integrada — contratos atuais
+
+As propostas da tabela preliminar abaixo não concedem permissões. A execução integrada implementa os contratos detalhados em [BLOCOS05/06](31-atendimento-tempos-e-sla.md), com prefixo local `/api` no frontend e rotas sem `/api/v1` no Express. Há administração central `/admin/users`, empresas/setores/expedientes em `/admin`, distribuição sem início, conversa/arquivos privados, solução `RESOLVED`, pendências, SLA, métricas e fechamento validado. ADMIN não herda classificação, início, comentários operacionais, pendência ou solução; pode fechar RESOLVED com a mesma validação de métricas exigida do responsável. Não existe PATCH genérico de estado, transferência, reabertura ou edição estrutural de chamado. Contratos Zod versionados continuam sendo a referência executável.
+
 ## DEV-003 — Autenticação real disponível
 
 As rotas abaixo estão implementadas em `/auth`, sem o prefixo preliminar `/api/v1`. O frontend local usa `/api/auth` pelo proxy Vite. Corpos/saídas são contratos Zod em packages/contracts; nada autoriza endpoints dos módulos de negócio seguintes.
@@ -111,3 +117,9 @@ DEV-008 / HD-025: GET/POST /categories e /services e GET/PATCH /categories/:id e
 BLOCO 01: POST /tickets, GET /tickets, GET /tickets/:id e GET /tickets/:id/history estão implementados, sem /api/v1. Abertura exclusiva de REQUESTER; leitura própria, atribuída ou global conforme ticketScope existente. Contratos HTTP são aditivos e não habilitam operações de atendimento. Entrada, paginação, snapshots, respostas e limites em [BLOCO 01](26-bloco01-chamados.md).
 
 BLOCO 02 acrescenta GET /tickets/triage e PATCH /tickets/:id/priority, exclusivos de TECHNICIAN com os grants existentes. Contratos aditivos, projeção mínima e precondição expectedPriority em [triagem real](27-bloco02-triagem.md). Classificar não altera status nem atribuição.
+
+BLOCO 03 acrescenta POST /tickets/:id/start, exclusivo de TECHNICIAN, com corpo vazio e retorno mínimo da atribuição confirmada. Reutiliza os GET de chamados com o escopo existente. Somente OPEN → IN_PROGRESS; [contrato e limites](28-bloco03-assuncao.md). Não há endpoint de pendência ou encerramento.
+
+BLOCO 03.1 acrescenta GET /tickets/overview e GET /tickets/assignees para ADMIN/TECHNICIAN, com DTOs mínimos, busca e paginação. Não acrescenta endpoint de atribuição a terceiros; o contrato de distribuição é somente proposta. [Detalhes e dependências](29-bloco031-visao-e-distribuicao.md).
+
+Refinamento vigente: GET /tickets/:id/conversation/stream (SSE autenticado), POST de anexo com draft=true e DELETE /tickets/:id/attachments/:fileId/draft (somente rascunho próprio não vinculado, CSRF). POST de comentário aceita clientMessageId UUID opcional para idempotência por tentativa, sem aceitar autoria do cliente. GET /tickets/:id/metrics inclui solutionMetrics opcional, separado de finalMetrics de CLOSED. Contratos anteriores continuam compatíveis. Ver [refinamento integrado](32-refinamento-chat-solucao-e-catalogo.md).

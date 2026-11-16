@@ -1,10 +1,12 @@
 # ADR-10 — Stack e fundação técnica local
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 **Estado:** aprovada pelo responsável em 24/10/2026 para a fundação HD-008/HD-010/HD-011/HD-012. Não aprova os outros ADRs da HD-003.
 
 ## Contexto e decisão
 
-Manter o monorepositório existente com npm workspaces (`apps/*` e `packages/*`), frontend e backend no host Windows e PostgreSQL em Linux container. O destino corporativo futuro é o Server 10 Linux, com acesso interno e DNS, certificados e backups sob responsabilidade da TI. Esta etapa não realiza deploy.
+Manter o monorepositório existente com npm workspaces (`apps/*` e `packages/*`), frontend e backend no host Windows e PostgreSQL em Linux container. O destino corporativo futuro é o ambiente futuro de implantação Linux, com acesso interno e DNS, certificados e backups sob responsabilidade da TI. Esta etapa não realiza deploy.
 
 | Componente                               | Versão de dependência fixada / decisão  |
 | ---------------------------------------- | --------------------------------------- |
@@ -73,7 +75,7 @@ Não executar `down -v`, prune ou exclusão de volumes. Reiniciar/recriar um con
 
 Scripts npm evitam sintaxe específica de shell Windows. Segredos são lidos do ambiente e do arquivo local explicitamente; não entram no frontend. Caminhos de módulos e nomes de arquivo devem respeitar capitalização em Linux. Os builds e testes precisam ser repetidos em Linux na homologação futura.
 
-Frontend de produção será estático, atrás do proxy da TI; não usar o servidor Vite de desenvolvimento como servidor corporativo. API e PostgreSQL estarão em containers Linux, com volume de dados, rede privada e HTTPS no proxy. DNS, certificados, backups, restauração, anexos e recursos do Server 10 serão detalhados posteriormente, sem configuração remota agora.
+Frontend de produção será estático, atrás do proxy da TI; não usar o servidor Vite de desenvolvimento como servidor corporativo. API e PostgreSQL estarão em containers Linux, com volume de dados, rede privada e HTTPS no proxy. DNS, certificados, backups, restauração, anexos e recursos do ambiente futuro de implantação serão detalhados posteriormente, sem configuração remota agora.
 
 Tailwind 4 pressupõe navegadores corporativos modernos (Chrome 111+, Safari 16.4+, Firefox 128+). A interface atual é provisória e técnica; não aprova design definitivo ou funcionalidades.
 

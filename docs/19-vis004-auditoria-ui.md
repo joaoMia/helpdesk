@@ -1,5 +1,7 @@
 # VIS-004 — Auditoria de UI/UX e limites da prévia
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 Revisão limitada ao frontend demonstrativo. Não é homologação de autenticação, autorização, banco, jornadas, SLA ou regras pendentes. As mudanças locais da VIS-002/003 foram preservadas; sua base de revisão está registrada em `.local/vis004-base/`, ignorada pelo Git.
 
 ## Problemas priorizados e tratamento

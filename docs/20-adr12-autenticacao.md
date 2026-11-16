@@ -1,11 +1,13 @@
 # ADR-12 — Autenticação real e sessões
 
+> Registro de desenvolvimento. Para regras e escopo atuais, consulte o [contrato vigente da v1.0](v1-contrato.md).
+
 **Estado:** aprovada para a DEV-003 em 26/10/2026, conforme decisões expressas do responsável. Não encerra a HD-003 nem aprova exceções de RBAC, recuperação de acesso ou provisionamento administrativo.
 
 ## Decisão implementada
 
 - Login por e-mail e senha. E-mail sofre trim/lowercase; índice case-insensitive protege unicidade, inclusive em concorrência. Cadastro público estrito aceita apenas nome/e-mail/senha; perfil REQUESTER e atividade são definidos pela API. Não há verificação de e-mail por envio de mensagem nesta fase.
-- Senha de 12 a 128 caracteres Unicode, sem trim/normalização e sem truncamento silencioso, limitada a 256 unidades UTF-16/até 512 bytes UTF-8. Argon2id pela biblioteca argon2: memória 19456 KiB (19 MiB), duas iterações, paralelismo 1 e hash de 32 bytes, com salt aleatório da biblioteca. Atende ao mínimo OWASP; hash+verificação inicial no Windows levou aproximadamente 83 ms. Recalibrar no Server 10 antes do deploy, sem reduzir esse mínimo.
+- Senha de 12 a 128 caracteres Unicode, sem trim/normalização e sem truncamento silencioso, limitada a 256 unidades UTF-16/até 512 bytes UTF-8. Argon2id pela biblioteca argon2: memória 19456 KiB (19 MiB), duas iterações, paralelismo 1 e hash de 32 bytes, com salt aleatório da biblioteca. Atende ao mínimo OWASP; hash+verificação inicial no Windows levou aproximadamente 83 ms. Recalibrar no ambiente futuro de implantação antes do deploy, sem reduzir esse mínimo.
 - JWT HS256 por jose, chave aleatória de pelo menos 32 bytes, acesso de 15 minutos. Validar assinatura/algoritmo, typ=at+jwt, issuer=helpdesk-api, audience=helpdesk-web, sub/sid/jti UUID, iat e exp. Perfil não vem do payload do cliente nem serve de autoridade em claims antigas: identidade/atividade/flag são consultadas no banco.
 - Refresh opaco com 32 bytes criptograficamente aleatórios, vinculado ao UUID da sessão. Somente SHA-256 do token completo é persistido, com histórico de consumo, expiração e revogação. SHA-256 é usado para token de alta entropia, não para senha. Sessão tem prazo absoluto de sete dias; a rotação não prolonga indefinidamente esse prazo.
 - Cookies HttpOnly, SameSite=Strict, Path=/, sem Domain. Em HTTPS são Secure e usam prefixo __Host-. Cookies sem Secure exigem exceção explícita em development/test, origens loopback e conexão loopback HTTP. HTTPS com configuração de cookies inseguros é recusado. Não confiar automaticamente em X-Forwarded-*; terminação TLS/proxy confiável depende da implantação futura.

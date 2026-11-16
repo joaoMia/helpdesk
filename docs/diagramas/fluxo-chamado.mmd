@@ -6,9 +6,12 @@ flowchart TD
   B --> C[Fila Não classificados]
   C --> D[Técnico classifica LOW/MEDIUM/HIGH]
   D --> E[Fila Classificados / sem atribuição]
-  E --> F[Técnico assume atomicamente]
+  E --> D2[Atribuir sem iniciar]
+  D2 --> F[Técnico inicia explicitamente]
+  E --> F
   F --> G[IN_PROGRESS]
-  G -->|Concluído| Z[CLOSED]
+  G -->|Adicionar solução e finalizar SLA| R[RESOLVED]
+  R -->|API com métricas finais completas| Z[CLOSED]
   G -->|Motivo obrigatório| H[PENDING]
   H -->|Retomada manual| G
   H -->|Interação do solicitante se regra permitir| G
