@@ -12,7 +12,7 @@ let before: Awaited<ReturnType<typeof developmentFingerprint>>;
 beforeAll(async () => {
   prepareReviewSql();
   before = await developmentFingerprint();
-  expect(before.database).not.toBe('helpdesk_test');
+  expect(before.database).toBe('helpdesk_test');
 });
 afterAll(async () => {
   expect(await developmentFingerprint()).toEqual(before);

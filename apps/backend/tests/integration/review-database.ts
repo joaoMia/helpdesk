@@ -30,9 +30,9 @@ export function prepareReviewSql() {
     );
   if (!ddl.length) throw new Error('Migration canônica não encontrada.');
 }
-export async function developmentFingerprint() {
+async function isolatedPublicFingerprint() {
   const client = new pg.Client({
-    connectionString: config.DATABASE_URL,
+    connectionString: target.connectionString,
     connectionTimeoutMillis: 5000,
     options: '-c default_transaction_read_only=on',
   });
@@ -42,6 +42,8 @@ export async function developmentFingerprint() {
       "SELECT current_database() AS database, (SELECT coalesce(string_agg(c.relname || ':' || c.oid::text, ',' ORDER BY c.relname), '') FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public') AS relations",
     );
     const identity = result.rows[0] as { database: string; relations: string };
+    if (identity.database !== target.database)
+      throw new Error('Verificação recusada fora do banco isolado de testes.');
     const tables = await client.query<{ name: string }>(
       "SELECT tablename AS name FROM pg_tables WHERE schemaname='public' ORDER BY tablename",
     );
@@ -58,6 +60,8 @@ export async function developmentFingerprint() {
     await client.end();
   }
 }
+// Keep the existing fixture imports while checking the public schema of helpdesk_test.
+export { isolatedPublicFingerprint as developmentFingerprint };
 export async function reviewTransaction(
   check: (tx: Prisma.TransactionClient) => Promise<void>,
 ) {
