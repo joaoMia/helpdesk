@@ -11,7 +11,7 @@
 - [ ] Testes, lint, typecheck e build pertinentes efetivamente executados, ou ausência explicada; falhas, limitações e itens não executados informados.
 - [ ] Diff, staging e arquivos novos revisados; estado final do Git conferido.
 - [ ] Commits, exclusões, merges, pushes, deploy, instalações, operações GitHub/Miro e alterações do sistema somente quando especificamente autorizados.
-- [ ] Mensagens de commits autorizados em português com identificação da tarefa; identidade aprovada e trailers preservados; nenhuma coautoria da IA acrescentada sem solicitação.
+- [ ] Mensagens de commits autorizados seguem o [guia de Conventional Commits do HelpDesk](../../docs/40-conventional-commits.md), com identidade aprovada e trailers existentes preservados.
 - [ ] Relatório contém tarefa/escopo, resultado, arquivos, comandos, validações, limitações, riscos, pendências e ações que dependem de aprovação.
 - [ ] Próxima tarefa apenas recomendada quando pertinente, sem início automático; entrega encerrada aguardando revisão.
 

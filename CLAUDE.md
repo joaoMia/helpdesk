@@ -32,7 +32,7 @@ Frontend React/Vite/TypeScript/Tailwind; backend Node.js/Express/TypeScript/JWT/
 2. Implementar somente o escopo solicitado; não presumir regras abertas.
 3. Nunca publicar segredos em Git, logs, arquivos, screenshots ou respostas.
 4. Executar testes/lint/typecheck pertinentes e relatar exatamente o que executou.
-5. Não fazer push, deploy, apagar arquivos existentes, operar GitHub/Miro, ou mudar configurações do sistema sem autorização específica.
+5. Seguir as [convenções Git do AGENTS.md](AGENTS.md#convenções-git) e o [guia de mensagens de commit](docs/40-conventional-commits.md). Commits, pushes, deploy, exclusão de arquivos existentes, operações no GitHub/Miro e mudanças de configuração do sistema exigem autorização específica.
 6. Fornecer resumo, arquivos modificados, comandos, testes, limitações e pendências ao terminar.
 
 ## Skill de trabalho supervisionado

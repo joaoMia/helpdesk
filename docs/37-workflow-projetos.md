@@ -8,18 +8,18 @@ O responsável aprovou D1–D8 do [documento36](36-proposta-workflow-projetos.md
 
 ## Estados, atores e precondições
 
-| Transição                       | Ator                 | Precondições                                                                  |
-| ------------------------------- | -------------------- | ----------------------------------------------------------------------------- |
-| criação → REQUESTED             | Solicitante          | Título 3–160, objetivo/necessidade 10–4000, sessão válida e clientOperationId |
-| REQUESTED → PLANNING            | ADMIN                | Responsável técnico elegível e justificativa                                  |
-| PLANNING → IN_PROGRESS          | Responsável ou ADMIN | Plano publicado válido e responsável elegível                                 |
-| IN_PROGRESS → COMPLETED         | Responsável ou ADMIN | Todas as atividades vigentes DONE e resumo da entrega                         |
-| REQUESTED → CANCELED            | Autor ou ADMIN       | Justificativa                                                                 |
-| PLANNING/IN_PROGRESS → CANCELED | ADMIN                | Justificativa                                                                 |
+| Transição                       | Ator                 | Precondições                                                                       |
+| ------------------------------- | -------------------- | ---------------------------------------------------------------------------------- |
+| criação → REQUESTED             | Solicitante          | Título 3–160, objetivo/necessidade 10–4000, sessão válida e clientOperationId      |
+| REQUESTED → PLANNING            | ADMIN ou responsável | Atribuição pelo ADMIN ou primeira gravação de plano de projeto legado já atribuído |
+| PLANNING → IN_PROGRESS          | Responsável ou ADMIN | Plano publicado válido e responsável elegível                                      |
+| IN_PROGRESS → COMPLETED         | Responsável ou ADMIN | Todas as atividades vigentes DONE e resumo da entrega                              |
+| REQUESTED → CANCELED            | Autor ou ADMIN       | Justificativa                                                                      |
+| PLANNING/IN_PROGRESS → CANCELED | ADMIN                | Justificativa                                                                      |
 
-Atribuição não inicia execução nem planejamento automaticamente. ADMIN não se torna responsável técnico. Substituição exige motivo, mantém plano/execução e retira o acesso do técnico anterior. Conta elegível: TECHNICIAN ativa com troca inicial concluída. Terminais não permitem outras alterações. Não há reabertura, retorno de estado, cobrança, orçamento ou aprovação financeira.
+A atribuição pelo ADMIN move um projeto REQUESTED para PLANNING na mesma transação, revisão e entrada do histórico. A execução continua dependendo de uma ação explícita depois da publicação. A troca de responsável em um projeto já em planejamento ou em execução exige motivo, preserva estado, plano e progresso e retira o acesso do técnico anterior. A conta elegível é TECHNICIAN ativa com troca inicial concluída. Projetos concluídos e cancelados conservam as restrições de escrita.
 
-A solicitação original e o evento REQUESTED continuam imutáveis. Pedidos antigos são lidos como REQUESTED, revisão1, sem responsável/plano inventados; o workflow é criado na primeira gestão autorizada. Não há backfill de datas ou regravação do pedido.
+A solicitação original e seu evento permanecem imutáveis. Pedidos antigos sem workflow continuam em REQUESTED, revisão 1. Projetos legados ainda em REQUESTED com responsável elegível avançam no primeiro salvamento ou publicação do plano pelo ADMIN ou pelo responsável. O evento dessa operação registra a transição na data em que ela ocorre.
 
 ## Plano e execução separados
 
@@ -37,44 +37,44 @@ A consulta de uma versão anterior mostra a definição histórica e identifica 
 
 As leituras antigas GET /projects, /projects/:id e /projects/:id/history continuam com seus contratos e projeções. POST /projects mantém campos originais e agora exige clientOperationId, conforme D8. O cliente autenticado gera/preserva a chave durante tentativas. Um consumidor HTTP antigo deve enviar esse campo; ausência retorna400 explicitamente.
 
-| Método e rota                                         | Uso                                                                                       |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| GET /projects/workflows                               | Lista operacional com busca por título/código, estado, responsável, paginação e ownership |
-| GET /projects/workflows/dashboard                     | Agregações reais por perfil                                                               |
-| GET /projects/:id/workflow                            | Solicitação, estado, responsável, plano, progresso e capacidades autorizadas              |
-| GET /projects/:id/workflow/history                    | Histórico seguro paginado, incluindo REQUESTED original                                   |
-| GET /projects/:id/updates                             | Atualizações paginadas                                                                    |
-| GET /projects/:id/plan-versions                       | Versões publicadas paginadas                                                              |
-| GET /projects/:id/plan-versions/:version              | Definição publicada histórica                                                             |
-| GET /projects/:id/conversation                        | Histórico cronológico paginado da conversa autorizada                                     |
-| GET /projects/:id/conversation/stream                 | SSE autenticado; evento `sync` invalida o cache e faz o cliente buscar a página atual     |
-| POST /projects/:id/conversation/messages              | Mensagem com `clientMessageId` e IDs de anexos temporários do próprio autor               |
-| POST /projects/:id/conversation/attachments           | Upload binário privado temporário para a conversa                                         |
-| DELETE /projects/:id/conversation/attachments/:fileId | Descarta temporário próprio ainda não associado                                           |
-| GET /projects/:id/conversation/attachments/:fileId    | Download autenticado de anexo associado a mensagem                                        |
-| GET/PUT /projects/:id/plan-draft                      | Consulta autorizada/salvamento de rascunho                                                |
-| POST /projects/:id/assignment                         | Atribuição/substituição, sem início                                                       |
-| POST /projects/:id/planning                           | Entrada em planejamento                                                                   |
-| POST /projects/:id/plan-publication                   | Publicação/revisão do plano                                                               |
-| POST /projects/:id/start                              | Início da execução                                                                        |
-| PATCH /projects/:id/activities/:activityId            | Estado de atividade; sair de DONE exige motivo                                            |
-| POST /projects/:id/updates                            | Atualização textual; correctionOf vincula correção append-only                            |
-| POST /projects/:id/complete                           | Conclusão com resumo e validação de todas as atividades                                   |
-| POST /projects/:id/cancel                             | Cancelamento justificado                                                                  |
+| Método e rota                                         | Uso                                                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| GET /projects/workflows                               | Lista operacional com busca por título/código, estado, responsável, paginação e ownership  |
+| GET /projects/workflows/dashboard                     | Agregações reais por perfil                                                                |
+| GET /projects/:id/workflow                            | Solicitação, estado, responsável, plano, progresso e capacidades autorizadas               |
+| GET /projects/:id/workflow/history                    | Histórico paginado, incluindo a solicitação original e o conteúdo das atualizações antigas |
+| GET /projects/:id/updates                             | Leitura de atualizações legadas para compatibilidade                                       |
+| GET /projects/:id/plan-versions                       | Versões publicadas paginadas                                                               |
+| GET /projects/:id/plan-versions/:version              | Definição publicada histórica                                                              |
+| GET /projects/:id/conversation                        | Histórico cronológico paginado da conversa autorizada                                      |
+| GET /projects/:id/conversation/stream                 | SSE autenticado; evento `sync` invalida o cache e faz o cliente buscar a página atual      |
+| POST /projects/:id/conversation/messages              | Mensagem com `clientMessageId` e IDs de anexos temporários do próprio autor                |
+| POST /projects/:id/conversation/attachments           | Upload binário privado temporário para a conversa                                          |
+| DELETE /projects/:id/conversation/attachments/:fileId | Descarta temporário próprio ainda não associado                                            |
+| GET /projects/:id/conversation/attachments/:fileId    | Download autenticado de anexo associado a mensagem                                         |
+| GET/PUT /projects/:id/plan-draft                      | Consulta autorizada/salvamento de rascunho                                                 |
+| POST /projects/:id/assignment                         | Atribuição, com entrada em planejamento quando o projeto está em REQUESTED                 |
+| POST /projects/:id/plan-publication                   | Publicação/revisão do plano                                                                |
+| POST /projects/:id/start                              | Início da execução                                                                         |
+| PATCH /projects/:id/activities/:activityId            | Estado de atividade; sair de DONE exige motivo                                             |
+| POST /projects/:id/complete                           | Conclusão com resumo e validação de todas as atividades                                    |
+| POST /projects/:id/cancel                             | Cancelamento justificado                                                                   |
 
-Criação: clientOperationId UUID. Demais escritas: expectedRevision positivo e clientOperationId. Assignment usa technicianId e reason; planning/publicação/conclusão/cancelamento usam reason de 3–2000; rascunho usa definition; atividade usa state e reason; atualização usa content 1–4000 e correctionOf opcional. Mensagens têm `clientMessageId` UUID, conteúdo de 1–4000 caracteres e até dez IDs de anexos temporários únicos. Uploads são binários de até 10 MB, sujeitos à validação de arquivo compartilhada com Chamados; apenas PNG sanitizado pode ser pré-visualizado inline. Parâmetros desconhecidos são rejeitados. Não há endpoint de percentual manual nem exclusão física.
+As escritas continuam usando `clientOperationId` UUID e, depois da criação, `expectedRevision`. A atribuição usa `technicianId` e `reason`. Publicação, conclusão e cancelamento usam `reason` de 3–2000 caracteres. Rascunhos usam `definition`, e atividades usam `state` e `reason`. As rotas de início manual do planejamento e criação de atualização manual foram descontinuadas. As regras de mensagens e anexos estão na [documentação da conversa](39-anexos-privados-projetos.md).
 
 ## Autorização e auditoria
 
-- REQUESTER: workflow próprio, plano publicado, atualizações/histórico e indicadores próprios. Cancela somente próprio REQUESTED. Sem rascunho, atribuição ou execução.
-- TECHNICIAN: somente workflows atribuídos, inclusive terminais para consulta; prepara rascunho, publica antes do início, atualiza atividades, registra atualizações e inicia/conclui conforme precondições.
-- ADMIN: leitura global e poderes administrativos explícitos; atribui/substitui, planeja, publica revisões após início, inicia/conclui e cancela. Não herda papel de técnico.
+- REQUESTER: workflow próprio, plano publicado, histórico e indicadores próprios. Cancela somente próprio REQUESTED. Sem rascunho, atribuição ou execução.
+- TECHNICIAN consulta os projetos atribuídos, inclusive os terminais. Prepara rascunhos, publica antes do início, atualiza atividades e inicia ou conclui o projeto conforme as precondições.
+- ADMIN tem leitura global e poderes explícitos para atribuir ou substituir o responsável, planejar, publicar revisões durante a execução, iniciar, concluir e cancelar.
 
-Grants explícitos: projects.workflow-read, projects.assign, projects.plan, projects.update, projects.transition, projects.cancel e projects.conversation, além dos grants originais. Para a conversa, REQUESTER é limitado ao autor do projeto; TECHNICIAN ao responsável atual; ADMIN tem acesso administrativo global explícito. A leitura antiga projects.read mantém os perfis anteriores; técnicos utilizam as novas projeções operacionais atribuídas.
+Concluir e retirar operacionalmente um projeto estão disponíveis somente a ADMIN e ao TECHNICIAN que é o responsável atual, conforme o estado e as precondições. A conclusão exige todas as atividades vigentes DONE e o resumo da entrega. REQUESTER e técnicos sem vínculo não podem executar essas operações, inclusive por chamada direta à API. “Excluir projeto” registra uma retirada operacional auditada em `operational_retirements`; não apaga fisicamente o pedido, o workflow, as mensagens, os anexos ou o histórico. O motivo e o ator ficam registrados.
+
+As permissões explícitas incluem `projects.workflow-read`, `projects.assign`, `projects.plan`, `projects.transition`, `projects.cancel` e `projects.conversation`. A conversa é acessível ao autor, ao responsável atual e ao ADMIN. A leitura antiga `projects.read` mantém os perfis anteriores, e técnicos consultam a projeção operacional dos projetos atribuídos.
 
 Cada escrita bloqueia/revalida usuário, sessão e projeto, verifica estado/ownership e atualiza pela revisão esperada. Revisões monotônicas e evento único por revisão. Auditoria falha → rollback. Payloads Zod estritos, CSRF, cookies HttpOnly, CORS e sessões revogáveis preservados. Sem acesso cruzado por IDs.
 
-Histórico público retorna tipo, resumo, autor, data e revisão; não devolve JSON interno arbitrário. Detalhes de mudança anterior/nova ficam na auditoria. Atualizações são imutáveis; correção cria novo registro vinculado ao anterior do mesmo projeto.
+O Histórico autorizado retorna tipo, resumo, autor, data e revisão. A transição automática também registra os estados anterior e novo na auditoria. Cada atualização ou correção antiga aparece uma única vez no Histórico, com conteúdo, autor e data originais. Os eventos e registros antigos continuam imutáveis.
 
 ## Idempotência e concorrência
 
@@ -90,9 +90,13 @@ FKs RESTRICT, índices por responsável/estado e paginação, restrições de es
 
 ## Interface e indicadores
 
-Solicitante, técnico e ADMIN têm navegação de Projetos real, lista filtrável e detalhe autorizado. Gestão usa diálogos, seletor de técnicos elegíveis, editor de etapas/atividades ordenadas, rascunho/publicação, atualização e correção, histórico/versões paginados e feedback após persistência. O detalhe inclui conversa operacional compartilhada entre solicitante autor, responsável atual e ADMIN, reutilizando o componente visual do chat de Chamados. Conversa, atualizações formais, auditoria e versões continuam sendo registros distintos. Em COMPLETED/CANCELED a conversa é somente leitura. Editor carregado sob demanda; componentes, temas e animações existentes preservados.
+Solicitante, técnico e ADMIN têm lista filtrável e detalhe autorizado. O detalhe prioriza a conversa e apresenta a solicitação original com os dados persistidos; as informações do projeto e o progresso ficam no painel lateral. Planejamento, consulta de etapas, versões e Histórico são acessados por controles compactos, com ações disponíveis conforme papel, vínculo e estado. O detalhe inclui conversa operacional entre solicitante autor, responsável atual e ADMIN. Em COMPLETED/CANCELED a conversa é somente leitura.
 
-Dashboards separam Projetos de Chamados: distribuição por estado, solicitações recentes, progresso, atualizações, atividades pendentes da carteira técnica, sem responsável para ADMIN, responsáveis principais(até 10) e evolução mensal UTC de solicitações/conclusões/cancelamentos nos últimos 12 meses. Últimas 24 mudanças mostram evolução individual do progresso, sem média fictícia entre projetos. Sem amostra, estado vazio honesto. Progresso não é SLA, produtividade ou prazo cumprido.
+A atribuição ADMIN de um projeto REQUESTED registra a mudança de responsável e abre PLANNING na mesma operação. Depois da publicação do plano, iniciar a execução continua sendo uma ação explícita. O responsável atual e ADMIN consultam as informações necessárias ao trabalho conforme suas permissões; REQUESTER consulta o plano publicado, etapas, progresso e histórico autorizados, sem edição operacional.
+
+A criação de novas atualizações formais foi descontinuada. O endpoint legado `GET /projects/:id/updates` permanece somente para leitura compatível; registros antigos continuam acessíveis no Histórico com conteúdo, autoria e data originais. A conversa do projeto é o canal para mensagens posteriores. Mensagens, eventos de workflow, versões publicadas e atualizações formais antigas são registros distintos e não substituem uns aos outros.
+
+Dashboards separam Projetos de Chamados: distribuição por estado, solicitações recentes, progresso, atividades pendentes da carteira técnica, sem responsável para ADMIN, responsáveis principais(até 10) e evolução mensal UTC de solicitações/conclusões/cancelamentos nos últimos 12 meses. Últimas 24 mudanças mostram evolução individual do progresso, sem média fictícia entre projetos. Sem amostra, estado vazio honesto. Progresso não é SLA, produtividade ou prazo cumprido.
 
 ## Validação e limites de aceite
 

@@ -53,9 +53,9 @@ Siga os [requisitos e permissões](docs/02-requisitos-e-permissoes.md), as [regr
 
 ## Convenções Git
 
-- Trabalhe na `main` para tarefas rotineiras. Crie ou alterne para outra branch somente mediante autorização específica; não remova branches antigas por iniciativa própria.
-- Commits, exclusões de arquivos ou referências, merges e pushes exigem autorização explícita, salvo quando já permitidos no escopo vigente. Não deduza autorização de publicação da autorização para editar.
-- Escreva mensagens de commit em português e identifique a tarefa, por exemplo: `HD-010: configurar aplicação frontend`. Preserve a identidade aprovada; não altere autoria histórica sem autorização.
+- Trabalhe na `main` para tarefas rotineiras. Criar ou trocar de branch, criar worktrees e remover branches antigas exigem autorização específica.
+- Commits, exclusões de arquivos ou referências, merges e pushes exigem autorização explícita. A autorização para editar não abrange commits nem publicação.
+- Siga o [guia de Conventional Commits 1.0.0 do HelpDesk](docs/40-conventional-commits.md) para os próximos commits autorizados. Preserve a identidade aprovada e a autoria histórica.
 - Não acrescente coautoria, trailers ou atribuição à IA sem solicitação explícita. Preserve coautorias existentes quando a tarefa não autorizar alterá-las.
 - Revise o staging e o diff antes de um commit autorizado. Reescrita de histórico, force push e operações destrutivas não fazem parte do fluxo rotineiro e exigem autorização específica.
 

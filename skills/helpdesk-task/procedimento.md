@@ -20,11 +20,11 @@ Siga as instruções permanentes de [AGENTS.md](../../AGENTS.md) e [CLAUDE.md](.
 ## 3. Execução
 
 - Implemente exclusivamente os itens autorizados dentro da raiz do HelpDesk. Preserve regras, documentação, Skills, configurações e trabalho existente, salvo alterações expressamente incluídas na tarefa. Explique mudanças inesperadas.
-- Trabalhe na `main` por padrão; outra branch exige autorização específica. Não faça commits, exclusões, merges, pushes ou operações destrutivas sem autorização que abranja essas ações.
+- Siga as [convenções Git do AGENTS.md](../../AGENTS.md#convenções-git) para a branch de trabalho e as operações que exigem autorização.
 - Para código, siga TypeScript, validação Zod, autorização no backend por papel e vínculo com o recurso, separação de camadas e testes relevantes, conforme as instruções permanentes e [docs/](../../docs/). Não resolva ADRs por suposição.
 - Não instale pacotes, execute migrations/seeds, opere GitHub, Miro ou outras integrações externas, faça deploy ou altere o sistema operacional sem autorização específica. Não modifique projetos irmãos nem arquivos fora de `C:\dev\helpdesk`.
 - Não exponha senhas, tokens, credenciais ou dados sensíveis em código, logs, screenshots ou respostas; não introduza dados pessoais reais sem autorização e necessidade da tarefa.
-- Em operações Git autorizadas, use mensagens em português com identificação da tarefa. Não acrescente coautoria da IA sem solicitação; preserve a identidade aprovada e os trailers existentes fora do escopo de alteração.
+- Use o [guia de Conventional Commits do HelpDesk](../../docs/40-conventional-commits.md) para mensagens de commits autorizados. Preserve a identidade aprovada e os trailers existentes fora do escopo de alteração.
 
 ## 4. Validação
 
