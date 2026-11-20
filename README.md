@@ -2,92 +2,99 @@
 
 **Chamados de suporte de TI e acompanhamento de projetos em uma plataforma responsiva.**
 
-HelpDesk is a portfolio project for organizing IT support requests, service operations, and project work. It is a local development and validation candidate; production deployment and external integrations are outside the documented scope.
+O HelpDesk é um projeto de portfólio para organizar solicitações de suporte de TI, a operação dos serviços e o acompanhamento de projetos. Ele foi preparado para desenvolvimento e validação em ambiente local; implantação em produção e integrações externas estão fora do escopo documentado.
 
-## In action
+## Em funcionamento
 
-These screens were captured from HelpDesk running locally with fictitious companies, accounts, tickets, and projects.
+As telas abaixo foram capturadas com o HelpDesk rodando localmente, com empresas, contas, chamados e projetos fictícios.
 
-![HelpDesk login screen](docs/screenshots/login.png)
+![Tela de login do HelpDesk](docs/screenshots/login.png)
 
-![Administrative dashboard with ticket metrics](docs/screenshots/admin-painel.png)
+![Dashboard administrativo com indicadores de chamados](docs/screenshots/admin-painel.png)
 
-![Ticket detail showing the conversation and service information](docs/screenshots/chamado-conversa.png)
+![Detalhe de chamado com a conversa e as informações do atendimento](docs/screenshots/chamado-conversa.png)
 
-See the [full screenshot gallery](docs/screenshots/README.md) for project tracking, service management, and role-specific views.
+Veja a [galeria completa de capturas](docs/screenshots/README.md) com o acompanhamento de projetos, a gestão dos serviços e as visões de cada perfil.
 
-## Features
+## Funcionalidades
 
-| Area               | Current capabilities                                                                                                                                   |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Tickets            | Request forms, service catalog, triage, priority, assignment, work, pending periods, resolution, conversations, and audit history.                     |
-| Service operations | Versioned service forms, working schedules, operational policies, and business-time calculations for tickets.                                          |
-| Projects           | Requests, assignment, versioned plans, stages and activities, derived progress, conversations, and auditable workflow. Project progress is not an SLA. |
-| Communication      | Persisted conversations with SSE refresh and private, authorized attachments.                                                                          |
-| Dashboards         | Role-scoped operational views for REQUESTER, TECHNICIAN, and ADMIN.                                                                                    |
-| Administration     | Users, organizations, technician records, catalog, forms, schedules, and operational policies.                                                         |
+| Área                 | Recursos atuais                                                                                                                                                  |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chamados             | Formulários de abertura, catálogo de serviços, triagem, prioridade, atribuição, atendimento, períodos de pendência, solução, conversas e histórico de auditoria. |
+| Operação de serviços | Formulários de serviço versionados, expedientes, políticas operacionais e cálculo de tempo útil dos chamados.                                                    |
+| Projetos             | Solicitações, atribuição, planos versionados, etapas e atividades, progresso calculado, conversas e workflow auditável. O progresso de um projeto não é um SLA.  |
+| Comunicação          | Conversas persistidas com atualização em tempo real por SSE e anexos privados com acesso autorizado.                                                             |
+| Dashboards           | Visões operacionais restritas ao escopo de cada perfil: REQUESTER, TECHNICIAN e ADMIN.                                                                           |
+| Administração        | Usuários, empresas, cadastro de técnicos, catálogo, formulários, expedientes e políticas operacionais.                                                           |
 
-### Access roles
+### Perfis de acesso
 
-| Role       | Scope                                                                                                                                  |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| REQUESTER  | Open and follow their own tickets and project requests, read permitted plans and history, and participate in authorized conversations. |
-| TECHNICIAN | Work on assigned tickets and projects, subject to current ownership and workflow rules.                                                |
-| ADMIN      | Use administrative views and the management actions explicitly granted by the backend.                                                 |
+| Perfil     | Escopo                                                                                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| REQUESTER  | Solicitante: abre e acompanha os próprios chamados e solicitações de projeto, consulta os planos e o histórico permitidos e participa das conversas autorizadas. |
+| TECHNICIAN | Técnico: atende os chamados e projetos atribuídos a ele, conforme o responsável atual e as regras do workflow.                                                   |
+| ADMIN      | Administrador: usa as visões administrativas e as ações de gestão concedidas explicitamente pelo backend.                                                        |
 
-The server enforces permissions and resource ownership. Interface controls do not grant access. See the [current functional contract](docs/v1-contrato.md) and [project workflow](docs/37-workflow-projetos.md).
+O servidor aplica as permissões e verifica a quem pertence cada recurso; os controles da interface não concedem acesso. Consulte o [contrato funcional vigente](docs/v1-contrato.md) e o [workflow de Projetos](docs/37-workflow-projetos.md).
 
-## Architecture
+## Arquitetura
 
 ```mermaid
 flowchart LR
-    U[Users] --> W[React web app]
-    W <-->|HTTP and SSE| A[Express API]
+    U[Usuários] --> W[Aplicação web React]
+    W <-->|HTTP e SSE| A[API Express]
     A --> D[(PostgreSQL)]
-    A --> F[Private attachment storage]
-    C[Shared Zod contracts] -.-> W
+    A --> F[Armazenamento privado de anexos]
+    C[Contratos Zod compartilhados] -.-> W
     C -.-> A
 ```
 
-| Layer                | Technology                                                        |
-| -------------------- | ----------------------------------------------------------------- |
-| Frontend             | React, TypeScript, Vite, Tailwind CSS, ECharts, and GSAP          |
-| Backend              | Node.js, Express, TypeScript, Zod, and Prisma                     |
-| Persistence          | PostgreSQL                                                        |
-| Local infrastructure | Docker Compose                                                    |
-| Authentication       | HttpOnly cookies, CSRF protection, revocable sessions, and Argon2 |
-| Quality              | ESLint, Prettier, TypeScript, Jest, and frontend tests            |
+| Camada               | Tecnologia                                                   |
+| -------------------- | ------------------------------------------------------------ |
+| Frontend             | React, TypeScript, Vite, Tailwind CSS, ECharts e GSAP        |
+| Backend              | Node.js, Express, TypeScript, Zod e Prisma                   |
+| Persistência         | PostgreSQL                                                   |
+| Infraestrutura local | Docker Compose                                               |
+| Autenticação         | Cookies HttpOnly, proteção CSRF, sessões revogáveis e Argon2 |
+| Qualidade            | ESLint, Prettier, TypeScript, Jest e testes do frontend      |
 
-### Repository layout
+### Estrutura do repositório
 
 ```text
 helpdesk/
-├── apps/backend/       # API, domain services, Prisma schema/migrations, and tests
-├── apps/frontend/      # React application and browser tests
-├── packages/contracts/ # Shared validation schemas and types
-├── infra/              # Local PostgreSQL Compose configuration
-├── scripts/            # Local setup and health checks
-├── docs/               # Current contracts, guides, architecture, and history
-├── planning/           # Backlog and traceability
-├── .github/            # Repository workflows
-├── .agents/ .claude/   # Agent instructions and adapters
-├── skills/             # Shared task procedure
-└── package.json        # npm workspaces and root commands
+├── apps/backend/       # API, serviços de domínio, schema e migrations do Prisma, testes
+├── apps/frontend/      # Aplicação React e seus testes
+├── packages/contracts/ # Schemas de validação e tipos compartilhados
+├── infra/              # Configuração do PostgreSQL local com Docker Compose
+├── scripts/            # Configuração local e verificações de saúde
+├── docs/               # Contratos vigentes, guias, arquitetura e histórico
+├── planning/           # Backlog e rastreabilidade
+├── .github/            # Workflows do repositório
+├── .agents/ .claude/   # Instruções e adaptadores para agentes
+├── skills/             # Procedimento de tarefa compartilhado
+└── package.json        # npm workspaces e comandos da raiz
 ```
 
-Environment files, installed dependencies, generated clients, local attachments, backups, logs, and test evidence are local artifacts and must not be committed.
+Arquivos de ambiente, dependências instaladas, clientes gerados, anexos locais, backups, logs e evidências de teste são artefatos locais e não devem ser versionados.
 
-## Local setup
+## Instalação local
 
-### Requirements
+### Requisitos
 
-- Node.js 24.x and npm 11.x.
-- Docker Desktop or Docker Engine with Compose.
-- PowerShell for the commands below.
+- Node.js 24.x e npm 11.x.
+- Docker Desktop ou Docker Engine com Compose.
+- PowerShell para executar os comandos abaixo.
 
-### Configure and start PostgreSQL
+### Obter o código
 
-From the repository root:
+```powershell
+git clone https://github.com/joaoMia/helpdesk.git
+cd helpdesk
+```
+
+### Configurar e iniciar o PostgreSQL
+
+Na raiz do repositório:
 
 ```powershell
 npm ci
@@ -99,9 +106,9 @@ npm run db:status
 npm run db:check
 ```
 
-The setup scripts create a root `.env` with local development settings and generated authentication secrets when needed; they preserve an existing file. Keep `.env` private and ignored. The Compose service uses a persistent named volume. Do not remove it to troubleshoot an application issue.
+Os scripts de configuração criam um `.env` na raiz com as definições do ambiente local e, quando necessário, segredos de autenticação gerados automaticamente; um arquivo já existente é preservado. Mantenha o `.env` privado e ignorado pelo Git. O serviço do Compose usa um volume nomeado persistente; não o remova para investigar problemas da aplicação.
 
-For a new local database only, check `.env`, confirm its target is the intended local development database, and then apply the repository migrations:
+Somente em um banco local novo, confira o `.env`, confirme que o destino é o banco de desenvolvimento local pretendido e então aplique as migrations do repositório:
 
 ```powershell
 npm run prepare:core --workspace @helpdesk/backend
@@ -109,21 +116,21 @@ npm run db:migrate:dev --workspace @helpdesk/backend
 npm run db:migrate:status --workspace @helpdesk/backend
 ```
 
-Do not run migrations against an unconfirmed database. Keep `helpdesk_dev` and `helpdesk_test` separate. The integration suite must use only its isolated test database.
+Não execute migrations em um banco que não foi confirmado. Mantenha `helpdesk_dev` e `helpdesk_test` separados: a suíte de integração deve usar apenas o seu banco de testes isolado.
 
-### Development accounts
+### Contas de desenvolvimento
 
-To create the local ADMIN and TECHNICIAN development accounts, use an interactive terminal that supports hidden password input:
+Para criar as contas locais de ADMIN e TECHNICIAN, use um terminal interativo que permita digitar senhas sem exibi-las:
 
 ```powershell
 npm run provision:dev
 ```
 
-The command preserves existing accounts and does not print or store the entered passwords. Create a REQUESTER through the registration page. Use synthetic names, aliases, and records only. Administrative setup such as organizations, schedules, categories, and published forms can then be completed in the application.
+O comando preserva as contas existentes e não exibe nem armazena as senhas digitadas. Crie um REQUESTER pela página de cadastro. Use apenas nomes, aliases e registros fictícios. Depois, a configuração administrativa — empresas, expedientes, categorias e formulários publicados — pode ser concluída na própria aplicação.
 
-### Start the application
+### Iniciar a aplicação
 
-Run these commands in separate terminals from the repository root:
+Execute estes comandos em terminais separados, a partir da raiz do repositório:
 
 ```powershell
 npm run dev:backend
@@ -133,19 +140,19 @@ npm run dev:backend
 npm run dev:frontend
 ```
 
-Open [http://127.0.0.1:5173/#/login](http://127.0.0.1:5173/#/login). The API health check is [http://127.0.0.1:3001/health](http://127.0.0.1:3001/health); through the Vite proxy it is available at [http://127.0.0.1:5173/api/health](http://127.0.0.1:5173/api/health).
+Acesse [http://127.0.0.1:5173/#/login](http://127.0.0.1:5173/#/login). A verificação de saúde da API fica em [http://127.0.0.1:3001/health](http://127.0.0.1:3001/health) e, pelo proxy do Vite, em [http://127.0.0.1:5173/api/health](http://127.0.0.1:5173/api/health).
 
-| Service    | Default local address |
+| Serviço    | Endereço local padrão |
 | ---------- | --------------------- |
 | Frontend   | `127.0.0.1:5173`      |
 | API        | `127.0.0.1:3001`      |
 | PostgreSQL | `127.0.0.1:5432`      |
 
-Local HTTP services bind to loopback by default. Use a separate configuration, ports, and database volume for a second instance.
+Por padrão, os serviços HTTP locais escutam apenas no endereço de loopback. Para uma segunda instância, use configuração, portas e volume de banco separados.
 
-## Quality checks
+## Verificações de qualidade
 
-Run checks from the root. Avoid running multiple commands that generate Prisma Client at the same time.
+Execute as verificações a partir da raiz. Evite rodar ao mesmo tempo comandos que geram o Prisma Client.
 
 ```powershell
 npm run lint
@@ -159,28 +166,28 @@ npm run build --workspace @helpdesk/backend
 npm run test --workspace @helpdesk/backend
 ```
 
-The backend workspace hooks prepare shared contracts and Prisma Client before its typecheck, build, and unit tests. Run these commands sequentially. For database integration tests, first verify the isolated test target, then use:
+Os hooks do workspace do backend preparam os contratos compartilhados e o Prisma Client antes do typecheck, do build e dos testes unitários. Execute esses comandos em sequência. Para os testes de integração com banco de dados, confira primeiro o destino de teste isolado e então use:
 
 ```powershell
 npm run test:db --workspace @helpdesk/backend
 ```
 
-Never point integration tests at a development or production database. See [local operation and recovery](docs/v1-operacao-local.md) for storage and recovery constraints.
+Nunca aponte os testes de integração para um banco de desenvolvimento ou de produção. Consulte [operação local e recuperação](docs/v1-operacao-local.md) para as restrições de armazenamento e recuperação.
 
-## Security and privacy
+## Segurança e privacidade
 
-The repository is public. Never commit `.env`, credentials, authentication material, database dumps, private attachments, backups, real user records, or screenshots containing private data. The checked-in `.env.example` is a template; keep secret fields blank or clearly fictitious. Do not expose server-only environment variables through the frontend build.
+O repositório é público. Nunca versione `.env`, credenciais, material de autenticação, dumps de banco, anexos privados, backups, registros reais de usuários ou capturas de tela com dados privados. O `.env.example` versionado é um modelo; mantenha os campos secretos vazios ou claramente fictícios. Não exponha variáveis de ambiente exclusivas do servidor no build do frontend.
 
-Uploads are stored privately and require authorization for access. A complete recovery set includes PostgreSQL data and matching private attachment bytes; a database dump alone is insufficient. Keep backups and recovery evidence outside Git with restricted access.
+Os uploads são armazenados de forma privada e exigem autorização para acesso. Um conjunto completo de recuperação inclui os dados do PostgreSQL e os bytes correspondentes dos anexos privados; um dump do banco sozinho não é suficiente. Mantenha backups e evidências de recuperação fora do Git, com acesso restrito.
 
-For vulnerability reports, do not open a public issue. The [GitHub private advisory page](https://github.com/joaoMia/helpdesk/security/advisories/new) is the intended private route if private vulnerability reporting is enabled. Its enablement could not be verified from the available read-only repository metadata; the repository owner should confirm the setting before directing reporters there. See [SECURITY.md](SECURITY.md).
+Para relatar vulnerabilidades, não abra uma issue pública. A [página de aviso privado do GitHub](https://github.com/joaoMia/helpdesk/security/advisories/new) é o canal privado previsto, caso o relato privado de vulnerabilidades esteja habilitado. Essa habilitação não pôde ser confirmada pelos metadados públicos do repositório; o responsável deve conferir a configuração antes de indicar esse canal. Consulte o [SECURITY.md](SECURITY.md).
 
-This project is released under the [MIT License](LICENSE). Dependencies retain their own licenses. The local development instructions are not a production deployment guide.
+Este projeto é distribuído sob a [Licença MIT](LICENSE). As dependências mantêm suas próprias licenças. As instruções de desenvolvimento local não constituem um guia de implantação em produção.
 
-## Documentation
+## Documentação
 
-Start at the [documentation index](docs/README.md) for current contracts, operating guides, architecture, historical records, and backlog links.
+Comece pelo [índice da documentação](docs/README.md) para encontrar os contratos vigentes, os guias de operação, a arquitetura, os registros históricos e os links do backlog.
 
-## Maintainer
+## Responsável
 
-Portfolio project by [João Pedro Miá](https://github.com/joaoMia), released under the [MIT License](LICENSE).
+Projeto de portfólio de [João Pedro Miá](https://github.com/joaoMia), distribuído sob a [Licença MIT](LICENSE).

@@ -4,7 +4,7 @@ HelpDesk is a personal portfolio project. Contributions should preserve the exis
 
 ## Development setup
 
-Follow the [local setup in README](README.md#local-setup). Use synthetic data and keep `.env`, backups, local attachments, and generated artifacts out of Git. Do not use a development database for integration tests.
+Follow the [local setup in README](README.md#instalação-local). Use synthetic data and keep `.env`, backups, local attachments, and generated artifacts out of Git. Do not use a development database for integration tests.
 
 ## Change guidelines
 
@@ -17,7 +17,7 @@ Follow the [local setup in README](README.md#local-setup). Use synthetic data an
 
 ## Validation
 
-Run relevant checks from the root. The standard commands are listed under [Quality checks](README.md#quality-checks). Backend commands that prepare Prisma Client should run sequentially. Database integration tests must use a confirmed isolated test database.
+Run relevant checks from the root. The standard commands are listed under [Quality checks](README.md#verificações-de-qualidade). Backend commands that prepare Prisma Client should run sequentially. Database integration tests must use a confirmed isolated test database.
 
 ## Git and review
 
