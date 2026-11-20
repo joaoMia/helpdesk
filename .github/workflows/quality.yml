@@ -1,0 +1,39 @@
+name: Qualidade da candidata
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Preparar diretório descartável dos testes locais
+        run: New-Item -ItemType Directory -Force .local | Out-Null
+      - run: npm run prepare:core --workspace @helpdesk/backend
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run prisma:validate --workspace @helpdesk/backend
+      - run: node --import tsx --test apps/frontend/tests/*.test.ts
+      - run: npm run build --workspace @helpdesk/frontend
+      - working-directory: apps/backend
+        run: |
+          node ../../node_modules/typescript/bin/tsc --noEmit
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node ../../node_modules/typescript/bin/tsc -p tsconfig.build.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config jest.config.mjs --runInBand
