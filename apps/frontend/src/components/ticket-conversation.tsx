@@ -1,36 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
-import type { Conversation, Attachment, PublicUser } from '@helpdesk/contracts';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import type {
+  Conversation,
+  Attachment,
+  PublicUser,
+  TicketDetail,
+} from '@helpdesk/contracts';
 import { authClient, AuthError } from '../lib/auth-client';
-import { Panel, Icon } from './ui';
+import { Panel } from './ui';
 import { DemoDialog } from './demo-dialog';
 import { MotionRegion } from './motion-region';
 import { useMotionPreference } from '../hooks/use-motion-preference';
+import { TicketOpening } from './ticket-opening';
+import { AttachmentCard, AttachmentPicker } from './attachment-card';
+import {
+  attachmentSelectionError,
+  fileSelectionKey,
+  newSelections,
+} from '../lib/attachment-display';
 
-import { mergeMessages, chatWritable } from '../lib/chat-messages';
-function AttachmentImage({
-  src,
-  name,
-  expanded = false,
-}: {
-  src: string;
-  name: string;
-  expanded?: boolean;
-}) {
-  const [failed, setFailed] = useState(false);
-  return failed ? (
-    <span role="status">Prévia indisponível. Use Download.</span>
-  ) : (
-    <img
-      className={
-        expanded
-          ? 'max-h-[70vh] max-w-full rounded-xl object-contain'
-          : 'max-h-64 max-w-full rounded-xl object-contain'
-      }
-      src={src}
-      alt={name}
-      loading="lazy"
-      onError={() => setFailed(true)}
-    />
+import {
+  mergeMessages,
+  chatWritable,
+  projectTicketOpening,
+} from '../lib/chat-messages';
+type ChatResource = 'tickets' | 'project-conversation';
+type PendingMessage = {
+  id: string;
+  content: string;
+  files: File[];
+  attachmentIds: string[];
+};
+
+function discardDrafts(id: string, ids: string[], resource: ChatResource) {
+  return Promise.allSettled(
+    ids.map((fileId) => authClient.discardAttachment(id, fileId, resource)),
   );
 }
 export function TicketConversation({
@@ -44,32 +48,37 @@ export function TicketConversation({
   allowWrite,
   allowSolve,
   solutionControl,
+  opening,
+  projectOpening,
 }: {
   id: string;
   status: string;
   user: PublicUser;
   onExpired: () => void;
   onChanged: () => void;
-  resource?: 'tickets' | 'project-conversation';
+  resource?: ChatResource;
   contextLabel?: 'chamado' | 'projeto';
   allowWrite?: boolean;
   allowSolve?: boolean;
   solutionControl?: { open: boolean; onOpenChange: (open: boolean) => void };
+  opening?: { ticket: TicketDetail; requester: string };
+  projectOpening?: ReactNode;
 }) {
   const [solvedAt, setSolvedAt] = useState('');
   const [solutionSaved, setSolutionSaved] = useState(false);
   const [data, setData] = useState<Conversation | null>(null),
     [text, setText] = useState(''),
     [error, setError] = useState(''),
+    [syncError, setSyncError] = useState(''),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(true),
     [connected, setConnected] = useState(false),
     [newMessages, setNewMessages] = useState(false),
     [files, setFiles] = useState<File[]>([]),
+    [showFiles, setShowFiles] = useState(false),
     [solutionFiles, setSolutionFiles] = useState<File[]>([]),
     [solution, setSolution] = useState(''),
     [localSolving, setLocalSolving] = useState(false),
-    [preview, setPreview] = useState<Attachment | null>(null),
     [notice, setNotice] = useState('');
   const solving = solutionControl?.open ?? localSolving;
   const setSolving = solutionControl?.onOpenChange ?? setLocalSolving;
@@ -78,9 +87,21 @@ export function TicketConversation({
     !data?.solution &&
     (allowSolve ?? (user.role === 'TECHNICIAN' && status === 'IN_PROGRESS'));
   const { reduced } = useMotionPreference();
+  const composerHelp = useId();
+  const fixed = !!(opening || projectOpening);
+  const openingTicket = opening?.ticket;
+  const presentation = useMemo(
+    () =>
+      openingTicket && data ? projectTicketOpening(openingTicket, data) : null,
+    [openingTicket, data],
+  );
+  const comments = presentation?.comments ?? data?.comments;
+  const messageCount = comments?.length ?? 0;
   const viewport = useRef<HTMLDivElement>(null),
-    messageRequest = useRef<{ signature: string; id: string } | null>(null),
+    composer = useRef<HTMLTextAreaElement>(null),
+    messageRequest = useRef<PendingMessage | null>(null),
     previousCount = useRef(0),
+    initialHistory = useRef(false),
     atBottom = useRef(true),
     sending = useRef(false),
     active = useRef(true),
@@ -92,6 +113,7 @@ export function TicketConversation({
   useEffect(() => {
     active.current = true;
     previousCount.current = 0;
+    initialHistory.current = false;
     atBottom.current = true;
     let disposed = false,
       scopeLost = false,
@@ -117,7 +139,7 @@ export function TicketConversation({
         if (disposed) return;
         first = { ...first, comments: mergeMessages(messages) };
         setData(first);
-        setError('');
+        setSyncError('');
         callbacks.current.onChanged();
       } catch (e) {
         if (!disposed) {
@@ -127,7 +149,6 @@ export function TicketConversation({
             if (e instanceof AuthError && [403, 404].includes(e.status)) {
               scopeLost = true;
               setData(null);
-              setPreview(null);
               setFiles([]);
               setSolutionFiles([]);
               source?.close();
@@ -135,7 +156,7 @@ export function TicketConversation({
               setConnected(false);
               callbacks.current.onChanged();
             }
-            setError(
+            setSyncError(
               'Não foi possível sincronizar a conversa. Verifique sua autorização antes de tentar novamente.',
             );
           }
@@ -202,25 +223,38 @@ export function TicketConversation({
       active.current = false;
       source?.close();
       clearTimeout(retry);
+      if (!sending.current && messageRequest.current) {
+        void discardDrafts(id, messageRequest.current.attachmentIds, resource);
+        messageRequest.current = null;
+      }
       refresh.current = () => {};
     };
   }, [id, user.id, resource]);
   useEffect(() => {
     const el = viewport.current;
     if (!el) return;
-    const hasNewMessages = (data?.comments.length ?? 0) > previousCount.current;
+    const hasNewMessages = messageCount > previousCount.current;
     const hadMessages = previousCount.current > 0;
-    previousCount.current = data?.comments.length ?? 0;
+    previousCount.current = messageCount;
+    if (fixed && !initialHistory.current && !loading) {
+      initialHistory.current = true;
+      atBottom.current = el.scrollHeight - el.clientHeight - el.scrollTop <= 96;
+      return;
+    }
     if (atBottom.current) {
-      if (hasNewMessages && hadMessages && !loading)
-        el.lastElementChild?.scrollIntoView({
-          block: 'nearest',
-          behavior: reduced ? 'instant' : 'smooth',
-        });
+      if (hasNewMessages && !loading) {
+        if (fixed) el.scrollTop = el.scrollHeight;
+        else if (hadMessages)
+          el.lastElementChild?.scrollIntoView({
+            block: 'nearest',
+            behavior: reduced ? 'instant' : 'smooth',
+          });
+      }
       setNewMessages(false);
     } else if (hasNewMessages) setNewMessages(true);
-  }, [data, reduced, loading]);
+  }, [data, messageCount, reduced, loading, fixed]);
   useEffect(() => {
+    if (fixed) return;
     const track = () => {
       const el = viewport.current;
       if (!el) return;
@@ -230,70 +264,89 @@ export function TicketConversation({
     };
     window.addEventListener('scroll', track, { passive: true });
     return () => window.removeEventListener('scroll', track);
-  }, []);
+  }, [fixed]);
   const writable =
     !solutionSaved && !data?.solution && (allowWrite ?? chatWritable(status));
-  function select(list: FileList | null, solutionMode = false) {
-    if (!list) return;
-    const chosen = Array.from(list);
-    if (chosen.some((f) => f.size > 10 * 1024 * 1024)) {
-      setError('Selecione arquivos de até 10 MB.');
+  function select(chosen: File[], solutionMode = false) {
+    const current = solutionMode ? solutionFiles : files;
+    const added = newSelections(current, chosen);
+    const selectionError = attachmentSelectionError(added);
+    if (selectionError) {
+      setError(selectionError);
       return;
     }
-    const setter = solutionMode ? setSolutionFiles : setFiles;
-    setter((old) => {
-      if (old.length + chosen.length > 10) {
-        setError('Selecione no máximo 10 anexos.');
-        return old;
-      }
-      return [...old, ...chosen];
-    });
+    if (current.length + added.length > 10) {
+      setError('Selecione no máximo 10 anexos.');
+      return;
+    }
+    if (added.length) {
+      setError('');
+      (solutionMode ? setSolutionFiles : setFiles)([...current, ...added]);
+    }
   }
   async function send(isSolution = false) {
-    const content = (isSolution ? solution : text).trim(),
+    const original = isSolution ? solution : text,
+      content = original.trim(),
       chosen = isSolution ? solutionFiles : files;
-    if (sending.current || !content) {
-      if (!content)
-        setError(
-          isSolution
-            ? 'Informe a descrição da solução.'
-            : 'Escreva uma mensagem.',
-        );
+    if (sending.current || (isSolution ? !canSolve : !writable)) return;
+    if (!content && (isSolution || !chosen.length)) {
+      setError(
+        isSolution
+          ? 'Informe a descrição da solução.'
+          : 'Escreva uma mensagem ou anexe um arquivo.',
+      );
       return;
     }
+    if (!isSolution) composer.current?.focus({ preventScroll: true });
     sending.current = true;
     setBusy(true);
     setError('');
-    const staged: Attachment[] = [];
+    let staged: string[] = [];
     let submitted = false;
     try {
-      for (const file of chosen)
-        staged.push(
-          await authClient.uploadAttachment(id, file, true, resource),
-        );
-      submitted = true;
-      if (isSolution)
+      let request = isSolution ? null : messageRequest.current;
+      if (
+        request &&
+        (request.content !== content || request.files !== chosen)
+      ) {
+        messageRequest.current = null;
+        await discardDrafts(id, request.attachmentIds, resource);
+        request = null;
+      }
+      if (request) {
+        staged = request.attachmentIds;
+      } else {
+        for (const file of chosen)
+          staged.push(
+            (await authClient.uploadAttachment(id, file, true, resource)).id,
+          );
+      }
+      if (isSolution) {
+        submitted = true;
         await authClient.solveTicket(
           id,
           content,
-          staged.map((f) => f.id),
+          staged,
           resource,
           solvedAt ? new Date(solvedAt).toISOString() : undefined,
         );
-      else {
-        const signature = JSON.stringify([
+      } else {
+        request ??= {
+          id: crypto.randomUUID(),
           content,
-          chosen.map((f) => [f.name, f.size, f.lastModified]),
-        ]);
-        if (messageRequest.current?.signature !== signature)
-          messageRequest.current = { signature, id: crypto.randomUUID() };
+          files: chosen,
+          attachmentIds: staged,
+        };
+        messageRequest.current = request;
+        submitted = true;
         await authClient.addComment(
           id,
           content,
-          staged.map((f) => f.id),
-          messageRequest.current.id,
+          request.attachmentIds,
+          request.id,
           resource,
         );
+        messageRequest.current = null;
       }
       if (active.current) {
         if (isSolution) {
@@ -304,26 +357,35 @@ export function TicketConversation({
           setNotice('Solução registrada.');
           setSolutionSaved(true);
         } else {
-          setText('');
+          setText((current) => (current === original ? '' : current));
           setFiles([]);
-          messageRequest.current = null;
         }
-        atBottom.current = true;
+        if (!fixed) atBottom.current = true;
         refresh.current();
         callbacks.current.onChanged();
       }
     } catch (e) {
-      // Delete only still-private drafts. Already-linked attachments cannot be removed,
-      // including when persistence succeeded but its HTTP response was lost.
-      await Promise.allSettled(
-        staged.map((f) => authClient.discardAttachment(id, f.id, resource)),
-      );
+      const outdatedSchema =
+        e instanceof AuthError && e.code === 'ATTACHMENT_SCHEMA_OUTDATED';
+      const uncertain =
+        submitted &&
+        !outdatedSchema &&
+        (!(e instanceof AuthError) || e.status === 0 || e.status >= 500);
+      // Retries of an unconfirmed message must reuse the original draft IDs and key.
+      if (
+        isSolution ||
+        !(uncertain || (submitted && outdatedSchema)) ||
+        !active.current
+      ) {
+        if (!isSolution) messageRequest.current = null;
+        await discardDrafts(id, staged, resource);
+      }
       if (active.current) {
         if (e instanceof AuthError && e.status === 401)
           callbacks.current.onExpired();
         else
           setError(
-            submitted && !(e instanceof AuthError)
+            uncertain
               ? 'Não foi possível confirmar o envio. Confira a conversa antes de tentar novamente.'
               : e instanceof AuthError
                 ? e.message
@@ -337,104 +399,98 @@ export function TicketConversation({
     }
   }
   const filePicker = (solutionMode = false) => (
-    <label className="button-secondary cursor-pointer">
-      <Icon name="paper" />
-      <span>Anexar</span>
-      <input
-        className="sr-only"
-        aria-label={solutionMode ? 'Anexos da solução' : 'Anexos da mensagem'}
-        type="file"
-        multiple
-        accept=".jpg,.jpeg,.png,.webp,.gif,.txt"
-        disabled={busy}
-        onChange={(e) => {
-          select(e.target.files, solutionMode);
-          e.target.value = '';
-        }}
-      />
-    </label>
+    <AttachmentPicker
+      label={solutionMode ? 'Anexos da solução' : 'Anexos da mensagem'}
+      multiple
+      disabled={busy}
+      onFiles={(selected) => select(selected, solutionMode)}
+    />
   );
-  const selectedFiles = (list: File[], solutionMode = false) => (
-    <ul className="flex flex-wrap gap-2">
-      {list.map((f, i) => (
-        <li
-          key={i}
-          className="info-note flex min-w-0 items-center gap-2 text-xs"
-        >
-          <span className="break-all">
-            {f.name} · {Math.ceil(f.size / 1024)} KB
-          </span>
-          <button
-            type="button"
-            className="text-button"
-            aria-label={'Remover ' + f.name}
+  const selectedFiles = (list: File[], solutionMode = false, strip = false) => (
+    <ul
+      className={strip ? 'attachment-strip' : 'attachment-grid'}
+      aria-label="Anexos selecionados"
+    >
+      {list.map((file) => (
+        <li key={fileSelectionKey(file)}>
+          <AttachmentCard
+            file={file}
+            local={file}
             disabled={busy}
-            onClick={() => {
-              (solutionMode ? setSolutionFiles : setFiles)((old) =>
-                old.filter((_, n) => n !== i),
+            onRemove={() => {
+              (solutionMode ? setSolutionFiles : setFiles)((current) =>
+                current.filter((candidate) => candidate !== file),
               );
             }}
-          >
-            Remover
-          </button>
+          />
         </li>
       ))}
     </ul>
   );
   function attachments(list: Attachment[]) {
     return (
-      <ul className="space-y-2">
-        {list.map((f) => (
-          <li key={f.id} className="min-w-0 space-y-2">
-            {f.previewable && (
-              <button
-                type="button"
-                className="block max-w-full"
-                aria-label={'Ampliar ' + f.name}
-                onClick={() => setPreview(f)}
-              >
-                <AttachmentImage
-                  src={authClient.attachmentUrl(id, f.id, true, resource)}
-                  name={f.name}
-                />
-              </button>
-            )}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <Icon name="paper" />
-              <span className="break-all">
-                {f.name} · {Math.ceil(f.size / 1024)} KB
-              </span>
-              <button
-                type="button"
-                className="text-button"
-                onClick={async () => {
-                  try {
-                    const blob = await authClient.downloadAttachment(
-                        id,
-                        f.id,
-                        resource,
-                      ),
-                      url = URL.createObjectURL(blob),
-                      a = document.createElement('a');
-                    a.href = url;
-                    a.download = f.name;
-                    a.click();
-                    setTimeout(() => URL.revokeObjectURL(url), 1000);
-                  } catch (e) {
-                    if (e instanceof AuthError && e.status === 401)
-                      callbacks.current.onExpired();
-                    else setError('Download indisponível.');
-                  }
-                }}
-              >
-                Download
-              </button>
-            </div>
+      <ul className="attachment-grid" aria-label="Anexos">
+        {list.map((file) => (
+          <li key={file.id}>
+            <AttachmentCard
+              file={file}
+              imageUrl={
+                file.previewable
+                  ? authClient.attachmentUrl(id, file.id, true, resource)
+                  : undefined
+              }
+              load={() => authClient.downloadAttachment(id, file.id, resource)}
+              onExpired={() => callbacks.current.onExpired()}
+            />
           </li>
         ))}
       </ul>
     );
   }
+  const previousFiles =
+    presentation?.previousAttachments ?? data?.attachments ?? [];
+  const legacyFiles = previousFiles.length > 0 && (
+    <details>
+      <summary className="text-button">Anexos anteriores do chamado</summary>
+      {attachments(previousFiles)}
+    </details>
+  );
+  const solutionRecord = data?.solution && (
+    <section className="info-note space-y-3">
+      <h3 className="font-semibold">Solução registrada</h3>
+      <p className="whitespace-pre-wrap break-words">
+        {data.solution.description}
+      </p>
+      <p className="text-xs">
+        {data.solution.authorName} ·{' '}
+        {new Date(data.solution.createdAt).toLocaleString('pt-BR')}
+      </p>
+      {attachments(data.solution.attachments)}
+    </section>
+  );
+  const jumpToLatest = newMessages && (
+    <button
+      className={
+        fixed ? 'ticket-new-messages button-secondary' : 'button-secondary'
+      }
+      onClick={() => {
+        atBottom.current = true;
+        const el = viewport.current;
+        if (fixed && el) {
+          el.scrollTop = el.scrollHeight;
+          el.focus({ preventScroll: true });
+        } else {
+          el?.lastElementChild?.scrollIntoView({
+            block: 'nearest',
+            behavior: reduced ? 'instant' : 'smooth',
+          });
+        }
+        setNewMessages(false);
+      }}
+    >
+      Novas mensagens ↓
+    </button>
+  );
   return (
     <Panel
       title={'Conversa do ' + contextLabel}
@@ -443,11 +499,14 @@ export function TicketConversation({
           ? 'Atualização em tempo real'
           : 'Conectando e sincronizando mensagens…'
       }
+      action={fixed ? jumpToLatest : undefined}
     >
-      <div className="form-body space-y-4">
-        {error && (
+      <div
+        className={fixed ? 'ticket-conversation-body' : 'form-body space-y-4'}
+      >
+        {(syncError || error) && (
           <p role="alert" className="form-error">
-            {error}
+            {error || syncError}
           </p>
         )}
         {notice && (
@@ -455,119 +514,132 @@ export function TicketConversation({
             {notice}
           </p>
         )}
-        {loading && <p role="status">Carregando conversa…</p>}
+        {loading && !fixed && <p role="status">Carregando conversa…</p>}
         <div
           ref={viewport}
           tabIndex={0}
+          role="region"
           aria-label={'Mensagens do ' + contextLabel}
-          className="ticket-chat-messages min-h-64 space-y-3 rounded-xl border border-slate-200 p-3 sm:p-5"
+          className={
+            fixed
+              ? 'ticket-chat-messages ticket-conversation-history space-y-3'
+              : 'ticket-chat-messages min-h-64 space-y-3 rounded-xl border border-slate-200 p-3 sm:p-5'
+          }
+          onScroll={
+            fixed
+              ? (event) => {
+                  const el = event.currentTarget;
+                  atBottom.current =
+                    el.scrollHeight - el.clientHeight - el.scrollTop <= 96;
+                  if (atBottom.current) setNewMessages(false);
+                }
+              : undefined
+          }
         >
-          {!loading && data && !data.comments.length && (
+          {opening && (
+            <TicketOpening
+              ticket={opening.ticket}
+              requester={opening.requester}
+              files={
+                presentation?.openingAttachments.length
+                  ? attachments(presentation.openingAttachments)
+                  : undefined
+              }
+            />
+          )}
+          {projectOpening}
+          {loading && fixed && <p role="status">Carregando conversa…</p>}
+          {!loading && data && !comments?.length && !fixed && (
             <p className="py-12 text-center text-sm text-slate-500">
               A conversa começa aqui. Envie sua primeira mensagem.
             </p>
           )}
-          {data?.comments.map((m, i) => {
+          {comments?.map((m, i) => {
             const own = m.authorId === user.id,
-              day = new Date(m.createdAt).toLocaleDateString('pt-BR');
+              day = new Date(m.createdAt).toLocaleDateString('pt-BR'),
+              layout = 'flex ' + (own ? 'justify-end' : 'justify-start');
+            const bubble = (
+              <article
+                aria-label={'Mensagem de ' + m.authorName}
+                className={
+                  'ticket-chat-bubble max-w-[90%] min-w-0 space-y-2 rounded-2xl border px-4 py-3 sm:max-w-[80%] ' +
+                  (own ? 'ticket-chat-own' : 'ticket-chat-received')
+                }
+              >
+                <p className="text-xs font-semibold">
+                  {own ? 'Você' : m.authorName}
+                </p>
+                {m.content && (
+                  <p className="whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">
+                    {m.content}
+                  </p>
+                )}
+                {(!fixed || m.attachments.length > 0) &&
+                  attachments(m.attachments)}
+                <time
+                  dateTime={m.createdAt}
+                  className="block text-right text-xs text-slate-500"
+                >
+                  {new Date(m.createdAt).toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </time>
+              </article>
+            );
             return (
               <div key={m.id}>
                 {(i === 0 ||
                   day !==
-                    new Date(
-                      data.comments[i - 1]!.createdAt,
-                    ).toLocaleDateString('pt-BR')) && (
+                    new Date(comments[i - 1]!.createdAt).toLocaleDateString(
+                      'pt-BR',
+                    )) && (
                   <p className="py-3 text-center text-xs text-slate-500">
                     {day}
                   </p>
                 )}
-                <MotionRegion
-                  motionKey={'message-' + m.id}
-                  className={'flex ' + (own ? 'justify-end' : 'justify-start')}
-                >
-                  <article
-                    aria-label={'Mensagem de ' + m.authorName}
-                    className={
-                      'ticket-chat-bubble max-w-[90%] min-w-0 space-y-2 rounded-2xl border px-4 py-3 sm:max-w-[80%] ' +
-                      (own ? 'ticket-chat-own' : 'ticket-chat-received')
-                    }
+                {fixed ? (
+                  <div className={layout}>{bubble}</div>
+                ) : (
+                  <MotionRegion
+                    motionKey={'message-' + m.id}
+                    className={layout}
                   >
-                    <p className="text-xs font-semibold">
-                      {own ? 'Você' : m.authorName}
-                    </p>
-                    <p className="whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">
-                      {m.content}
-                    </p>
-                    {attachments(m.attachments)}
-                    <time
-                      dateTime={m.createdAt}
-                      className="block text-right text-xs text-slate-500"
-                    >
-                      {new Date(m.createdAt).toLocaleTimeString('pt-BR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </time>
-                  </article>
-                </MotionRegion>
+                    {bubble}
+                  </MotionRegion>
+                )}
               </div>
             );
           })}
+          {fixed && legacyFiles}
+          {fixed && solutionRecord}
         </div>
-        {newMessages && (
-          <button
-            className="button-secondary"
-            onClick={() => {
-              atBottom.current = true;
-              viewport.current?.lastElementChild?.scrollIntoView({
-                block: 'nearest',
-                behavior: reduced ? 'instant' : 'smooth',
-              });
-              setNewMessages(false);
-            }}
-          >
-            Novas mensagens ↓
-          </button>
-        )}
-        {!!data?.attachments.length && (
-          <details>
-            <summary className="text-button">
-              Anexos anteriores do chamado
-            </summary>
-            {attachments(data.attachments)}
-          </details>
-        )}
-        {data?.solution && (
-          <section className="info-note space-y-3">
-            <h3 className="font-semibold">Solução registrada</h3>
-            <p className="whitespace-pre-wrap break-words">
-              {data.solution.description}
-            </p>
-            <p className="text-xs">
-              {data.solution.authorName} ·{' '}
-              {new Date(data.solution.createdAt).toLocaleString('pt-BR')}
-            </p>
-            {attachments(data.solution.attachments)}
-          </section>
-        )}
+        {!fixed && jumpToLatest}
+        {!fixed && legacyFiles}
+        {!fixed && solutionRecord}
         {writable ? (
           <form
-            className="space-y-3"
+            className={fixed ? 'ticket-composer' : 'space-y-3'}
+            aria-busy={busy}
             onSubmit={(e) => {
               e.preventDefault();
               void send();
             }}
           >
-            {selectedFiles(files)}
+            {files.length > 0 && selectedFiles(files, false, true)}
             <label className="form-label">
-              Mensagem
+              <span className={fixed ? 'sr-only' : undefined}>Mensagem</span>
               <textarea
-                className="field min-h-24 w-full resize-y"
+                ref={composer}
+                className={
+                  fixed
+                    ? 'field w-full resize-none'
+                    : 'field min-h-24 w-full resize-y'
+                }
                 placeholder="Escreva uma mensagem…"
+                aria-describedby={composerHelp}
                 value={text}
                 maxLength={4000}
-                disabled={busy}
-                required
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
                   if (
@@ -581,26 +653,66 @@ export function TicketConversation({
                 }}
               />
             </label>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div
+              className={
+                fixed
+                  ? 'flex flex-wrap items-center gap-2'
+                  : 'flex flex-wrap items-center justify-between gap-3'
+              }
+            >
               {filePicker()}
+              {fixed && files.length > 0 && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => setShowFiles(true)}
+                >
+                  {files.length} {files.length === 1 ? 'anexo' : 'anexos'}
+                </button>
+              )}
               <button
-                className="button-primary"
-                disabled={busy || !text.trim()}
+                className={fixed ? 'button-primary ml-auto' : 'button-primary'}
+                disabled={busy || (!text.trim() && !files.length)}
               >
                 {busy ? 'Enviando…' : 'Enviar mensagem'}
               </button>
             </div>
-            <p className="text-xs text-slate-500">
-              Enter envia · Shift+Enter insere uma linha. Imagens e TXT, até 10
-              MB por arquivo.
+            <p
+              id={composerHelp}
+              className={
+                fixed
+                  ? 'ticket-composer-help text-xs text-slate-500'
+                  : 'text-xs text-slate-500'
+              }
+            >
+              Enter envia · Shift+Enter insere uma linha. Imagens, TXT, MD, CSV,
+              PDF, DOCX, XLSX e PPTX.
             </p>
           </form>
         ) : (
-          <p className="info-note">
+          <p
+            className={
+              fixed ? 'ticket-composer-readonly info-note' : 'info-note'
+            }
+          >
             {contextLabel === 'projeto'
               ? 'Projeto concluído ou cancelado: somente leitura.'
               : 'Chamado resolvido ou encerrado: somente leitura.'}
           </p>
+        )}
+        {writable && fixed && showFiles && (
+          <DemoDialog
+            title="Anexos da mensagem"
+            eyebrow="CONVERSA"
+            cancelLabel="Voltar à mensagem"
+            onCancel={() => setShowFiles(false)}
+          >
+            {files.length ? (
+              selectedFiles(files)
+            ) : (
+              <p>Nenhum anexo selecionado.</p>
+            )}
+          </DemoDialog>
         )}
         {canSolve && !solutionControl && (
           <button
@@ -669,20 +781,6 @@ export function TicketConversation({
                 </p>
               )}
             </div>
-          </DemoDialog>
-        )}
-        {preview && (
-          <DemoDialog
-            title="Visualização do anexo"
-            eyebrow="ARQUIVO AUTORIZADO"
-            onCancel={() => setPreview(null)}
-            cancelLabel="Fechar"
-          >
-            <AttachmentImage
-              src={authClient.attachmentUrl(id, preview.id, true, resource)}
-              name={preview.name}
-              expanded
-            />
           </DemoDialog>
         )}
       </div>

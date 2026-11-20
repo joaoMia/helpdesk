@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { authClient, AuthError } from '../lib/auth-client';
+import {
+  attachmentSelectionError,
+  fileSelectionKey,
+  newSelections,
+} from '../lib/attachment-display';
 import type { OpeningUpload } from '@helpdesk/contracts';
+import { AttachmentCard, AttachmentPicker } from './attachment-card';
+
 export function OpeningFileField({
   serviceId,
   formVersionId,
@@ -22,39 +29,58 @@ export function OpeningFileField({
   disabled?: boolean;
   project?: boolean;
 }) {
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
-  const lock = useRef(false),
-    alive = useRef(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [uploading, setUploading] = useState<File[]>([]);
+  const [local, setLocal] = useState<Record<string, File>>({});
+  const lock = useRef(false);
+  const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
     };
   }, []);
-  async function upload(file: File) {
+  const discard = project
+    ? authClient.discardProjectOpeningFile
+    : authClient.discardOpeningFile;
+
+  async function upload(chosen: File[]) {
     if (lock.current) return;
+    const selection = newSelections(
+      files.flatMap(({ id }) => (local[id] ? [local[id]] : [])),
+      chosen,
+    );
+    if (!selection.length) return;
+    const selectionError = attachmentSelectionError(selection);
+    if (selectionError) {
+      setError(selectionError);
+      return;
+    }
+    if (files.length + selection.length > 10) {
+      setError('Selecione no máximo 10 anexos.');
+      return;
+    }
     lock.current = true;
     onPending(1);
     setBusy(true);
     setError('');
+    setUploading(selection);
+    const uploaded: { item: OpeningUpload; file: File }[] = [];
     try {
-      const item = project
-        ? await authClient.uploadProjectOpeningFile(
-            { categoryId: serviceId, versionId: formVersionId, fieldKey },
-            file,
-          )
-        : await authClient.uploadOpeningFile(
-            { serviceId, formVersionId, fieldKey },
-            file,
-          );
-      if (alive.current) onChange([...files, item]);
-      else
-        await (
-          project
-            ? authClient.discardProjectOpeningFile(item.id)
-            : authClient.discardOpeningFile(item.id)
-        ).catch(() => {});
+      for (const file of selection) {
+        if (!alive.current) break;
+        const item = project
+          ? await authClient.uploadProjectOpeningFile(
+              { categoryId: serviceId, versionId: formVersionId, fieldKey },
+              file,
+            )
+          : await authClient.uploadOpeningFile(
+              { serviceId, formVersionId, fieldKey },
+              file,
+            );
+        uploaded.push({ item, file });
+      }
     } catch (e) {
       if (alive.current) {
         if (e instanceof AuthError && e.status === 401) onExpired();
@@ -62,13 +88,27 @@ export function OpeningFileField({
           setError(
             e instanceof AuthError
               ? e.message
-              : 'Não foi possível confirmar o upload. Nenhuma solicitação foi aberta.',
+              : 'Não foi possível confirmar o upload.',
           );
       }
     } finally {
+      if (alive.current) {
+        if (uploaded.length) {
+          setLocal((current) => ({
+            ...current,
+            ...Object.fromEntries(
+              uploaded.map(({ item, file }) => [item.id, file]),
+            ),
+          }));
+          onChange([...files, ...uploaded.map(({ item }) => item)]);
+        }
+        setUploading([]);
+        setBusy(false);
+      } else {
+        await Promise.allSettled(uploaded.map(({ item }) => discard(item.id)));
+      }
       lock.current = false;
       onPending(-1);
-      if (alive.current) setBusy(false);
     }
   }
   async function remove(id: string) {
@@ -78,10 +118,15 @@ export function OpeningFileField({
     setBusy(true);
     setError('');
     try {
-      await (project
-        ? authClient.discardProjectOpeningFile(id)
-        : authClient.discardOpeningFile(id));
-      if (alive.current) onChange(files.filter((f) => f.id !== id));
+      await discard(id);
+      if (alive.current) {
+        onChange(files.filter((f) => f.id !== id));
+        setLocal((current) => {
+          const next = { ...current };
+          delete next[id];
+          return next;
+        });
+      }
     } catch (e) {
       if (alive.current) {
         if (e instanceof AuthError && e.status === 401) onExpired();
@@ -94,50 +139,50 @@ export function OpeningFileField({
     }
   }
   return (
-    <span className="block space-y-2">
-      <input
-        type="file"
-        className="field w-full"
-        accept=".png,.jpg,.jpeg,.webp,.gif,.txt"
+    <div className="space-y-2">
+      <AttachmentPicker
+        label="Anexar arquivos"
+        multiple
         disabled={disabled || busy || files.length >= 10}
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = '';
-          if (f) void upload(f);
-        }}
+        onFiles={(chosen) => void upload(chosen)}
       />
-      <span className="block text-xs font-normal text-slate-500">
-        Até 10 MB por arquivo. Imagens ou texto UTF-8. Upload privado, válido
-        por 24 horas.
-      </span>
-      {files.map((f) => (
-        <span
-          key={f.id}
-          className="flex flex-wrap items-center gap-2 text-sm font-normal"
-        >
-          <span>
-            {f.name} · {Math.ceil(f.size / 1024)} KB
-          </span>
-          <button
-            type="button"
-            className="text-button"
-            disabled={busy || disabled}
-            onClick={() => void remove(f.id)}
-          >
-            Remover
-          </button>
-        </span>
-      ))}
+      <p className="text-xs font-normal text-slate-500">
+        Imagens, TXT, MD, CSV, PDF, DOCX, XLSX e PPTX. Até 10 MB por arquivo.
+        Upload privado, válido por 24 horas.
+      </p>
+      {(files.length > 0 || uploading.length > 0) && (
+        <ul className="attachment-grid" aria-label="Anexos selecionados">
+          {files.map((file) => (
+            <li key={file.id}>
+              <AttachmentCard
+                file={local[file.id] ?? file}
+                local={local[file.id]}
+                disabled={busy || disabled}
+                onRemove={() => void remove(file.id)}
+              />
+            </li>
+          ))}
+          {uploading.map((file) => (
+            <li key={fileSelectionKey(file)}>
+              <AttachmentCard
+                file={file}
+                local={file}
+                note="Validando arquivo…"
+              />
+            </li>
+          ))}
+        </ul>
+      )}
       {busy && (
-        <span role="status" className="block text-sm">
+        <p role="status" className="text-sm">
           Processando anexo…
-        </span>
+        </p>
       )}
       {error && (
-        <span role="alert" className="form-error block">
+        <p role="alert" className="form-error">
           {error}
-        </span>
+        </p>
       )}
-    </span>
+    </div>
   );
 }

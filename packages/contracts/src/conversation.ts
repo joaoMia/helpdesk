@@ -1,29 +1,53 @@
 import { z } from 'zod';
 const id = z.uuid(),
   stamp = z.iso.datetime({ offset: true });
+export const attachmentMimeByExtension = {
+  '.jpg': 'image/png',
+  '.jpeg': 'image/png',
+  '.png': 'image/png',
+  '.webp': 'image/png',
+  '.gif': 'image/png',
+  '.txt': 'text/plain',
+  '.md': 'text/markdown',
+  '.csv': 'text/csv',
+  '.pdf': 'application/pdf',
+  '.docx':
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.pptx':
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+} as const;
+export const attachmentMimeSchema = z.enum([
+  ...new Set(Object.values(attachmentMimeByExtension)),
+]);
 export const conversationQuerySchema = z.strictObject({
   page: z.coerce.number().int().min(1).max(100000).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(10),
-});
-export const projectMessageInputSchema = z.strictObject({
-  clientMessageId: id,
-  content: z.string().trim().min(1).max(4000),
-  attachmentIds: z
-    .array(id)
-    .max(10)
-    .refine((v) => new Set(v).size === v.length)
-    .default([]),
 });
 const files = z
   .array(id)
   .max(10)
   .refine((v) => new Set(v).size === v.length)
   .default([]);
-export const commentInputSchema = z.strictObject({
-  clientMessageId: id.optional(),
-  content: z.string().trim().min(1).max(4000),
+const messageInput = {
+  content: z.string().trim().max(4000).default(''),
   attachmentIds: files,
-});
+};
+const hasMessageContent = (message: {
+  content: string;
+  attachmentIds: string[];
+}) => message.content.length > 0 || message.attachmentIds.length > 0;
+const emptyMessage = {
+  path: ['content'],
+  message: 'Informe texto ou anexe um arquivo.',
+};
+
+export const projectMessageInputSchema = z
+  .strictObject({ ...messageInput, clientMessageId: id })
+  .refine(hasMessageContent, emptyMessage);
+export const commentInputSchema = z
+  .strictObject({ ...messageInput, clientMessageId: id.optional() })
+  .refine(hasMessageContent, emptyMessage);
 export const solutionInputSchema = z.strictObject({
   solvedAt: stamp.optional(),
   description: z.string().trim().min(1).max(4000),

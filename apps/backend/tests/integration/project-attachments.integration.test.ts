@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { d, account, mutate, origin, storage } from './lifecycle-fixture.js';
 import { ProjectFileRepository } from '../../src/modules/projects/project-file.repository.js';
+import { examplePdf, officeParts, testZip } from '../attachment-fixtures.js';
 type Client = Awaited<ReturnType<typeof account>>['c'];
 async function patch(c: Client, url: string, body: object) {
   const token = (await c.agent.get('/auth/csrf').set('Origin', origin)).body
@@ -105,6 +106,45 @@ function payload(f: F, answers: Record<string, unknown>, key = randomUUID()) {
     form: { categoryId: f.category, versionId: f.version, answers },
   };
 }
+it('preserva PDF, XLSX e Markdown da abertura com MIME verificado e download privado', async () => {
+  const f = await context();
+  const formats = [
+    ['relatorio.pdf', examplePdf(), 'application/pdf'],
+    [
+      'dados.xlsx',
+      testZip(officeParts('xlsx')),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ],
+    ['contexto.md', Buffer.from('# Ação\n3 < 5'), 'text/markdown'],
+  ] as const;
+  const files = [];
+  for (const [name, bytes, mime] of formats) {
+    const draft = await upload(f, name, bytes);
+    expect(draft.status).toBe(201);
+    expect(draft.body.upload.mime).toBe(mime);
+    files.push(draft.body.upload.id as string);
+  }
+  const project = await mutate(
+    f.r.c,
+    '/projects',
+    payload(f, { proof: files }),
+  );
+  expect(project.status).toBe(201);
+  const path = '/projects/' + project.body.project.id + '/attachments';
+  const list = await f.r.c.agent.get(path);
+  expect(list.body.items).toHaveLength(3);
+  for (const [index, [name, , mime]] of formats.entries()) {
+    const result = await f.r.c.agent.get(
+      path + '/' + files[index] + '?preview=true',
+    );
+    expect(result.status).toBe(200);
+    expect(result.headers['content-type']).toContain(mime);
+    expect(result.headers['content-disposition']).toMatch(/^attachment;/);
+    expect(result.headers['content-disposition']).toContain(name);
+  }
+  const outsider = await account('REQUESTER');
+  expect((await outsider.c.agent.get(path + '/' + files[0])).status).toBe(404);
+});
 it('arquivo obrigatório é reivindicado atomicamente; download respeita autor, ADMIN e responsável atual', async () => {
   const f = await context(),
     other = await account('REQUESTER'),

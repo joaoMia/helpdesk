@@ -200,7 +200,12 @@ export class ConversationRepository {
       },
       data: { ...target, isDraft: false },
     });
-    if (r.count !== ids.length) throw conflict();
+    if (r.count !== ids.length)
+      throw new ApplicationError(
+        'ATTACHMENT_UNAVAILABLE',
+        409,
+        'Um ou mais anexos já foram usados ou não estão disponíveis para este chamado. Selecione os arquivos novamente.',
+      );
   }
   async download(identity: Identity, ticketId: string, id: string) {
     const row = await this.db.ticketAttachment.findFirst({

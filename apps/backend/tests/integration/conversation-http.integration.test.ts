@@ -499,22 +499,42 @@ it('rascunhos são privados, vinculados ao enviar, descartáveis somente pelo au
         .set('Origin', origin)
     ).status,
   ).toBe(403);
-  expect(
-    (
-      await mutate(f.r.c, '/tickets/' + f.id + '/comments', {
-        content: 'Mensagem com anexo',
-        attachmentIds: [file.id],
-      })
-    ).status,
-  ).toBe(201);
+  const commentsPath = '/tickets/' + f.id + '/comments';
+  expect((await mutate(f.r.c, commentsPath, { content: '   ' })).status).toBe(
+    400,
+  );
+  await expect(
+    d.db.ticketComment.create({
+      data: { ticketId: f.id, authorId: f.r.u.id, content: '' },
+    }),
+  ).rejects.toThrow();
+  const body = {
+    content: '',
+    attachmentIds: [file.id],
+    clientMessageId: randomUUID(),
+  };
+  const sent = await mutate(f.r.c, commentsPath, body);
+  expect(sent.status).toBe(201);
+  const replayed = await mutate(f.r.c, commentsPath, body);
+  expect(replayed.status).toBe(201);
+  expect(replayed.body).toEqual(sent.body);
   expect(
     (await d.db.ticketAttachment.findUniqueOrThrow({ where: { id: file.id } }))
       .isDraft,
   ).toBe(false);
-  expect(
-    (await f.t.c.agent.get('/tickets/' + f.id + '/conversation')).body
-      .comments[0].attachments[0].id,
-  ).toBe(file.id);
+  const history = (await f.t.c.agent.get('/tickets/' + f.id + '/conversation'))
+    .body.comments;
+  expect(history).toHaveLength(1);
+  expect(history[0]).toMatchObject({
+    content: '',
+    attachments: [expect.objectContaining({ id: file.id })],
+  });
+  await expect(
+    d.db.ticketAttachment.update({
+      where: { id: file.id },
+      data: { commentId: null },
+    }),
+  ).rejects.toThrow();
   const reader = await account('TECHNICIAN');
   expect(
     (await reader.c.agent.get('/tickets/' + f.id + '/conversation')).status,
@@ -568,6 +588,58 @@ it('rascunhos são privados, vinculados ao enviar, descartáveis somente pelo au
         .set('X-CSRF-Token', next)
     ).status,
   ).toBe(204);
+});
+
+it('schema anterior identifica a incompatibilidade ao enviar imagem sem texto em Chamados', async () => {
+  const f = await fixture();
+  await d.db.$executeRaw`
+    ALTER TABLE ticket_comments DROP CONSTRAINT comment_content_valid,
+    ADD CONSTRAINT comment_content_valid CHECK (length(btrim(content)) BETWEEN 1 AND 4000)
+  `;
+  const token = (await f.r.c.agent.get('/auth/csrf').set('Origin', origin)).body
+    .csrfToken;
+  const png = await sharp({
+    create: { width: 2, height: 2, channels: 3, background: '#123456' },
+  })
+    .png()
+    .toBuffer();
+  const upload = await f.r.c.agent
+    .post('/tickets/' + f.id + '/attachments?draft=true&name=isolado.png')
+    .set('Origin', origin)
+    .set('X-CSRF-Token', token)
+    .set('Content-Type', 'application/octet-stream')
+    .send(png);
+  expect(upload.status).toBe(201);
+  const fileId = upload.body.attachment.id;
+  const route = '/tickets/' + f.id + '/comments';
+  const body = {
+    content: '',
+    clientMessageId: randomUUID(),
+    attachmentIds: [fileId],
+  };
+  const result = await mutate(f.r.c, route, body);
+  expect({ status: result.status, code: result.body.error?.code }).toEqual({
+    status: 503,
+    code: 'ATTACHMENT_SCHEMA_OUTDATED',
+  });
+  expect(await d.db.ticketComment.count({ where: { ticketId: f.id } })).toBe(0);
+  expect(
+    await d.db.ticketAttachment.findUnique({ where: { id: fileId } }),
+  ).toMatchObject({ isDraft: true, commentId: null });
+  await d.db.$executeRaw`
+    ALTER TABLE ticket_comments DROP CONSTRAINT comment_content_valid,
+    ADD CONSTRAINT comment_content_valid CHECK (content = '' OR length(btrim(content)) BETWEEN 1 AND 4000)
+  `;
+  const sent = await mutate(f.r.c, route, body);
+  expect(sent.status).toBe(201);
+  expect((await mutate(f.r.c, route, body)).body).toEqual(sent.body);
+  expect(await d.db.ticketComment.count({ where: { ticketId: f.id } })).toBe(1);
+  expect(
+    await d.db.ticketAttachment.findUnique({ where: { id: fileId } }),
+  ).toMatchObject({
+    isDraft: false,
+    commentId: sent.body.id,
+  });
 });
 it('SSE sincroniza duas instâncias pelo PostgreSQL, recupera reconexão e encerra sessão revogada', async () => {
   const f = await fixture();

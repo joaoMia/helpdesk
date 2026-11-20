@@ -216,15 +216,7 @@ it('solicitante autor conversa em REQUESTED e PLANNING; outro solicitante não a
   );
   await assign(admin.c, id, technician.u.id);
   const current = await admin.c.agent.get('/projects/' + id + '/workflow');
-  expect(
-    (
-      await mutate(admin.c, '/projects/' + id + '/planning', {
-        expectedRevision: current.body.revision,
-        clientOperationId: randomUUID(),
-        reason: 'Início do planejamento fictício.',
-      })
-    ).status,
-  ).toBe(200);
+  expect(current.body.state).toBe('PLANNING');
   expect((await send(requester.c, id, 'Mensagem em PLANNING.')).status).toBe(
     201,
   );
@@ -246,22 +238,12 @@ it('solicitante autor envia em IN_PROGRESS e a conclusão explícita torna a con
     technician = await account('TECHNICIAN'),
     id = await createProject(requester.c);
   await assign(admin.c, id, technician.u.id);
-  let workflow = (await admin.c.agent.get('/projects/' + id + '/workflow'))
-    .body;
-  expect(
-    (
-      await mutate(admin.c, '/projects/' + id + '/planning', {
-        expectedRevision: workflow.revision,
-        clientOperationId: randomUUID(),
-        reason: 'Planejamento fictício.',
-      })
-    ).status,
-  ).toBe(200);
   const csrf = (
     await technician.c.agent.get('/auth/csrf').set('Origin', origin)
   ).body.csrfToken;
-  workflow = (await technician.c.agent.get('/projects/' + id + '/workflow'))
+  let workflow = (await technician.c.agent.get('/projects/' + id + '/workflow'))
     .body;
+  expect(workflow.state).toBe('PLANNING');
   expect(
     (
       await technician.c.agent
@@ -419,18 +401,58 @@ it('anexos da mensagem são privados, sanitizados, vinculados à conversa e baix
     mime: 'image/png',
     previewable: true,
   });
-  const message = await send(requester.c, id, 'Imagem segura.', randomUUID(), [
-    uploaded.body.attachment.id,
-  ]);
+  const csv = await requester.c.agent
+    .post('/projects/' + id + '/conversation/attachments?name=registros.csv')
+    .set('Origin', origin)
+    .set('X-CSRF-Token', csrf)
+    .set('Content-Type', 'application/octet-stream')
+    .send(Buffer.from('nome,valor\nAção,3\n'));
+  expect(csv.status).toBe(201);
+  expect(csv.body.attachment).toMatchObject({
+    mime: 'text/csv',
+    previewable: false,
+  });
+  expect((await send(requester.c, id, '   ')).status).toBe(400);
+  await expect(d.db.$executeRaw`
+    INSERT INTO project_conversation_messages (project_id, author_id, client_message_id, content)
+    VALUES (${id}::uuid, ${requester.u.id}::uuid, ${randomUUID()}::uuid, '')
+  `).rejects.toThrow();
+  const messageKey = randomUUID();
+  const files = [uploaded.body.attachment.id, csv.body.attachment.id];
+  expect((await send(requester.c, other, '', randomUUID(), files)).status).toBe(
+    409,
+  );
+  const message = await send(requester.c, id, '', messageKey, files);
   expect(message.status).toBe(201);
-  const read = (await tech.c.agent.get('/projects/' + id + '/conversation'))
-    .body.comments[0];
-  expect(read.attachments[0]).toMatchObject({
+  const replayed = await send(requester.c, id, '', messageKey, files);
+  expect(replayed.status).toBe(201);
+  expect(replayed.body).toEqual(message.body);
+  const { comments } = (
+    await tech.c.agent.get('/projects/' + id + '/conversation')
+  ).body;
+  expect(comments).toHaveLength(1);
+  const read = comments[0];
+  expect(read.content).toBe('');
+  expect(read.attachments).toHaveLength(2);
+  const image = read.attachments.find(
+    (file: { id: string }) => file.id === uploaded.body.attachment.id,
+  );
+  expect(image).toMatchObject({
     name: 'imagem.png',
     mime: 'image/png',
     previewable: true,
   });
-  const fileId = read.attachments[0].id;
+  const fileId = image.id;
+  const csvDownload = await tech.c.agent.get(
+    '/projects/' +
+      id +
+      '/conversation/attachments/' +
+      csv.body.attachment.id +
+      '?preview=true',
+  );
+  expect(csvDownload.status).toBe(200);
+  expect(csvDownload.headers['content-type']).toMatch(/^text\/csv/);
+  expect(csvDownload.headers['content-disposition']).toMatch(/^attachment;/);
   expect(
     (
       await tech.c.agent.get(
@@ -478,6 +500,37 @@ it('anexos da mensagem são privados, sanitizados, vinculados à conversa e baix
       )
     ).status,
   ).toBe(200);
+});
+
+it('schema anterior identifica a incompatibilidade ao enviar imagem sem texto em Projetos', async () => {
+  const owner = await account('REQUESTER');
+  const id = await createProject(owner.c);
+  await d.db.$executeRaw`
+    ALTER TABLE project_conversation_messages DROP CONSTRAINT project_conversation_messages_content_check,
+    ADD CONSTRAINT project_conversation_messages_content_check CHECK (length(btrim(content)) BETWEEN 1 AND 4000)
+  `;
+  const token = (await owner.c.agent.get('/auth/csrf').set('Origin', origin))
+    .body.csrfToken;
+  const png = await sharp({
+    create: { width: 2, height: 2, channels: 3, background: '#123456' },
+  })
+    .png()
+    .toBuffer();
+  const upload = await owner.c.agent
+    .post('/projects/' + id + '/conversation/attachments?name=isolado.png')
+    .set('Origin', origin)
+    .set('X-CSRF-Token', token)
+    .set('Content-Type', 'application/octet-stream')
+    .send(png);
+  expect(upload.status).toBe(201);
+  const fileId = upload.body.attachment.id;
+  const result = await send(owner.c, id, '', randomUUID(), [fileId]);
+  expect({ status: result.status, code: result.body.error?.code }).toEqual({
+    status: 503,
+    code: 'ATTACHMENT_SCHEMA_OUTDATED',
+  });
+  const history = await owner.c.agent.get('/projects/' + id + '/conversation');
+  expect(history.body.comments).toEqual([]);
 });
 
 it('admin participa com permissão explícita; terminais permanecem somente leitura e a conversa não altera o workflow', async () => {

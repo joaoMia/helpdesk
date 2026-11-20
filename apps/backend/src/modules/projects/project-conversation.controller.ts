@@ -1,3 +1,4 @@
+import { privateAttachmentHeaders } from '../tickets/attachment-download.js';
 import type { RequestHandler } from 'express';
 import type { AuthRuntime } from '../auth/auth.routes.js';
 import type { ProjectConversationService } from './project-conversation.service.js';
@@ -40,16 +41,7 @@ export function projectConversationController(
       req.params.fileId,
       req.query,
     );
-    res
-      .set({
-        'Cache-Control': 'no-store',
-        'X-Content-Type-Options': 'nosniff',
-        'Cross-Origin-Resource-Policy': 'same-origin',
-        'Content-Security-Policy': "sandbox; default-src 'none'",
-        'Content-Type': file.mime,
-        'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="arquivo${file.mime === 'image/png' ? '.png' : '.txt'}"; filename*=UTF-8''${encodeURIComponent(file.name).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase())}`,
-      })
-      .send(bytes);
+    res.set(privateAttachmentHeaders(file, inline)).send(bytes);
   };
   return { read, send, upload, discard, download };
 }

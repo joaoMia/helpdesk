@@ -26,6 +26,8 @@ const reviewed = [
   '20261108160000_anexos_projetos',
   '20261108200000_conversa_projetos',
   '20261109110000_project_priority_retirement_checkbox_group',
+  '20261116120000_mensagens_somente_anexos',
+  '20261116133000_formatos_anexos_privados',
 ];
 const coreTables = [
   '_prisma_migrations',

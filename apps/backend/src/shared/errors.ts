@@ -18,9 +18,36 @@ export function databaseErrorCode(error: unknown) {
   const code = meta.code ?? cause.originalCode;
   return typeof code === 'string' ? code : undefined;
 }
+const attachmentConstraints = [
+  'comment_content_valid',
+  'project_conversation_messages_content_check',
+  'attachment_shape',
+  'opening_upload_shape',
+  'project_attachments_mime_check',
+  'project_conversation_attachments_mime_check',
+];
+
+function outdatedAttachmentSchema(error: unknown) {
+  if (databaseErrorCode(error) !== '23514') return false;
+  const meta = object(object(error).meta);
+  const cause = object(object(meta.driverAdapterError).cause);
+  const detail = cause.originalMessage ?? meta.message ?? meta.database_error;
+  return (
+    typeof detail === 'string' &&
+    attachmentConstraints.some((name) => detail.includes('"' + name + '"'))
+  );
+}
+
 export function publicError(error: unknown) {
   if (error instanceof ApplicationError)
     return { status: error.status, code: error.code, message: error.message };
+  if (outdatedAttachmentSchema(error))
+    return {
+      status: 503,
+      code: 'ATTACHMENT_SCHEMA_OUTDATED',
+      message:
+        'O banco ainda precisa da atualização de anexos para este envio. Após a atualização, tente novamente.',
+    };
   const code =
     error && typeof error === 'object' && 'code' in error
       ? error.code

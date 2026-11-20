@@ -14,12 +14,22 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
 import { ApplicationError } from '../../shared/errors.js';
-import { attachmentNameSchema } from '@helpdesk/contracts';
-const denied = () =>
+import {
+  attachmentMimeByExtension,
+  attachmentNameSchema,
+} from '@helpdesk/contracts';
+import {
+  hasInvalidTextControls,
+  validateOfficeDocument,
+} from './attachment-documents.js';
+import { validateStaticPdf } from './attachment-pdf.js';
+const invalid = (message: string) =>
+  new ApplicationError('INVALID_FILE', 400, message);
+const tooLarge = () =>
   new ApplicationError(
-    'INVALID_FILE',
-    400,
-    'Arquivo inválido. Aceitos: JPEG, PNG, WEBP, GIF e texto simples UTF-8, dentro do limite indicado.',
+    'FILE_TOO_LARGE',
+    413,
+    'O arquivo excede o tamanho máximo permitido.',
   );
 const local = fileURLToPath(new URL('../../../../../.local/', import.meta.url));
 export const attachmentLimits = { bytes: 10 * 1024 * 1024, count: 10 };
@@ -44,26 +54,71 @@ export async function validateAttachment(
   max = attachmentLimits.bytes,
 ) {
   const parsed = attachmentNameSchema.safeParse(name);
-  if (!parsed.success || !input.length || input.length > max) throw denied();
+  if (!parsed.success) throw invalid('O nome do arquivo é inválido.');
+  if (!input.length) throw invalid('O arquivo está vazio.');
+  if (input.length > max) throw tooLarge();
   const extension = path.extname(parsed.data).toLowerCase();
-  if (extension === '.txt') {
+  if (!Object.hasOwn(attachmentMimeByExtension, extension))
+    throw new ApplicationError(
+      'FILE_FORMAT_NOT_ALLOWED',
+      400,
+      'O formato do arquivo não é permitido.',
+    );
+  const mime =
+    attachmentMimeByExtension[
+      extension as keyof typeof attachmentMimeByExtension
+    ];
+  if (mime.startsWith('text/')) {
     let text: string;
     try {
       text = new TextDecoder('utf-8', { fatal: true }).decode(input);
     } catch {
-      throw denied();
+      throw invalid(
+        'O texto não está codificado em UTF-8. Salve o arquivo em UTF-8 e tente novamente.',
+      );
     }
-    if (!text.length) throw denied();
-    if (/[<>]/.test(text)) throw denied();
-    for (let i = 0; i < text.length; i++) {
-      const code = text.charCodeAt(i);
-      if (code < 32 && code !== 9 && code !== 10 && code !== 13) throw denied();
+    if (!text.length) throw invalid('O arquivo está vazio.');
+    if (hasInvalidTextControls(text))
+      throw invalid(
+        'O arquivo contém caracteres de controle incompatíveis com texto.',
+      );
+    if (
+      /^\s*(?:<!doctype\s+html\b|<\s*(?:html|head|body|script|iframe|svg)\b|<\?xml\b|#!)/i.test(
+        text,
+      )
+    )
+      throw invalid(
+        'O arquivo contém HTML, XML ou um script em vez do formato de texto selecionado.',
+      );
+    if (extension === '.csv') {
+      const columns = [',', ';', '\t'].map((separator) =>
+        csvWidth(text, separator),
+      );
+      if (
+        !columns.some((width) => width > 1) &&
+        !columns.every((width) => width === 1)
+      )
+        throw invalid('O conteúdo não possui uma estrutura CSV válida.');
     }
     return {
       name: parsed.data,
-      mime: 'text/plain',
+      mime,
       bytes: Buffer.from(text, 'utf8'),
     };
+  }
+  if (extension === '.pdf') {
+    await validateStaticPdf(input);
+    return { name: parsed.data, mime, bytes: input };
+  }
+  if (extension === '.docx' || extension === '.xlsx' || extension === '.pptx') {
+    try {
+      validateOfficeDocument(input, extension);
+    } catch {
+      throw invalid(
+        'Documento Office inválido, incompatível ou com conteúdo ativo. Envie um arquivo sem macros, objetos incorporados ou vínculos externos.',
+      );
+    }
+    return { name: parsed.data, mime, bytes: input };
   }
   const formats: Record<string, string> = {
     '.jpg': 'jpeg',
@@ -72,7 +127,7 @@ export async function validateAttachment(
     '.webp': 'webp',
     '.gif': 'gif',
   };
-  if (!formats[extension]) throw denied();
+  let bytes: Buffer;
   try {
     const image = sharp(input, {
       limitInputPixels: 16_000_000,
@@ -80,18 +135,63 @@ export async function validateAttachment(
       animated: false,
     });
     const metadata = await image.metadata();
-    if (metadata.format !== formats[extension]) throw denied();
+    if (metadata.format !== formats[extension])
+      throw invalid('O conteúdo da imagem não corresponde à extensão.');
     // Decode/re-encode, strip metadata/trailing payloads. GIF preview is first frame.
-    const bytes = await image.rotate().png().toBuffer();
-    if (bytes.length > max) throw denied();
-    return {
-      name: parsed.data.replace(/\.[^.]+$/, '.png'),
-      mime: 'image/png',
-      bytes,
-    };
-  } catch {
-    throw denied();
+    bytes = await image.rotate().png().toBuffer();
+  } catch (error) {
+    if (error instanceof ApplicationError) throw error;
+    throw invalid(
+      'A imagem é inválida, excede o limite de pixels ou não pode ser lida.',
+    );
   }
+  if (bytes.length > max) throw tooLarge();
+  return {
+    name: parsed.data.replace(/\.[^.]+$/, '.png'),
+    mime: 'image/png' as const,
+    bytes,
+  };
+}
+
+function csvWidth(text: string, separator: string) {
+  type Field = 'start' | 'plain' | 'quoted' | 'closed';
+  let field: Field = 'start';
+  let columns = 1;
+  let expected: number | undefined;
+  let hasValue = false;
+  for (let i = 0; i <= text.length; i++) {
+    const char = text[i];
+    if (field === 'quoted') {
+      if (char === undefined) return 0;
+      if (char === '"') {
+        if (text[i + 1] === '"') i++;
+        else field = 'closed';
+      }
+      continue;
+    }
+    if (char === '\n' || char === '\r' || char === undefined) {
+      if (char === '\r' && text[i + 1] === '\n') i++;
+      if (hasValue) {
+        if (expected !== undefined && expected !== columns) return 0;
+        expected = columns;
+      }
+      columns = 1;
+      hasValue = false;
+      field = 'start';
+    } else if (char === separator) {
+      columns++;
+      hasValue = true;
+      field = 'start';
+    } else if (char === '"' && field === 'start') {
+      hasValue = true;
+      field = 'quoted';
+    } else if (field === 'closed' || char === '"') return 0;
+    else {
+      hasValue = true;
+      field = 'plain';
+    }
+  }
+  return expected ?? 0;
 }
 export class AttachmentStorage {
   private ready?: Promise<void>;
@@ -158,10 +258,18 @@ export class AttachmentStorage {
   }
   async put(bytes: Buffer) {
     const key = randomUUID() + '.bin';
-    await writeFile(await this.location(key), bytes, {
-      flag: 'wx',
-      mode: 0o600,
-    });
+    try {
+      await writeFile(await this.location(key), bytes, {
+        flag: 'wx',
+        mode: 0o600,
+      });
+    } catch {
+      throw new ApplicationError(
+        'UPLOAD_UNAVAILABLE',
+        503,
+        'Falha temporária no armazenamento do arquivo. Tente novamente.',
+      );
+    }
     return { key, sha256: createHash('sha256').update(bytes).digest('hex') };
   }
   async get(key: string, hash: string) {

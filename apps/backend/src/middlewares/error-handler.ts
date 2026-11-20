@@ -3,7 +3,7 @@ import { publicError } from '../shared/errors.js';
 
 export const errorHandler: ErrorRequestHandler = (
   error: unknown,
-  _request,
+  request,
   response,
   _next,
 ) => {
@@ -17,11 +17,17 @@ export const errorHandler: ErrorRequestHandler = (
   const result = invalidJson
     ? { status: 400, code: 'INVALID_JSON', message: 'JSON inválido.' }
     : tooLarge
-      ? {
-          status: 413,
-          code: 'PAYLOAD_TOO_LARGE',
-          message: 'Corpo da solicitação excede o limite permitido.',
-        }
+      ? request.is('application/octet-stream')
+        ? {
+            status: 413,
+            code: 'FILE_TOO_LARGE',
+            message: 'O arquivo excede o tamanho máximo permitido.',
+          }
+        : {
+            status: 413,
+            code: 'PAYLOAD_TOO_LARGE',
+            message: 'Corpo da solicitação excede o limite permitido.',
+          }
       : publicError(error);
   response.status(result.status).json({
     error: {

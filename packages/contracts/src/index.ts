@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { attachmentNameSchema } from './conversation.js';
+import { attachmentNameSchema, attachmentMimeSchema } from './conversation.js';
 export * from './auth.js';
 export * from './profile.js';
 export * from './technician.js';
@@ -320,7 +320,7 @@ export const projectCategoriesSchema = z.array(projectCategorySchema);
 export const projectAttachmentSchema = z.strictObject({
   id: idSchema,
   name: attachmentNameSchema,
-  mime: z.enum(['image/png', 'text/plain']),
+  mime: attachmentMimeSchema,
   size: z.number().int().positive(),
   fieldKey: z.string(),
   fieldLabel: z.string().optional(),
@@ -375,7 +375,7 @@ export type ServiceForm = z.infer<typeof serviceFormSchema>;
 export const openingUploadSchema = z.strictObject({
   id: idSchema,
   name: z.string().min(1).max(240),
-  mime: z.enum(['image/png', 'text/plain']),
+  mime: attachmentMimeSchema,
   size: z.number().int().positive().max(10485760),
   expiresAt: instantSchema,
 });

@@ -7,6 +7,9 @@ import './styles.css';
 import './components/ticket-chat.css';
 import './styles/vis004.css';
 import './styles/vis0041.css';
+import './components/ticket-detail.css';
+import './components/project-detail.css';
+import './components/attachment-card.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Elemento raiz da aplicação não encontrado.');

@@ -1,4 +1,5 @@
 import { AttachmentStorage } from '../../src/modules/tickets/attachment-storage.js';
+import { officeParts, testZip } from '../attachment-fixtures.js';
 import { ConversationService } from '../../src/modules/tickets/conversation.service.js';
 import { ConversationRepository } from '../../src/modules/tickets/conversation.repository.js';
 import { fileURLToPath } from 'node:url';
@@ -193,7 +194,12 @@ async function upload(
 }
 it('mantém os anexos no formulário e mostra uma única mensagem de abertura para os leitores autorizados', async () => {
   const f = await formFixture(),
-    u = await upload(f),
+    u = await upload(
+      f,
+      f.requester.c,
+      'evidencia.txt',
+      Buffer.from('Ação: 3 < 5 e 6 > 2'),
+    ),
     technician = await logged('TECHNICIAN'),
     other = await logged('REQUESTER');
   expect(u.status).toBe(201);
@@ -205,7 +211,14 @@ it('mantém os anexos no formulário e mostra uma única mensagem de abertura pa
     .toBuffer();
   const png = await upload(f, f.requester.c, 'imagem.png', image);
   expect(png.status).toBe(201);
-  const ids = [u.body.upload.id, png.body.upload.id];
+  const docx = await upload(
+    f,
+    f.requester.c,
+    'relatorio.docx',
+    testZip(officeParts('docx')),
+  );
+  expect(docx.status).toBe(201);
+  const ids = [u.body.upload.id, png.body.upload.id, docx.body.upload.id];
   const o = await mutate(f.requester.c, '/tickets', {
     ...f.input,
     formVersionId: f.versionId,
@@ -237,9 +250,13 @@ it('mantém os anexos no formulário e mostra uma única mensagem de abertura pa
       attachments: expect.arrayContaining([
         expect.objectContaining({ id: file.id, previewable: false }),
         expect.objectContaining({ id: png.body.upload.id, previewable: true }),
+        expect.objectContaining({
+          id: docx.body.upload.id,
+          previewable: false,
+        }),
       ]),
     });
-    expect(conversation.body.comments[0].attachments).toHaveLength(2);
+    expect(conversation.body.comments[0].attachments).toHaveLength(3);
     expect((await c.agent.get(url + '/attachments/' + file.id)).status).toBe(
       200,
     );
@@ -250,11 +267,21 @@ it('mantém os anexos no formulário e mostra uma única mensagem de abertura pa
   expect(preview.status).toBe(200);
   expect(preview.headers['content-disposition']).toMatch(/^inline;/);
   expect(preview.headers['content-type']).toBe('image/png');
+  const document = await technician.c.agent.get(
+    url + '/attachments/' + docx.body.upload.id + '?preview=true',
+  );
+  expect(document.status).toBe(200);
+  expect(document.headers['content-disposition']).toMatch(
+    /^attachment;.*\.docx/,
+  );
+  expect(document.headers['content-type']).toContain(
+    'wordprocessingml.document',
+  );
   expect((await other.c.agent.get(url + '/conversation')).status).toBe(404);
   expect(
     (await other.c.agent.get(url + '/attachments/' + file.id)).status,
   ).toBe(404);
-  expect(await database.db.ticketAttachment.count()).toBe(2);
+  expect(await database.db.ticketAttachment.count()).toBe(3);
   expect(await database.db.ticketComment.count()).toBe(1);
   expect(
     (
