@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync, readdirSync } from 'node:fs';
 import pg from 'pg';
 import { expect } from '@jest/globals';
 import { loadEnvironment } from '../../src/config/env.js';
@@ -9,25 +8,13 @@ import { Prisma } from '../../src/generated/prisma/client.js';
 import { prismaTicketUnit } from '../../src/modules/tickets/prisma-ticket.repository.js';
 import { TicketService } from '../../src/modules/tickets/ticket.service.js';
 import { databaseErrorCode } from '../../src/shared/errors.js';
+import { readTestMigrationStatements } from './migration-statements.js';
 
 const config = loadEnvironment();
 const target = isolatedTestTarget(config, process.env.NODE_ENV);
-let ddl: string[];
+let ddl: string;
 export function prepareReviewSql() {
-  const directory = new URL('../../prisma/migrations/', import.meta.url);
-  ddl = readdirSync(directory)
-    .filter((name) => /^\d{14}_[a-z0-9_]+$/.test(name))
-    .sort()
-    .flatMap((name) =>
-      readFileSync(new URL(`${name}/migration.sql`, directory), 'utf8')
-        .split(/^-- statement-breakpoint\s*$/m)
-        .map((statement) => statement.trim())
-        // The test's outer transaction owns rollback. Never commit test DDL/data.
-        .filter((statement) => {
-          const command = statement.replace(/--[^\n]*/g, '').trim();
-          return command && !/^(BEGIN|COMMIT);$/i.test(command);
-        }),
-    );
+  ddl = readTestMigrationStatements().join('\n');
   if (!ddl.length) throw new Error('Migration canônica não encontrada.');
 }
 async function isolatedPublicFingerprint() {
@@ -86,10 +73,7 @@ export async function reviewTransaction(
           await tx.$executeRawUnsafe(
             `SET LOCAL search_path TO "${schema}", pg_catalog`,
           );
-          for (const statement of ddl)
-            await tx.$executeRawUnsafe(
-              statement.replaceAll('"public"', `"${schema}"`),
-            );
+          await tx.$executeRawUnsafe(ddl.replaceAll('"public"', `"${schema}"`));
           await check(tx);
           throw rollback;
         },

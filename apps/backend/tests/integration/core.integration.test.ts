@@ -19,6 +19,16 @@ afterAll(async () => {
 });
 
 describe('Prisma 7 / PostgreSQL 18: DDL e dados somente em transações desfeitas de helpdesk_test', () => {
+  it('desfaz o schema e propaga a falha ocorrida dentro da transação', async () => {
+    const failure = new Error('Falha de teste intencional.');
+    await expect(
+      reviewTransaction(async (tx) => {
+        await coreFixture(tx);
+        throw failure;
+      }),
+    ).rejects.toBe(failure);
+  });
+
   it('constraints permitem abrir, classificar sem atribuir, assumir e evoluir estados sem mudar o histórico', async () => {
     await reviewTransaction(async (tx) => {
       const f = await coreFixture(tx);

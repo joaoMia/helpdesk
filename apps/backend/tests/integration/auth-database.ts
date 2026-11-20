@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync, readdirSync } from 'node:fs';
 import pg from 'pg';
 import { loadEnvironment } from '../../src/config/env.js';
 import { isolatedTestTarget } from '../../src/database/test-target.js';
 import { createDatabase } from '../../src/database/client.js';
+import { readTestMigrationStatements } from './migration-statements.js';
+
+let migrations: string[] | undefined;
 
 // Dedicated disposable namespace in helpdesk_test allows independent connections
 // and real concurrent transactions. Never uses/recreates public or development.
@@ -12,36 +14,31 @@ export async function authTestDatabase() {
   const schema = 'dev003_' + randomUUID().replaceAll('-', '');
   if (!/^dev003_[a-f0-9]{32}$/.test(schema))
     throw new Error('Namespace inválido.');
-  const control = new pg.Client({ connectionString: target.connectionString });
-  await control.connect();
-  if (
-    (await control.query('SELECT current_database() AS name')).rows[0]?.name !==
-    'helpdesk_test'
-  ) {
-    await control.end();
-    throw new Error('Teste recusado fora de helpdesk_test.');
-  }
+  const control = new pg.Client({
+    connectionString: target.connectionString,
+    connectionTimeoutMillis: 5000,
+    query_timeout: 20000,
+  });
   try {
-    await control.query('BEGIN');
-    await control.query(`CREATE SCHEMA "${schema}"`);
-    await control.query(`SET LOCAL search_path TO "${schema}", pg_catalog`);
-    const dir = new URL('../../prisma/migrations/', import.meta.url);
-    for (const name of readdirSync(dir)
-      .filter((name) => /^\d{14}_/.test(name))
-      .sort()) {
-      const statements = readFileSync(
-        new URL(`${name}/migration.sql`, dir),
-        'utf8',
-      ).split(/^-- statement-breakpoint\s*$/m);
-      for (const sql of statements) {
-        const command = sql.replace(/--[^\n]*/g, '').trim();
-        if (command && !/^(BEGIN|COMMIT);$/i.test(command))
-          await control.query(sql.replaceAll('"public"', `"${schema}"`));
-      }
+    await control.connect();
+    const identity = await control.query('SELECT current_database() AS name');
+    if (identity.rows[0]?.name !== target.database) {
+      throw new Error('Teste recusado fora de helpdesk_test.');
     }
-    await control.query('COMMIT');
+    migrations ??= readTestMigrationStatements();
+    // Run the migration script as one request and one transaction. If setup
+    // times out, closing the client aborts the uncommitted work.
+    await control.query(
+      [
+        'BEGIN;',
+        `CREATE SCHEMA "${schema}";`,
+        `SET LOCAL search_path TO "${schema}", pg_catalog;`,
+        ...migrations.map((sql) => sql.replaceAll('"public"', `"${schema}"`)),
+        'COMMIT;',
+      ].join('\n'),
+    );
   } catch (error) {
-    await control.query('ROLLBACK');
+    // Ending the session also rolls back any uncommitted fixture DDL.
     await control.end();
     throw error;
   }

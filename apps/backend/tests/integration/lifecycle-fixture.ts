@@ -35,11 +35,12 @@ const origin = 'http://127.0.0.1:5173',
 let d: Awaited<ReturnType<typeof authTestDatabase>>,
   before: Awaited<ReturnType<typeof developmentFingerprint>>,
   storage: AttachmentStorage;
+let activeDatabase: typeof d | undefined;
 beforeAll(async () => {
   before = await developmentFingerprint();
 });
 beforeEach(async () => {
-  d = await authTestDatabase();
+  d = activeDatabase = await authTestDatabase();
   storage = new AttachmentStorage(
     join(
       fileURLToPath(new URL('../../../../.local/', import.meta.url)),
@@ -48,15 +49,21 @@ beforeEach(async () => {
   );
 });
 afterEach(async () => {
-  const files = await d.db.ticketAttachment.findMany({
-    select: { storageKey: true },
-  });
-  for (const f of files) await storage.removeOwn(f.storageKey);
-  for (const f of await d.db.projectAttachment.findMany({
-    select: { storageKey: true },
-  }))
-    await storage.removeOwn(f.storageKey);
-  await d.dispose();
+  const database = activeDatabase;
+  activeDatabase = undefined;
+  if (!database) return;
+  try {
+    const files = await database.db.ticketAttachment.findMany({
+      select: { storageKey: true },
+    });
+    for (const f of files) await storage.removeOwn(f.storageKey);
+    for (const f of await database.db.projectAttachment.findMany({
+      select: { storageKey: true },
+    }))
+      await storage.removeOwn(f.storageKey);
+  } finally {
+    await database.dispose();
+  }
 });
 afterAll(async () => {
   expect(await developmentFingerprint()).toEqual(before);
