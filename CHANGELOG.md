@@ -1,8 +1,14 @@
 # Changelog
 
-This changelog records repository changes from commits and documented deliveries. No version tag or release has been created; entries remain under **Unreleased** until the owner decides to publish a version.
+This changelog records repository changes from commits and documented deliveries. Versions follow [Semantic Versioning](https://semver.org/). New entries go under **Unreleased** until the owner publishes the next version.
 
 ## Unreleased
+
+No changes yet.
+
+## 1.0.0 — 2026-11-20
+
+First public version of HelpDesk.
 
 ### Added
 

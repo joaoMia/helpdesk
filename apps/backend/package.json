@@ -1,6 +1,6 @@
 {
   "name": "@helpdesk/backend",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -35,7 +35,7 @@
     "catalog:sync:dev": "tsx scripts/sync-development-catalog.ts"
   },
   "dependencies": {
-    "@helpdesk/contracts": "0.0.0",
+    "@helpdesk/contracts": "1.0.0",
     "@neslinesli93/qpdf-wasm": "0.3.1",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
