@@ -19,7 +19,26 @@ const paths = {
   close: 'M6 6l12 12 M18 6L6 18',
   chevron: 'M9 5l7 7-7 7',
   paper: 'M21 11l-8 8a6 6 0 0 1-8-8l9-9a4 4 0 0 1 6 6l-9 9a2 2 0 0 1-3-3l8-8',
+  image: 'M3 4h18v16H3z M3 17l5-5 4 4 3-3 6 5 M8 8h.01',
+  document: 'M5 3h10l4 4v14H5z M14 3v5h5 M8 13h8 M8 17h8',
+  sheet: 'M4 4h16v16H4z M4 9h16 M4 14h16 M10 9v11',
 };
+export function BrandMark() {
+  return (
+    <svg
+      className="brand-mark"
+      viewBox="0 0 36 36"
+      fill="none"
+      stroke="#00d5be"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3.5 5.5h29v7a4 4 0 0 0 0 8v7h-29v-7a4 4 0 0 0 0-8z M24 10v4 M24 20v4" />
+    </svg>
+  );
+}
 export function Icon({
   name,
   className = '',

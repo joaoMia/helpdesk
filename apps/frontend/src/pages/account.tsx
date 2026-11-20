@@ -1,10 +1,10 @@
 import type { PublicUser } from '@helpdesk/contracts';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ThemeToggle } from '../components/theme-toggle';
 import { SmoothWorkspace } from '../components/smooth-workspace';
 import { useApiHealth } from '../hooks/use-api-health';
-import { Icon, PageHeading } from '../components/ui';
+import { BrandMark, Icon, PageHeading } from '../components/ui';
 import { authenticatedHome, profileAreas } from '../navigation/auth-routes';
 export function Account({
   user,
@@ -34,6 +34,26 @@ export function Account({
   }, [menu]);
   const area = profileAreas[user.role];
   const currentPath = window.location.hash;
+  const fixedDetail =
+    /^#\/(admin|technician|requester)\/(chamado|projetos)\/[a-f0-9-]{36}$/i.test(
+      currentPath,
+    );
+  useLayoutEffect(() => {
+    const viewport = window.visualViewport;
+    if (!fixedDetail || !viewport) return;
+    const style = document.documentElement.style;
+    const update = () => {
+      if (viewport.scale === 1)
+        style.setProperty('--ticket-viewport-height', `${viewport.height}px`);
+      else style.removeProperty('--ticket-viewport-height');
+    };
+    update();
+    viewport.addEventListener('resize', update);
+    return () => {
+      viewport.removeEventListener('resize', update);
+      style.removeProperty('--ticket-viewport-height');
+    };
+  }, [fixedDetail]);
   const projectPath =
     '#/' +
     (user.role === 'ADMIN'
@@ -45,8 +65,44 @@ export function Account({
   const projectActive =
     currentPath === projectPath || currentPath.startsWith(projectPath + '/');
   const catalogPath = '#/admin/catalogo';
+  const content = (
+    <main
+      id="authenticated-content"
+      tabIndex={-1}
+      className={
+        fixedDetail ? 'ticket-detail-content' : 'page-content space-y-6'
+      }
+    >
+      {children ?? (
+        <>
+          <PageHeading
+            eyebrow={`ÁREA DO ${area.label.toUpperCase()}`}
+            title={`Bem-vindo, ${user.name}`}
+            description="Este é o seu início no HelpDesk. Sua conta e sessão são reais."
+          />
+          {error && (
+            <p role="alert" className="form-error">
+              {error}
+            </p>
+          )}
+          <a className="button-primary" href={authenticatedHome(user)}>
+            Abrir painel
+          </a>
+          <p className="text-xs text-slate-500" role="status">
+            {health === 'available'
+              ? 'API disponível'
+              : health === 'checking'
+                ? 'Verificando API…'
+                : 'API indisponível'}
+          </p>
+        </>
+      )}
+    </main>
+  );
   return (
-    <div className="app-shell">
+    <div
+      className={fixedDetail ? 'app-shell ticket-detail-shell' : 'app-shell'}
+    >
       <a
         className="skip-link"
         href="#authenticated-content"
@@ -84,9 +140,7 @@ export function Account({
         }}
       >
         <a className="brand" href={authenticatedHome(user)}>
-          <span className="brand-mark">
-            <Icon name="ticket" />
-          </span>
+          <BrandMark />
           HelpDesk<span className="brand-dot">.</span>
         </a>
         <p className="nav-caption">ESPAÇO DE TRABALHO</p>
@@ -271,41 +325,16 @@ export function Account({
             </button>
           </div>
         </header>
-        <SmoothWorkspace enabled={!currentPath.includes('/chamado/')}>
-          <main
-            id="authenticated-content"
-            tabIndex={-1}
-            className="page-content space-y-6"
-          >
-            {children ?? (
-              <>
-                <PageHeading
-                  eyebrow={`ÁREA DO ${area.label.toUpperCase()}`}
-                  title={`Bem-vindo, ${user.name}`}
-                  description="Este é o seu início no HelpDesk. Sua conta e sessão são reais."
-                />
-                {error && (
-                  <p role="alert" className="form-error">
-                    {error}
-                  </p>
-                )}
-                <a className="button-primary" href={authenticatedHome(user)}>
-                  Abrir painel
-                </a>
-                <p className="text-xs text-slate-500" role="status">
-                  {health === 'available'
-                    ? 'API disponível'
-                    : health === 'checking'
-                      ? 'Verificando API…'
-                      : 'API indisponível'}
-                </p>
-              </>
-            )}
-          </main>
-          <footer className="workspace-footer">
-            HelpDesk · Área autenticada · {area.label}
-          </footer>
-        </SmoothWorkspace>
+        {fixedDetail ? (
+          content
+        ) : (
+          <SmoothWorkspace enabled={!currentPath.includes('/chamado/')}>
+            {content}
+            <footer className="workspace-footer">
+              HelpDesk · Área autenticada · {area.label}
+            </footer>
+          </SmoothWorkspace>
+        )}
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import type { Role } from '../types/demo';
 import { href, navigation } from '../navigation/routes';
 import { roles } from '../mocks/fixtures';
-import { Icon } from '../components/ui';
+import { BrandMark, Icon } from '../components/ui';
 import { useApiHealth } from '../hooks/use-api-health';
 
 export function AppShell({
@@ -80,9 +80,7 @@ export function AppShell({
           href={href(role, 'painel')}
           onClick={() => setMenu(false)}
         >
-          <span className="brand-mark">
-            <Icon name="ticket" />
-          </span>
+          <BrandMark />
           HelpDesk<span className="brand-dot">.</span>
         </a>
         <p className="nav-caption">ESPAÇO DE TRABALHO</p>

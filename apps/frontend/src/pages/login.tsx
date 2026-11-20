@@ -6,7 +6,7 @@ import { focusFirstError } from '../lib/motion';
 import { href } from '../navigation/routes';
 import { ThemeToggle } from '../components/theme-toggle';
 import { MotionRegion } from '../components/motion-region';
-import { Icon } from '../components/ui';
+import { BrandMark, Icon } from '../components/ui';
 import { useNotifications } from '../hooks/use-notifications';
 export function Login() {
   const [identifier, setIdentifier] = useState(''),
@@ -63,9 +63,7 @@ export function Login() {
     <div className="login-page">
       <header className="login-top">
         <a className="brand" href={href('requester', 'painel')}>
-          <span className="brand-mark">
-            <Icon name="ticket" />
-          </span>
+          <BrandMark />
           HelpDesk<span className="brand-dot">.</span>
         </a>
         <div className="flex gap-2">

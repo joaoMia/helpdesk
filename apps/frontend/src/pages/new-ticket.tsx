@@ -12,6 +12,7 @@ import {
 import { Stepper } from '../components/stepper';
 import { MotionRegion } from '../components/motion-region';
 import { EmptyState, Icon, PageHeading, Panel } from '../components/ui';
+import { LocalAttachmentField } from '../components/attachment-card';
 
 export function NewTicket({
   onCreate,
@@ -288,21 +289,14 @@ export function NewTicket({
                     }}
                     errors={errors}
                   />
-                  <label className="form-label">
-                    Anexo geral opcional
-                    <input
-                      className="field"
-                      type="file"
-                      onChange={(e) =>
-                        setAttachment(e.target.files?.[0]?.name ?? null)
-                      }
+                  <fieldset className="space-y-2">
+                    <legend className="form-label">Anexo geral opcional</legend>
+                    <LocalAttachmentField
+                      label="Anexo geral opcional"
+                      name={attachment ?? ''}
+                      onNameChange={(name) => setAttachment(name || null)}
                     />
-                  </label>
-                  {attachment && (
-                    <p className="text-xs text-slate-500">
-                      Nome mantido: {attachment} · sem upload.
-                    </p>
-                  )}
+                  </fieldset>
                   <div className="flex flex-wrap gap-3">
                     <button
                       className="button-secondary"

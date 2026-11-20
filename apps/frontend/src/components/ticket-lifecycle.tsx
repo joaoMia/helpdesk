@@ -4,12 +4,9 @@ import type {
   TicketMetrics,
 } from '@helpdesk/contracts';
 import { authClient, AuthError } from '../lib/auth-client';
-import { Panel } from './ui';
 import { DemoDialog } from './demo-dialog';
 import { TicketPagination } from './ticket-pagination';
 import { useDebouncedValue } from '../hooks/use-debounced-value';
-const duration = (seconds: number) =>
-  `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}min úteis`;
 const deadlineReasons: Record<SolutionDeadlineReason, string> = {
   POLICY_MISSING: 'Nenhuma política de SLA está vinculada ao chamado.',
   NOT_STARTED: 'O prazo será calculado após o início do atendimento.',
@@ -28,40 +25,52 @@ export function TicketAttendanceDates({
   data,
   createdAt,
   resolvedAt,
+  firstStartedAt,
+  closedAt,
 }: {
-  data: TicketMetrics;
+  data: TicketMetrics | null;
   createdAt?: string;
   resolvedAt?: string | null;
+  firstStartedAt?: string | null;
+  closedAt?: string | null;
 }) {
-  const target = data.sla.at(-1)?.targetMinutes;
   const display = (stamp: string) => (
     <time dateTime={stamp}>{new Date(stamp).toLocaleString('pt-BR')}</time>
   );
   return (
     <dl className="ticket-date-summary">
-      <div>
-        <dt>Data e hora da abertura</dt>
+      <div className="ticket-date-highlight">
+        <dt>Abertura</dt>
         <dd>{createdAt ? display(createdAt) : 'Não informado'}</dd>
       </div>
-      <div>
-        <dt>Tempo para solução</dt>
+      {firstStartedAt && (
+        <div className="ticket-date-highlight">
+          <dt>Primeiro atendimento</dt>
+          <dd>{display(firstStartedAt)}</dd>
+        </div>
+      )}
+      <div className="ticket-date-highlight ticket-date-deadline">
+        <dt>Prazo para solução</dt>
         <dd>
-          {data.solutionDeadlineAt
+          {data?.solutionDeadlineAt
             ? display(data.solutionDeadlineAt)
-            : data.solutionDeadlineReason
+            : data?.solutionDeadlineReason
               ? deadlineReasons[data.solutionDeadlineReason]
-              : 'Prazo indisponível.'}
-          {target != null && (
-            <small className="mt-1 block font-normal text-slate-500">
-              Meta configurada: {duration(target * 60)}
-            </small>
-          )}
+              : data
+                ? 'Prazo indisponível.'
+                : '—'}
         </dd>
       </div>
-      <div>
-        <dt>Data da solução</dt>
+      <div className="ticket-date-highlight">
+        <dt>Solução</dt>
         <dd>{resolvedAt ? display(resolvedAt) : 'Ainda não solucionado'}</dd>
       </div>
+      {closedAt && (
+        <div>
+          <dt>Encerramento</dt>
+          <dd>{display(closedAt)}</dd>
+        </div>
+      )}
     </dl>
   );
 }
@@ -71,6 +80,8 @@ export function TicketLifecycle({
   status,
   createdAt,
   resolvedAt,
+  firstStartedAt,
+  closedAt,
   canOperate = false,
   canClose = false,
   additionalActions,
@@ -83,6 +94,8 @@ export function TicketLifecycle({
   status: string;
   createdAt?: string;
   resolvedAt?: string | null;
+  firstStartedAt?: string | null;
+  closedAt?: string | null;
   canOperate?: boolean;
   canClose?: boolean;
   additionalActions?: ReactNode;
@@ -95,6 +108,7 @@ export function TicketLifecycle({
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
     [dialog, setDialog] = useState<'pending' | 'resume' | 'close' | null>(null),
+    [pendingDetails, setPendingDetails] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [reasons, setReasons] = useState<Reason[]>([]),
     [reasonId, setReasonId] = useState(''),
@@ -213,167 +227,179 @@ export function TicketLifecycle({
     setDialog(operation);
   }
   return (
-    <Panel
-      title="Atendimento"
-      subtitle="Datas registradas e limite de solução configurado"
-    >
-      <div className="form-body space-y-4">
-        {error && (
-          <p role="alert" className="form-error">
-            {error}
-          </p>
-        )}
-        {notice && (
-          <p role="status" className="info-note">
-            {notice}
-          </p>
-        )}
-        {(additionalActions || canPause || canResume || showClose) && (
-          <div
-            role="group"
-            aria-label="Ações do atendimento"
-            className="flex flex-wrap items-center gap-3"
-          >
-            {canPause && onSolve && (
-              <button className="button-primary" onClick={onSolve}>
-                Adicionar solução
-              </button>
-            )}
-            {canPause && (
-              <button
-                className="button-secondary"
-                onClick={() => openDialog('pending')}
-              >
-                Colocar em pendência
-              </button>
-            )}
-            {canResume && (
+    <>
+      <TicketAttendanceDates
+        data={data}
+        createdAt={createdAt}
+        resolvedAt={resolvedAt}
+        firstStartedAt={firstStartedAt}
+        closedAt={closedAt}
+      />
+      {!data && !error && (
+        <p className="text-xs" role="status">
+          Consultando métricas…
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="form-error">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="text-xs">
+          {notice}
+        </p>
+      )}
+      {(additionalActions || canPause || canResume || showClose) && (
+        <div
+          role="group"
+          aria-label="Ações do atendimento"
+          className="ticket-operational-actions"
+        >
+          {canPause && onSolve && (
+            <button className="button-primary" onClick={onSolve}>
+              Adicionar solução
+            </button>
+          )}
+          {canPause && (
+            <button
+              className="button-secondary"
+              onClick={() => openDialog('pending')}
+            >
+              Colocar em pendência
+            </button>
+          )}
+          {canResume && (
+            <button
+              className="button-primary"
+              onClick={() => openDialog('resume')}
+            >
+              Retomar atendimento
+            </button>
+          )}
+          {showClose && (
+            <>
               <button
                 className="button-primary"
-                onClick={() => openDialog('resume')}
+                disabled={!!closeBlock}
+                onClick={() => openDialog('close')}
               >
-                Retomar atendimento
+                Encerrar chamado
               </button>
-            )}
-            {showClose && (
-              <>
-                <button
-                  className="button-primary"
-                  disabled={!!closeBlock}
-                  onClick={() => openDialog('close')}
-                >
-                  Encerrar chamado
-                </button>
-                {closeBlock && (
-                  <p className="basis-full text-sm text-slate-500">
-                    {closeBlock}
-                  </p>
-                )}
-              </>
-            )}
-            {additionalActions}
-          </div>
-        )}
-        {!data ? (
-          <p role="status">Consultando métricas…</p>
-        ) : (
-          <>
-            <TicketAttendanceDates
-              data={data}
-              createdAt={createdAt}
-              resolvedAt={resolvedAt}
-            />
-            {data.activePending && (
-              <section className="info-note">
-                <h3 className="font-semibold">
-                  Pendência: {data.activePending.snapshot.name}
-                </h3>
-                <p className="whitespace-pre-wrap">
-                  {data.activePending.justification}
+              {closeBlock && (
+                <p className="basis-full text-xs text-slate-500">
+                  {closeBlock}
                 </p>
-                <p className="text-xs">
-                  {data.activePending.snapshot.countsTowardSolution
-                    ? 'Conta tempo útil'
-                    : 'Não conta tempo útil'}{' '}
-                  ·{' '}
-                  {data.activePending.snapshot.autoResumeOnRequesterActivity
-                    ? 'Resposta ou anexo confirmado do solicitante retoma o atendimento'
-                    : 'Retomada manual pelo técnico'}
-                </p>
-              </section>
-            )}
-          </>
-        )}
-        {dialog && (
-          <DemoDialog
-            title={dialogTitle[dialog]}
-            eyebrow="OPERAÇÃO REAL"
-            description="A ação e seu responsável serão registrados no histórico."
-            pending={busy}
-            onCancel={() => {
-              if (!busy) setDialog(null);
-            }}
-            confirmLabel={busy ? 'Gravando…' : 'Confirmar'}
-            onConfirm={() => {
-              void confirm();
-              return false;
-            }}
+              )}
+            </>
+          )}
+          {additionalActions}
+        </div>
+      )}
+      {data?.activePending && (
+        <>
+          <button
+            className="text-button ticket-pending-link"
+            aria-haspopup="dialog"
+            onClick={() => setPendingDetails(data.activePending?.id ?? null)}
           >
-            {dialog === 'pending' && (
-              <div className="space-y-4">
-                <label className="form-label">
-                  Pesquisar motivo
-                  <input
-                    className="field w-full"
-                    type="search"
-                    value={text}
-                    onChange={(e) => {
-                      setText(e.target.value);
-                      setPage(1);
-                    }}
-                  />
-                </label>
-                <label className="form-label">
-                  Motivo obrigatório
-                  <select
-                    className="field w-full"
-                    value={reasonId}
-                    onChange={(e) => setReasonId(e.target.value)}
-                  >
-                    <option value="">Selecione</option>
-                    {reasons.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <TicketPagination
-                  page={page}
-                  total={total}
-                  busy={busy}
-                  onPage={setPage}
-                />
-                <label className="form-label">
-                  Justificativa obrigatória
-                  <textarea
-                    className="field min-h-28 w-full"
-                    required
-                    maxLength={2000}
-                    value={justification}
-                    onChange={(e) => setJustification(e.target.value)}
-                  />
-                </label>
-              </div>
-            )}
-            {error && (
-              <p role="alert" className="form-error">
-                {error}
+            Ver pendência ativa
+          </button>
+          {pendingDetails === data.activePending.id && (
+            <DemoDialog
+              title="Pendência ativa"
+              eyebrow="ATENDIMENTO"
+              cancelLabel="Fechar"
+              onCancel={() => setPendingDetails(null)}
+            >
+              <p className="font-semibold">
+                {data.activePending.snapshot.name}
               </p>
-            )}
-          </DemoDialog>
-        )}
-      </div>
-    </Panel>
+              <p className="whitespace-pre-wrap">
+                {data.activePending.justification}
+              </p>
+              <p className="text-xs">
+                {data.activePending.snapshot.countsTowardSolution
+                  ? 'Conta tempo útil'
+                  : 'Não conta tempo útil'}{' '}
+                ·{' '}
+                {data.activePending.snapshot.autoResumeOnRequesterActivity
+                  ? 'Resposta ou anexo confirmado do solicitante retoma o atendimento'
+                  : 'Retomada manual pelo técnico'}
+              </p>
+            </DemoDialog>
+          )}
+        </>
+      )}
+      {dialog && (
+        <DemoDialog
+          title={dialogTitle[dialog]}
+          eyebrow="OPERAÇÃO REAL"
+          description="A ação e seu responsável serão registrados no histórico."
+          pending={busy}
+          onCancel={() => {
+            if (!busy) setDialog(null);
+          }}
+          confirmLabel={busy ? 'Gravando…' : 'Confirmar'}
+          onConfirm={() => {
+            void confirm();
+            return false;
+          }}
+        >
+          {dialog === 'pending' && (
+            <div className="space-y-4">
+              <label className="form-label">
+                Pesquisar motivo
+                <input
+                  className="field w-full"
+                  type="search"
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+              <label className="form-label">
+                Motivo obrigatório
+                <select
+                  className="field w-full"
+                  value={reasonId}
+                  onChange={(e) => setReasonId(e.target.value)}
+                >
+                  <option value="">Selecione</option>
+                  {reasons.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <TicketPagination
+                page={page}
+                total={total}
+                busy={busy}
+                onPage={setPage}
+              />
+              <label className="form-label">
+                Justificativa obrigatória
+                <textarea
+                  className="field min-h-28 w-full"
+                  required
+                  maxLength={2000}
+                  value={justification}
+                  onChange={(e) => setJustification(e.target.value)}
+                />
+              </label>
+            </div>
+          )}
+          {error && (
+            <p role="alert" className="form-error">
+              {error}
+            </p>
+          )}
+        </DemoDialog>
+      )}
+    </>
   );
 }

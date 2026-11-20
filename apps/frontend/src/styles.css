@@ -75,7 +75,7 @@
     @apply mb-10 flex items-center gap-2.5 px-2 text-2xl font-bold tracking-tight text-white;
   }
   .brand-mark {
-    @apply mr-1 flex size-9 items-center justify-center rounded-xl bg-teal-400 text-slate-900;
+    @apply mr-1 size-9 shrink-0;
   }
   .brand-dot {
     @apply -ml-2 text-teal-300;

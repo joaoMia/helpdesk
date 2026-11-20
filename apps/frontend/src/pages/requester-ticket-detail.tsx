@@ -1,20 +1,16 @@
-import { visibleFormKeys } from '@helpdesk/contracts';
 import { useEffect, useState } from 'react';
 import type { PublicUser, TicketDetail } from '@helpdesk/contracts';
 import { authClient, AuthError } from '../lib/auth-client';
-import {
-  PageHeading,
-  Panel,
-  PriorityBadge,
-  StatusBadge,
-} from '../components/ui';
-import { MotionRegion } from '../components/motion-region';
-import { date } from '../lib/presentation';
+import { Icon, PriorityBadge, StatusBadge } from '../components/ui';
+import { DemoDialog } from '../components/demo-dialog';
 import { TicketOpenActions } from '../components/ticket-open-actions';
 import { TicketPriorityEditor } from '../components/ticket-priority-editor';
 import { TicketHistoryPanel } from '../components/ticket-history-panel';
 import { TicketConversation } from '../components/ticket-conversation';
 import { TicketLifecycle } from '../components/ticket-lifecycle';
+
+const sidebarViewport = '(min-width: 1024px) and (min-height: 640px)';
+
 export function RequesterTicketDetail({
   id,
   user,
@@ -28,14 +24,32 @@ export function RequesterTicketDetail({
   created?: boolean;
   technician?: boolean;
 }) {
-  const [ticket, setTicket] = useState<TicketDetail | null>(null),
-    [loading, setLoading] = useState(true),
-    [error, setError] = useState(''),
-    [revision, setRevision] = useState(0);
+  const [ticket, setTicket] = useState<TicketDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
   const [solutionOpen, setSolutionOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [sidebar, setSidebar] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia(sidebarViewport).matches,
+  );
   const responsible =
     user.role === 'TECHNICIAN' && ticket?.assignedTechnicianId === user.id;
   const reload = () => setRevision((n) => n + 1);
+
+  useEffect(() => {
+    const query = window.matchMedia(sidebarViewport);
+    const update = () => {
+      setSidebar(query.matches);
+      if (query.matches) setInfoOpen(false);
+    };
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+
   useEffect(() => {
     let active = true;
     authClient
@@ -66,251 +80,216 @@ export function RequesterTicketDetail({
       active = false;
     };
   }, [id, revision, onExpired]);
-  return (
+
+  const requester =
+    ticket?.requesterName ??
+    (user.id === ticket?.requesterId ? user.name : 'Solicitante do chamado');
+  const assignee =
+    ticket?.responsibleName ??
+    (ticket?.assignedTechnicianId === user.id
+      ? user.name
+      : ticket?.assignedTechnicianId
+        ? 'Técnico atribuído'
+        : 'Sem responsável');
+  const badges = ticket && (
     <>
-      <a
-        className="back-link"
-        href={
-          user.role === 'ADMIN'
-            ? '#/admin/chamados'
-            : technician
-              ? '#/technician/atendimentos'
-              : '#/requester/chamados'
+      <StatusBadge status={ticket.status} />
+      <PriorityBadge priority={ticket.priority} />
+    </>
+  );
+  const information = ticket && (
+    <div className="ticket-info-content">
+      <dl className="ticket-info-people">
+        <div>
+          <dt>Status e prioridade</dt>
+          <dd className="flex flex-wrap gap-1.5">{badges}</dd>
+        </div>
+        <div>
+          <dt>Solicitante</dt>
+          <dd>{requester}</dd>
+        </div>
+        <div>
+          <dt>Responsável técnico</dt>
+          <dd>{assignee}</dd>
+        </div>
+      </dl>
+      <TicketLifecycle
+        id={id}
+        status={ticket.status}
+        createdAt={ticket.createdAt}
+        firstStartedAt={ticket.firstStartedAt}
+        resolvedAt={ticket.resolvedAt ?? null}
+        closedAt={ticket.closedAt}
+        canOperate={responsible}
+        canClose={responsible || user.role === 'ADMIN'}
+        refreshKey={revision}
+        additionalActions={
+          ticket.status === 'OPEN' && user.role !== 'REQUESTER' ? (
+            <TicketOpenActions
+              ticket={ticket}
+              user={user}
+              onExpired={onExpired}
+              onChanged={reload}
+            />
+          ) : responsible &&
+            (ticket.status === 'IN_PROGRESS' || ticket.status === 'PENDING') ? (
+            <TicketPriorityEditor
+              id={ticket.id}
+              priority={ticket.priority}
+              label="Alterar prioridade"
+              onExpired={onExpired}
+              onSaved={reload}
+            />
+          ) : null
         }
-      >
-        {technician
-          ? '← Voltar aos meus atendimentos'
-          : '← Voltar aos chamados'}
-      </a>
-      {error && (
-        <p role="alert" className="form-error">
-          {error}
+        onSolve={() => setSolutionOpen(true)}
+        onExpired={onExpired}
+        onChanged={reload}
+      />
+      <div className="ticket-info-links">
+        <button type="button" className="button-secondary" onClick={reload}>
+          Atualizar chamado
+        </button>
+        <button
+          type="button"
+          className="button-secondary"
+          aria-haspopup="dialog"
+          onClick={() => setHistoryOpen(true)}
+        >
+          Histórico do chamado
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="ticket-detail">
+      <header className="ticket-detail-header">
+        <a
+          className="back-link"
+          href={
+            user.role === 'ADMIN'
+              ? '#/admin/chamados'
+              : technician
+                ? '#/technician/atendimentos'
+                : '#/requester/chamados'
+          }
+        >
+          {technician
+            ? '← Voltar aos meus atendimentos'
+            : '← Voltar aos chamados'}
+        </a>
+        {ticket && (
+          <>
+            <div className="ticket-detail-heading">
+              <span className="ticket-detail-code">HD-{ticket.code}</span>
+              <h1 id="page-title" tabIndex={-1} title={ticket.subject}>
+                {ticket.subject}
+              </h1>
+            </div>
+            <div className="ticket-detail-header-controls">
+              <div className="ticket-header-badges flex flex-wrap gap-1.5">
+                {badges}
+              </div>
+              {!sidebar && (
+                <button
+                  type="button"
+                  className="button-secondary ticket-info-trigger"
+                  aria-label="Informações do chamado"
+                  aria-haspopup="dialog"
+                  onClick={() => setInfoOpen(true)}
+                >
+                  <Icon name="chevron" />
+                  <span>
+                    Informações
+                    <span className="max-[359px]:sr-only"> do chamado</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </header>
+      {created && ticket && (
+        <p role="status" className="ticket-created-note">
+          Chamado HD-{ticket.code} registrado com sucesso.
         </p>
       )}
+      {error && (
+        <div className="space-y-3">
+          <p role="alert" className="form-error">
+            {error}
+          </p>
+          <button className="button-secondary" onClick={reload}>
+            Tentar novamente
+          </button>
+        </div>
+      )}
       {loading ? (
-        <p role="status" className="panel p-6">
+        <p role="status" className="panel p-4">
           Carregando chamado…
         </p>
       ) : ticket ? (
-        <>
-          {created && (
-            <p role="status" className="info-note mb-5">
-              Chamado HD-{ticket.code} registrado com sucesso.
-            </p>
-          )}
-          <PageHeading
-            eyebrow={`CHAMADO HD-${ticket.code}`}
-            title={ticket.subject}
-            description={`Aberto em ${date(ticket.createdAt)}`}
-          >
-            <div className="flex flex-wrap items-center gap-3">
-              <StatusBadge status={ticket.status} />
-              <PriorityBadge priority={ticket.priority} />
-            </div>
-          </PageHeading>
-          <MotionRegion motionKey={'real-ticket-detail-' + id}>
-            <div className="mb-6">
-              <TicketLifecycle
-                id={id}
-                status={ticket.status}
-                createdAt={ticket.createdAt}
-                resolvedAt={ticket.resolvedAt ?? null}
-                canOperate={responsible}
-                canClose={responsible || user.role === 'ADMIN'}
-                refreshKey={revision}
-                additionalActions={
-                  ticket.status === 'OPEN' && user.role !== 'REQUESTER' ? (
-                    <TicketOpenActions
-                      ticket={ticket}
-                      user={user}
-                      onExpired={onExpired}
-                      onChanged={reload}
-                    />
-                  ) : responsible &&
-                    (ticket.status === 'IN_PROGRESS' ||
-                      ticket.status === 'PENDING') ? (
-                    <TicketPriorityEditor
-                      id={ticket.id}
-                      priority={ticket.priority}
-                      label="Alterar prioridade"
-                      onExpired={onExpired}
-                      onSaved={reload}
-                    />
-                  ) : null
-                }
-                onSolve={() => setSolutionOpen(true)}
-                onExpired={onExpired}
-                onChanged={reload}
-              />
-            </div>
-            <div className="detail-grid items-start">
-              <div className="min-w-0 space-y-6">
-                <Panel title="Solicitação e contexto">
-                  <div className="form-body">
-                    <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600 dark:text-slate-300">
-                      {ticket.description}
-                    </p>
-                  </div>
-                  <h3 className="px-6 mt-4 font-semibold">
-                    Serviço solicitado · contexto histórico
-                  </h3>
-                  <div className="form-body space-y-6">
-                    <section>
-                      <p className="eyebrow">
-                        {ticket.serviceSnapshot.categoryName}
-                      </p>
-                      <h3 className="mb-4 font-semibold">
-                        {ticket.serviceSnapshot.serviceName}
-                      </h3>
-                      <p className="text-sm text-slate-500">
-                        {ticket.serviceSnapshot.serviceDescription}
-                      </p>
-                      <p className="mt-4 text-xs text-slate-500">
-                        Formulário · versão {ticket.serviceSnapshot.formVersion}
-                      </p>
-                      {!ticket.serviceSnapshot.fields.length ? (
-                        <p className="mt-3 text-sm">Sem campos adicionais.</p>
-                      ) : (
-                        <dl className="space-y-3 mt-3">
-                          {ticket.serviceSnapshot.fields
-                            .filter((f) =>
-                              visibleFormKeys(
-                                ticket.serviceSnapshot.fields,
-                                Object.fromEntries(
-                                  ticket.answers.map((a) => [
-                                    a.fieldKey,
-                                    a.value,
-                                  ]),
-                                ),
-                              ).has(f.key),
-                            )
-                            .map((f) => (
-                              <div key={f.id}>
-                                <dt className="detail-label">{f.label}</dt>
-                                <dd>
-                                  {f.type === 'FILE'
-                                    ? Array.isArray(
-                                        ticket.answers.find(
-                                          (a) => a.fieldKey === f.key,
-                                        )?.value,
-                                      ) &&
-                                      (
-                                        ticket.answers.find(
-                                          (a) => a.fieldKey === f.key,
-                                        )!.value as string[]
-                                      ).length
-                                      ? 'Arquivo(s) enviado(s). Consulte os anexos da abertura na conversa abaixo.'
-                                      : 'Nenhum arquivo informado.'
-                                    : String(
-                                        ticket.answers.find(
-                                          (a) => a.fieldKey === f.key,
-                                        )?.value ?? 'Não informado',
-                                      )}
-                                </dd>
-                              </div>
-                            ))}
-                        </dl>
-                      )}
-                    </section>
-                  </div>
-                </Panel>
-                <TicketConversation
-                  key={user.id + ':' + id}
-                  id={id}
-                  status={ticket.status}
-                  user={user}
-                  onExpired={onExpired}
-                  onChanged={reload}
-                  allowSolve={responsible && ticket.status === 'IN_PROGRESS'}
-                  solutionControl={{
-                    open: solutionOpen,
-                    onOpenChange: setSolutionOpen,
-                  }}
-                />
-                <TicketHistoryPanel
-                  key={id}
-                  id={id}
-                  revision={revision}
-                  onExpired={onExpired}
-                />
-              </div>
-              <aside className="min-w-0 space-y-6">
-                <Panel title="Informações do chamado">
-                  <dl className="form-body space-y-5">
-                    <div>
-                      <dt className="detail-label">Abertura</dt>
-                      <dd>{date(ticket.createdAt)}</dd>
-                    </div>
-                    <div>
-                      <dt className="detail-label">Status e prioridade</dt>
-                      <dd className="flex flex-wrap gap-2">
-                        <StatusBadge status={ticket.status} />
-                        <PriorityBadge priority={ticket.priority} />
-                      </dd>
-                    </div>
-                    {
-                      <div>
-                        <dt className="detail-label">Solicitante</dt>
-                        <dd>
-                          {ticket.requesterName ??
-                            (user.id === ticket.requesterId
-                              ? user.name
-                              : 'Solicitante do chamado')}
-                        </dd>
-                      </div>
-                    }
-                    <div>
-                      <dt className="detail-label">Responsável</dt>
-                      <dd>
-                        {ticket.responsibleName ??
-                          (ticket.assignedTechnicianId === user.id
-                            ? user.name
-                            : ticket.assignedTechnicianId
-                              ? 'Técnico atribuído'
-                              : 'Sem responsável')}
-                      </dd>
-                    </div>
-                    {ticket.firstStartedAt && (
-                      <div>
-                        <dt className="detail-label">Primeiro atendimento</dt>
-                        <dd>
-                          <time dateTime={ticket.firstStartedAt}>
-                            {date(ticket.firstStartedAt)}
-                          </time>
-                        </dd>
-                      </div>
-                    )}
-                    {ticket.resolvedAt && (
-                      <div>
-                        <dt className="detail-label">Solução registrada</dt>
-                        <dd>{date(ticket.resolvedAt)}</dd>
-                      </div>
-                    )}
-                  </dl>
-                </Panel>
-                <button
-                  className="button-secondary"
-                  onClick={() => {
-                    setRevision((n) => n + 1);
-                  }}
-                >
-                  Atualizar chamado
-                </button>
-              </aside>
-            </div>
-          </MotionRegion>
-        </>
-      ) : null}
-      {error && (
-        <button
-          className="button-secondary mt-4"
-          onClick={() => {
-            setRevision((n) => n + 1);
-          }}
+        <div
+          className={
+            sidebar
+              ? 'ticket-detail-grid ticket-detail-with-sidebar'
+              : 'ticket-detail-grid'
+          }
         >
-          Tentar novamente
-        </button>
-      )}
-    </>
+          <div className="ticket-detail-conversation">
+            <TicketConversation
+              key={user.id + ':' + id}
+              id={id}
+              status={ticket.status}
+              user={user}
+              onExpired={onExpired}
+              onChanged={reload}
+              opening={{ ticket, requester }}
+              allowSolve={responsible && ticket.status === 'IN_PROGRESS'}
+              solutionControl={{
+                open: solutionOpen,
+                onOpenChange: setSolutionOpen,
+              }}
+            />
+          </div>
+          {sidebar ? (
+            <aside
+              className="panel ticket-info-panel"
+              aria-labelledby="ticket-info-title"
+            >
+              <h2 id="ticket-info-title">Informações do chamado</h2>
+              {information}
+            </aside>
+          ) : (
+            infoOpen && (
+              <DemoDialog
+                title="Informações do chamado"
+                eyebrow=""
+                className="ticket-info-dialog"
+                cancelLabel="Voltar à conversa"
+                onCancel={() => setInfoOpen(false)}
+              >
+                {information}
+              </DemoDialog>
+            )
+          )}
+          {historyOpen && (
+            <DemoDialog
+              title="Histórico do chamado"
+              eyebrow=""
+              cancelLabel="Fechar"
+              onCancel={() => setHistoryOpen(false)}
+            >
+              <TicketHistoryPanel
+                id={id}
+                revision={revision}
+                onExpired={onExpired}
+              />
+            </DemoDialog>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }

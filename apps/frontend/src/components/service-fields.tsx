@@ -3,6 +3,7 @@ import type {
   ServiceField,
 } from '../forms/service-definitions';
 import { visibleFields } from '../forms/service-definitions';
+import { LocalAttachmentField } from './attachment-card';
 
 export function ServiceFields({
   serviceId,
@@ -112,21 +113,16 @@ export function ServiceFields({
                 aria-describedby={described}
               />
             ) : field.kind === 'file' ? (
-              <div className="attachment-box mt-2 flex-wrap">
-                <input
+              <div className="mt-2">
+                <LocalAttachmentField
                   id={id}
-                  type="file"
-                  className="w-full min-w-0 text-xs"
-                  onChange={(e) => update(e.target.files?.[0]?.name ?? '')}
-                  aria-required={field.required}
-                  aria-invalid={!!errorId}
-                  aria-describedby={described}
+                  label={field.label}
+                  name={typeof value === 'string' ? value : ''}
+                  onNameChange={update}
+                  required={field.required}
+                  invalid={!!errorId}
+                  describedBy={described}
                 />
-                {value && (
-                  <p className="break-all text-xs text-slate-500">
-                    Selecionado: {String(value)} · sem upload
-                  </p>
-                )}
               </div>
             ) : field.kind !== 'multi' ? (
               <input

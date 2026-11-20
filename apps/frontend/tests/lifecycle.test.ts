@@ -154,7 +154,9 @@ test('ciclo: componente mantém painel e ações por papel sem conceder autoriza
       onChanged: () => {},
     }),
   );
-  assert.match(requester, /Datas registradas e limite de solução configurado/);
+  assert.match(requester, /Prazo para solução/);
+  assert.match(requester, /Ainda não solucionado/);
+  assert.doesNotMatch(requester, /<h2>Atendimento<\/h2>/);
   assert.doesNotMatch(requester, /Métrica A|Métrica B|calendário histórico/);
   assert.doesNotMatch(requester, /Colocar em pendência|Encerrar chamado/);
   const tech = renderToStaticMarkup(
@@ -221,7 +223,8 @@ test('chamado aberto atribuído exibe início somente para o técnico responsáv
   assert.match(actions('ADMIN', id, free), /Atribuir chamado/);
   assert.doesNotMatch(actions('ADMIN', id, free), /Assumir/);
 });
-test('Atendimento exibe a data limite com a meta ou o motivo específico de ausência', () => {
+test('Informações do chamado exibe datas operacionais sem a meta ou com motivo de prazo indisponível', () => {
+  const firstStartedAt = '2026-10-30T14:00:00.000Z';
   const limit = '2026-10-30T18:00:00.000Z';
   const data = ticketMetricsSchema.parse({
     metrics: {
@@ -253,10 +256,25 @@ test('Atendimento exibe a data limite com a meta ou o motivo específico de aus�
     activePending: null,
   });
   const html = renderToStaticMarkup(
-    React.createElement(TicketAttendanceDates, { data, createdAt: stamp }),
+    React.createElement(TicketAttendanceDates, {
+      data,
+      createdAt: stamp,
+      firstStartedAt,
+    }),
   );
-  assert.match(html, /dateTime="2026-10-30T18:00:00.000Z"/);
-  assert.match(html, /16h 0min úteis/);
+  assert.match(
+    html,
+    /Abertura<\/dt><dd><time dateTime="2026-10-30T00:00:00.000Z"/,
+  );
+  assert.match(
+    html,
+    /Primeiro atendimento<\/dt><dd><time dateTime="2026-10-30T14:00:00.000Z"/,
+  );
+  assert.match(
+    html,
+    /Prazo para solução<\/dt><dd><time dateTime="2026-10-30T18:00:00.000Z"/,
+  );
+  assert.doesNotMatch(html, /Meta SLA|16h 0min úteis/);
   assert.match(html, /Ainda não solucionado/);
   const missing = renderToStaticMarkup(
     React.createElement(TicketAttendanceDates, {
@@ -268,7 +286,7 @@ test('Atendimento exibe a data limite com a meta ou o motivo específico de aus�
     }),
   );
   assert.match(missing, /Falta cobertura de calendário/);
-  assert.match(missing, /16h 0min úteis/);
+  assert.doesNotMatch(missing, /Meta SLA|16h 0min úteis|Primeiro atendimento/);
 });
 test('dashboard: composição inicial conserva filtros rotulados, layout responsivo e carregamento acessível', () => {
   const html = renderToStaticMarkup(

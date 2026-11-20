@@ -3,7 +3,6 @@ import type { TicketHistory } from '@helpdesk/contracts';
 import { authClient, AuthError } from '../lib/auth-client';
 import { date, ticketEventLabel } from '../lib/presentation';
 import { TicketPagination } from './ticket-pagination';
-import { Panel } from './ui';
 
 export function TicketHistoryPanel({
   id,
@@ -42,7 +41,7 @@ export function TicketHistoryPanel({
   }, [id, page, revision, onExpired]);
 
   return (
-    <Panel title="Histórico do chamado">
+    <>
       {error && (
         <p className="form-body" role="alert">
           {error}
@@ -94,6 +93,6 @@ export function TicketHistoryPanel({
           />
         </div>
       )}
-    </Panel>
+    </>
   );
 }

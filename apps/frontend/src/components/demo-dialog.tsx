@@ -14,6 +14,7 @@ export function DemoDialog({
   onCancel,
   eyebrow = 'AÇÃO DEMONSTRATIVA · SOMENTE NA SESSÃO',
   pending = false,
+  className = '',
 }: {
   title: string;
   description?: string;
@@ -24,6 +25,7 @@ export function DemoDialog({
   onCancel: () => void;
   eyebrow?: string;
   pending?: boolean;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     titleId = useId(),
@@ -83,7 +85,7 @@ export function DemoDialog({
   return createPortal(
     <dialog
       ref={ref}
-      className="confirm-dialog demo-dialog"
+      className={`confirm-dialog demo-dialog ${className}`.trim()}
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
       onCancel={(e) => {
@@ -91,7 +93,7 @@ export function DemoDialog({
         close();
       }}
     >
-      <span className="eyebrow">{eyebrow}</span>
+      {eyebrow && <span className="eyebrow">{eyebrow}</span>}
       <h2 id={titleId}>{title}</h2>
       {description && <p id={descriptionId}>{description}</p>}
       <div className="dialog-content">{children}</div>

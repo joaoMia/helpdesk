@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { PublicUser } from '@helpdesk/contracts';
 import { loginSchema, registerSchema } from '@helpdesk/contracts';
 import { ThemeToggle } from '../components/theme-toggle';
-import { Icon } from '../components/ui';
+import { BrandMark, Icon } from '../components/ui';
 import { AuthError, authClient } from '../lib/auth-client';
 
 export function RealLogin({
@@ -74,9 +74,7 @@ export function RealLogin({
     <div className="login-page">
       <header className="login-top">
         <a className="brand" href="#/login">
-          <span className="brand-mark">
-            <Icon name="ticket" />
-          </span>
+          <BrandMark />
           HelpDesk<span className="brand-dot">.</span>
         </a>
         <ThemeToggle />
