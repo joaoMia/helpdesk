@@ -248,12 +248,10 @@ export function projectRoutes(auth: AuthRuntime, service: ProjectService) {
     ['retire', 'retire', 'projects.retire'],
     ['assignment', 'assignment', 'projects.assign'],
     ['priority', 'priority', 'projects.plan'],
-    ['planning', 'planning', 'projects.assign'],
     ['plan-publication', 'publish', 'projects.plan'],
     ['start', 'start', 'projects.transition'],
     ['complete', 'complete', 'projects.transition'],
     ['cancel', 'cancel', 'projects.cancel'],
-    ['updates', 'update', 'projects.update'],
   ] as const)
     router.post('/:id/' + route, ...guard.permission(permission), w.write(op));
   router.get('/', ...guard.permission('projects.read'), c.list);

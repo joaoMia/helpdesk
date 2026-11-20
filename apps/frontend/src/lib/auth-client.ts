@@ -2,12 +2,10 @@ import {
   projectCategoriesSchema,
   projectSubmissionSchema,
   projectAttachmentsSchema,
-  projectPlanVersionsSchema,
   projectWorkflowSchema,
   projectWorkflowListSchema,
   projectDashboardSchema,
   projectWorkflowHistorySchema,
-  projectUpdatesSchema,
 } from '@helpdesk/contracts';
 import {
   projectListSchema,
@@ -114,12 +112,23 @@ export function createAuthClient(
     }
   }
   async function decode(response: Response) {
-    if (response.status >= 500)
+    if (response.status >= 500) {
+      const body = await response.json().catch(() => null);
+      const code = body?.error?.code;
+      if (
+        response.status === 503 &&
+        (code === 'ATTACHMENT_SCHEMA_OUTDATED' ||
+          code === 'UPLOAD_UNAVAILABLE') &&
+        typeof body.error.message === 'string'
+      ) {
+        throw new AuthError(response.status, code, body.error.message);
+      }
       throw new AuthError(
         response.status,
         'API_UNAVAILABLE',
         'Serviço temporariamente indisponível. Tente novamente em instantes.',
       );
+    }
     let body;
     try {
       body = response.status === 204 ? null : await response.json();
@@ -1153,35 +1162,12 @@ export function createAuthClient(
         await projectRead('/workflows/dashboard'),
       );
     },
-    async projectUpdates(id: string, page = 1) {
-      return projectUpdatesSchema.parse(
-        await projectRead(
-          '/' + encodeURIComponent(id) + '/updates?page=' + page,
-        ),
-      );
-    },
     async projectWorkflowHistory(id: string, page = 1) {
       return projectWorkflowHistorySchema.parse(
         await projectRead(
           '/' + encodeURIComponent(id) + '/workflow/history?page=' + page,
         ),
       );
-    },
-    async projectVersions(id: string, page = 1) {
-      return projectPlanVersionsSchema.parse(
-        await projectRead(
-          '/' + encodeURIComponent(id) + '/plan-versions?page=' + page,
-        ),
-      );
-    },
-    async projectVersion(id: string, version: number) {
-      return projectWorkflowSchema.shape.plan
-        .unwrap()
-        .parse(
-          await projectRead(
-            '/' + encodeURIComponent(id) + '/plan-versions/' + version,
-          ),
-        );
     },
     async projectWrite(
       id: string,

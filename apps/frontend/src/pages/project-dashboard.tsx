@@ -242,23 +242,6 @@ export function ProjectDashboard({
               </Suspense>
             ))}
           </div>
-          <Panel title="Atualizações recentes de projetos">
-            <div className="form-body space-y-3">
-              {!data.updates.length && <p>Nenhuma atualização publicada.</p>}
-              {data.updates.map((u) => (
-                <article key={u.id}>
-                  <a
-                    className="text-button"
-                    href={'#/' + projectArea(user) + '/projetos/' + u.projectId}
-                  >
-                    PR-{u.code}
-                  </a>
-                  <p className="whitespace-pre-wrap break-words">{u.content}</p>
-                  <p className="text-xs text-slate-500">{date(u.createdAt)}</p>
-                </article>
-              ))}
-            </div>
-          </Panel>
           <Panel title="Evolução do progresso · últimas 24 mudanças">
             <div className="form-body space-y-2">
               {!data.progressHistory.length && (

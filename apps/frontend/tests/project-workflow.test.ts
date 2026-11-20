@@ -204,6 +204,8 @@ test('detalhe agrupa ações permitidas e exibe solicitante e progresso reais', 
   const workflow = {
     ...workflowFixture(),
     requesterName: 'Solicitante fictício',
+    owner: { id, name: 'Técnico fictício' },
+    startedAt: stamp,
     plan: { id, version: 2, createdAt: stamp, stages: [] },
     progress: { done: 1, total: 4, percent: 25 },
     state: 'IN_PROGRESS' as const,
@@ -214,36 +216,48 @@ test('detalhe agrupa ações permitidas e exibe solicitante e progresso reais', 
   ) =>
     renderToStaticMarkup(
       React.createElement(ProjectDetailActions, {
+        user: { id, role },
         workflow: {
           ...workflow,
           permissions: {
             ...workflow.permissions,
+            assign: role === 'ADMIN',
+            cancel: role === 'ADMIN',
             manage: manager,
             execute: manager,
             setPriority: manager,
             retire: manager,
           },
         },
-        role,
         busy: false,
         onEdit: () => {},
         onAction: () => {},
         onSection: () => {},
+        onRefresh: () => {},
       }),
     );
   for (const role of ['ADMIN', 'TECHNICIAN'] as const) {
     const manager = actions(role, true);
+    assert.match(manager, /Ações principais.*Concluir projeto.*Editar plano/);
     assert.match(
       manager,
-      /Ações principais.*Editar plano.*Gerenciar etapas.*Concluir projeto/,
+      /Acompanhamento do projeto.*Gerenciar etapas.*Histórico.*Alterar prioridade.*Atualizar consulta.*Excluir projeto/,
     );
     assert.match(
       manager,
-      /Ações secundárias.*Visualizar versões.*Alterar prioridade.*Adicionar atualização.*Excluir projeto/,
+      /class="button-secondary col-span-full"[^>]*>.*Excluir projeto/,
     );
+    assert.doesNotMatch(
+      manager,
+      /Consultar planejamento|Atualizações|Adicionar atualização|Versões|Iniciar planejamento/,
+    );
+    assert.equal(manager.match(/Gerenciar etapas/g)?.length, 1);
   }
   const requester = actions('REQUESTER', false);
-  assert.match(requester, /Consultar planejamento.*Visualizar versões/);
+  assert.match(
+    requester,
+    /Consultar planejamento.*Histórico.*Atualizar consulta/,
+  );
   assert.doesNotMatch(
     requester,
     /Gerenciar etapas|Concluir projeto|Alterar prioridade|Excluir projeto/,
@@ -252,7 +266,12 @@ test('detalhe agrupa ações permitidas e exibe solicitante e progresso reais', 
   const summary = renderToStaticMarkup(
     React.createElement(ProjectSummary, { workflow }),
   );
-  assert.match(summary, /Solicitante: Solicitante fictício/);
+  assert.match(summary, /<dt>Solicitante<\/dt><dd>Solicitante fictício<\/dd>/);
+  assert.match(
+    summary,
+    /<dt>Responsável técnico<\/dt><dd>Técnico fictício<\/dd>/,
+  );
+  assert.match(summary, /<dt>Data de início<\/dt><dd><time datetime=/i);
   assert.match(
     summary,
     /25%.*<progress[^>]+value="25".*1\/4 atividades.*plano v2/,
@@ -260,6 +279,72 @@ test('detalhe agrupa ações permitidas e exibe solicitante e progresso reais', 
   const legacy = renderToStaticMarkup(
     React.createElement(ProjectSummary, { workflow: workflowFixture() }),
   );
-  assert.match(legacy, /Solicitante: Não informado/);
+  assert.match(legacy, /<dt>Solicitante<\/dt><dd>Não informado<\/dd>/);
+  assert.doesNotMatch(legacy, /Data de início|Data de conclusão/);
   assert.doesNotMatch(legacy, /<progress/);
+});
+
+test('projeto atribuído permite criar plano nos estados legado e em planejamento, conforme permissões', () => {
+  for (const state of ['REQUESTED', 'PLANNING'] as const) {
+    for (const canManage of [false, true]) {
+      const workflow = workflowFixture();
+      const html = renderToStaticMarkup(
+        React.createElement(ProjectDetailActions, {
+          user: { id, role: 'TECHNICIAN' },
+          workflow: {
+            ...workflow,
+            state,
+            owner: { id, name: 'Técnico fictício' },
+            permissions: {
+              ...workflow.permissions,
+              manage: canManage,
+              publish: canManage,
+              assign: false,
+            },
+          },
+          busy: false,
+          onEdit: () => {},
+          onAction: () => {},
+          onSection: () => {},
+          onRefresh: () => {},
+        }),
+      );
+      assert.equal(html.includes('Criar plano'), canManage);
+      assert.doesNotMatch(
+        html,
+        /Iniciar planejamento|Iniciar execução|Definir responsável/,
+      );
+    }
+  }
+});
+
+test('concluir e excluir exigem perfil e vínculo além das permissões do projeto', () => {
+  const anotherId = '10000000-0000-4000-8000-000000000002';
+  const workflow = workflowFixture();
+  for (const [role, userId, allowed] of [
+    ['REQUESTER', id, false],
+    ['TECHNICIAN', anotherId, false],
+    ['TECHNICIAN', id, true],
+    ['ADMIN', anotherId, true],
+  ] as const) {
+    const html = renderToStaticMarkup(
+      React.createElement(ProjectDetailActions, {
+        user: { id: userId, role },
+        workflow: {
+          ...workflow,
+          owner: { id, name: 'Responsável' },
+          state: 'IN_PROGRESS',
+          permissions: { ...workflow.permissions, execute: true, retire: true },
+        },
+        busy: false,
+        onEdit: () => {},
+        onAction: () => {},
+        onSection: () => {},
+        onRefresh: () => {},
+      }),
+    );
+    assert.equal(html.includes('Concluir projeto'), allowed, role);
+    assert.equal(html.includes('Excluir projeto'), allowed, role);
+    assert.match(html, /Histórico.*Atualizar consulta/);
+  }
 });

@@ -45,6 +45,13 @@ export function operationHash(x: unknown) {
   return createHash('sha256').update(canonical(x)).digest('hex');
 }
 const terminal = (s: string) => s === 'COMPLETED' || s === 'CANCELED';
+function managesProject({ user }: Identity, ownerId: Row['owner_id']) {
+  return (
+    user.role === 'ADMIN' || (user.role === 'TECHNICIAN' && user.id === ownerId)
+  );
+}
+const awaitingFirstPlan = (row: Row) =>
+  row.state === 'REQUESTED' && row.owner_id !== null;
 const percent = (states: string[]) =>
   states.length
     ? {
@@ -189,7 +196,7 @@ export class ProjectWorkflowRepository {
   }
   private async view(tx: Tx, i: Identity, r: Row, includeDetails = true) {
     const plan = await this.plan(tx, r.id),
-      manage = i.user.role === 'ADMIN' || r.owner_id === i.user.id;
+      manage = managesProject(i, r.owner_id);
     const drafts =
       includeDetails && manage && !terminal(r.state)
         ? await tx.$queryRaw<
@@ -221,8 +228,9 @@ export class ProjectWorkflowRepository {
         assign: i.user.role === 'ADMIN' && !terminal(r.state),
         publish:
           manage &&
-          !terminal(r.state) &&
-          (r.state === 'PLANNING' || i.user.role === 'ADMIN'),
+          (r.state === 'PLANNING' ||
+            awaitingFirstPlan(r) ||
+            (r.state === 'IN_PROGRESS' && i.user.role === 'ADMIN')),
         execute: manage && !terminal(r.state),
         cancel:
           !terminal(r.state) &&
@@ -231,9 +239,7 @@ export class ProjectWorkflowRepository {
         setPriority:
           (i.user.role === 'ADMIN' || r.owner_id === i.user.id) &&
           !terminal(r.state),
-        retire:
-          !terminal(r.state) &&
-          (i.user.role === 'ADMIN' || r.owner_id === i.user.id),
+        retire: manage && !terminal(r.state),
       },
     };
   }
@@ -317,9 +323,26 @@ export class ProjectWorkflowRepository {
             ...q,
           };
         }
+        const entries = Prisma.sql`
+          SELECT e.id, e.kind, e.summary, u.name AS actor, e.created_at AS "createdAt", e.revision
+          FROM project_workflow_events e JOIN users u ON u.id=e.actor_id
+          WHERE e.project_id=${id}::uuid AND NOT (
+            e.kind='UPDATE_ADDED' AND EXISTS (
+              SELECT 1 FROM project_workflow_updates v WHERE v.project_id=e.project_id AND v.revision=e.revision
+            )
+          )
+          UNION ALL
+          SELECT v.id, 'UPDATE_ADDED' AS kind,
+            CASE WHEN v.correction_of IS NULL THEN 'Atualização publicada.' ELSE 'Correção de atualização publicada.' END || chr(10) || v.content,
+            u.name AS actor, v.created_at AS "createdAt", v.revision
+          FROM project_workflow_updates v JOIN users u ON u.id=v.actor_id
+          WHERE v.project_id=${id}::uuid
+          UNION ALL
+          SELECT e.id, e.type AS kind, 'Solicitação recebida.' AS summary, u.name AS actor, e.created_at AS "createdAt", 0 AS revision
+          FROM project_request_events e JOIN users u ON u.id=e.actor_id WHERE e.project_id=${id}::uuid`;
         const c = await tx.$queryRaw<
           { n: number }[]
-        >`SELECT ((SELECT count(*) FROM project_workflow_events WHERE project_id=${id}::uuid)+(SELECT count(*) FROM project_request_events WHERE project_id=${id}::uuid))::int n`;
+        >`SELECT count(*)::int n FROM (${entries}) h`;
         const items = await tx.$queryRaw<
           {
             id: string;
@@ -329,7 +352,7 @@ export class ProjectWorkflowRepository {
             createdAt: Date;
             revision: number;
           }[]
-        >`SELECT * FROM (SELECT e.id,e.kind,e.summary,u.name AS actor,e.created_at AS "createdAt",e.revision FROM project_workflow_events e JOIN users u ON u.id=e.actor_id WHERE e.project_id=${id}::uuid UNION ALL SELECT e.id,e.type AS kind,'Solicitação recebida.' AS summary,u.name AS actor,e.created_at AS "createdAt",0 AS revision FROM project_request_events e JOIN users u ON u.id=e.actor_id WHERE e.project_id=${id}::uuid) h ORDER BY "createdAt" DESC,revision DESC,id DESC LIMIT ${q.pageSize} OFFSET ${(q.page - 1) * q.pageSize}`;
+        >`SELECT * FROM (${entries}) h ORDER BY "createdAt" DESC,revision DESC,id DESC LIMIT ${q.pageSize} OFFSET ${(q.page - 1) * q.pageSize}`;
         return {
           items: items.map((x) => ({
             ...x,
@@ -393,7 +416,7 @@ export class ProjectWorkflowRepository {
         if (terminal(row.state) || row.revision !== input.expectedRevision)
           throw projectConflict();
         const admin = i.user.role === 'ADMIN',
-          manager = admin || row.owner_id === i.user.id;
+          manager = managesProject(i, row.owner_id);
         if (operation === 'cancel') {
           if (
             !admin &&
@@ -402,20 +425,17 @@ export class ProjectWorkflowRepository {
             throw forbidden();
         } else if (operation === 'priority') {
           if (!admin && row.owner_id !== i.user.id) throw forbidden();
-        } else if (operation === 'assignment' || operation === 'planning') {
+        } else if (operation === 'assignment') {
           if (!admin) throw forbidden();
-        } else if (operation === 'retire') {
-          if (
-            !admin &&
-            (i.user.role !== 'TECHNICIAN' || row.owner_id !== i.user.id)
-          )
-            throw forbidden();
         } else if (!manager) throw forbidden();
         await tx.$executeRaw`INSERT INTO project_workflows(project_id) VALUES(${id}::uuid) ON CONFLICT DO NOTHING`;
+        const opensLegacyPlan =
+          awaitingFirstPlan(row) &&
+          (operation === 'draft' || operation === 'publish');
         let kind: string,
           summary: string,
           details: unknown = {},
-          nextState = row.state,
+          nextState = opensLegacyPlan ? 'PLANNING' : row.state,
           ownerId = row.owner_id;
         const now = new Date();
         const currentPlan = await this.plan(tx, id);
@@ -462,18 +482,13 @@ export class ProjectWorkflowRepository {
           if (u.id === row.owner_id)
             throw projectConflict('O técnico já é responsável.');
           ownerId = u.id;
+          if (row.state === 'REQUESTED') nextState = 'PLANNING';
           kind = row.owner_id ? 'REASSIGNED' : 'ASSIGNED';
           summary =
             'Responsável definido: ' + u.name + '. Motivo: ' + input.reason;
           details = { previousOwnerId: row.owner_id, ownerId };
-        } else if (operation === 'planning') {
-          if (row.state !== 'REQUESTED' || !ownerId)
-            throw projectConflict('Atribua um responsável antes de planejar.');
-          nextState = 'PLANNING';
-          kind = 'PLANNING';
-          summary = 'Planejamento iniciado. ' + input.reason;
         } else if (operation === 'draft') {
-          if (!['PLANNING', 'IN_PROGRESS'].includes(row.state))
+          if (!['PLANNING', 'IN_PROGRESS'].includes(nextState))
             throw projectConflict();
           const definition = input.definition as ProjectPlan;
           const drafts = await tx.$queryRaw<
@@ -524,7 +539,7 @@ export class ProjectWorkflowRepository {
             'Rascunho de planejamento excluído. Versões publicadas foram preservadas.';
         } else if (operation === 'publish') {
           if (
-            !['PLANNING', 'IN_PROGRESS'].includes(row.state) ||
+            !['PLANNING', 'IN_PROGRESS'].includes(nextState) ||
             (row.state === 'IN_PROGRESS' && !admin)
           )
             throw forbidden();
@@ -640,18 +655,6 @@ export class ProjectWorkflowRepository {
             '. ' +
             input.reason;
           details = { activityId, previousState: a.state, state: input.state };
-        } else if (operation === 'update') {
-          if (input.correctionOf) {
-            const c = await tx.$queryRaw<
-              { id: string }[]
-            >`SELECT id FROM project_workflow_updates WHERE id=${input.correctionOf as string}::uuid AND project_id=${id}::uuid`;
-            if (!c[0]) throw resourceNotFound();
-          }
-          await tx.$executeRaw`INSERT INTO project_workflow_updates(project_id,actor_id,content,correction_of,revision,created_at) VALUES(${id}::uuid,${i.user.id}::uuid,${input.content as string},${(input.correctionOf as string | undefined) ?? null}::uuid,${row.revision + 1},${now})`;
-          kind = 'UPDATE_ADDED';
-          summary = input.correctionOf
-            ? 'Correção de atualização publicada.'
-            : 'Atualização publicada.';
         } else if (operation === 'complete') {
           if (
             row.state !== 'IN_PROGRESS' ||
@@ -670,7 +673,11 @@ export class ProjectWorkflowRepository {
           summary = 'Projeto cancelado. ' + input.reason;
           details = { progress: previousProgress };
         } else throw resourceNotFound();
-        if (['planning', 'start', 'complete'].includes(operation)) {
+        if (
+          opensLegacyPlan ||
+          operation === 'start' ||
+          operation === 'complete'
+        ) {
           await tx.$queryRaw`SELECT id FROM users WHERE id=${ownerId!}::uuid FOR SHARE`;
           const eligible = await tx.user.findFirst({
             where: {
@@ -696,9 +703,14 @@ export class ProjectWorkflowRepository {
         );
         details = {
           ...(details as object),
+          ...(row.state === 'REQUESTED' && nextState === 'PLANNING'
+            ? { previousState: row.state, state: nextState }
+            : {}),
           progressBefore: previousProgress?.percent ?? null,
           progressAfter: progressAfter?.percent ?? null,
         };
+        if (row.state === 'REQUESTED' && nextState === 'PLANNING')
+          summary += ' Status alterado automaticamente para Em planejamento.';
         await tx.$executeRaw`INSERT INTO project_workflow_events(project_id,actor_id,kind,summary,details,revision,created_at) VALUES(${id}::uuid,${i.user.id}::uuid,${kind},${summary},${JSON.stringify(details)}::jsonb,${row.revision + 1},${now})`;
         const result = await this.view(
           tx,

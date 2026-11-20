@@ -1,0 +1,20 @@
+@container ticket-workspace (max-height: 22rem) {
+  .project-detail {
+    gap: 0.25rem;
+  }
+  .project-detail > .ticket-created-note {
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+}
+@container ticket-workspace (max-height: 20rem) {
+  .project-detail
+    .ticket-detail-conversation
+    .panel-heading:not(:has(.ticket-new-messages)) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}

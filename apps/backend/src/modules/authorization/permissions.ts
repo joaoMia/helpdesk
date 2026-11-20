@@ -11,7 +11,6 @@ const grants = {
   'projects.assign': ['ADMIN'],
   'projects.retire': ['TECHNICIAN', 'ADMIN'],
   'projects.plan': ['TECHNICIAN', 'ADMIN'],
-  'projects.update': ['TECHNICIAN', 'ADMIN'],
   'projects.transition': ['TECHNICIAN', 'ADMIN'],
   'projects.cancel': ['REQUESTER', 'ADMIN'],
   'projects.request': ['REQUESTER'],

@@ -11,14 +11,13 @@ import {
 import { authClient, AuthError } from '../lib/auth-client';
 import { Icon, PageHeading, Panel, PriorityBadge } from '../components/ui';
 import { DemoDialog } from '../components/demo-dialog';
-import { MotionRegion } from '../components/motion-region';
 import { TicketPagination } from '../components/ticket-pagination';
 import { useDebouncedValue } from '../hooks/use-debounced-value';
 import { date } from '../lib/presentation';
 import { ProjectDashboard } from './project-dashboard';
 import { DynamicServiceFields } from '../components/dynamic-service-fields';
 import { OpeningFileField } from '../components/opening-file-field';
-import { ProjectAttachments } from '../components/project-attachments';
+import { ProjectOpening } from '../components/project-opening';
 import { TicketConversation } from '../components/ticket-conversation';
 import type { OpeningUpload } from '@helpdesk/contracts';
 import type { ServiceForm } from '@helpdesk/contracts';
@@ -74,89 +73,6 @@ function ProjectPriority({
     <PriorityBadge priority={priority} />
   ) : (
     <span className="priority priority-none">Não definida</span>
-  );
-}
-function ProjectFormAnswers({ id }: { id: string }) {
-  const [data, setData] = useState<
-      Awaited<ReturnType<typeof authClient.projectSubmission>> | undefined
-    >(),
-    [error, setError] = useState('');
-  useEffect(() => {
-    let alive = true;
-    authClient
-      .projectSubmission(id)
-      .then((v) => {
-        if (alive) setData(v);
-      })
-      .catch((e) => {
-        if (alive) setError(e.message);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [id]);
-  return (
-    <Panel title="Formulário da solicitação">
-      {error ? (
-        <p role="alert" className="form-error form-body">
-          {error}
-        </p>
-      ) : data === undefined ? (
-        <p role="status" className="form-body">
-          Consultando respostas…
-        </p>
-      ) : data === null ? (
-        <p className="form-body">
-          Solicitação anterior à integração dos formulários. Nenhuma resposta
-          foi inventada.
-        </p>
-      ) : (
-        <div className="form-body project-answers">
-          <p className="project-form-version">
-            {data.snapshot.categoryName} · versão {data.snapshot.version}
-          </p>
-          <dl className="answer-summary project-answer-grid">
-            {data.snapshot.fields.map((f) => {
-              const answer = data.answers[f.key];
-              return (
-                <div className="project-answer-card" key={f.id}>
-                  <dt>{f.label}</dt>
-                  <dd className="whitespace-pre-wrap break-words">
-                    {answer === undefined || answer === '' ? (
-                      <span className="answer-missing">Não informado</span>
-                    ) : f.type === 'FILE' ? (
-                      <a className="text-button" href="#project-attachments">
-                        {(answer as string[]).length} arquivo(s) · ver anexos
-                      </a>
-                    ) : Array.isArray(answer) ? (
-                      <span className="answer-chips">
-                        {(answer as string[]).map((x) => (
-                          <span key={x}>{x}</span>
-                        ))}
-                      </span>
-                    ) : typeof answer === 'boolean' ? (
-                      answer ? (
-                        'Sim'
-                      ) : (
-                        'Não'
-                      )
-                    ) : f.type === 'DATE' && typeof answer === 'string' ? (
-                      new Date(`${answer}T12:00:00`).toLocaleDateString('pt-BR')
-                    ) : f.type === 'NUMBER' && typeof answer === 'number' ? (
-                      answer.toLocaleString('pt-BR')
-                    ) : f.type === 'DATE_TIME' && typeof answer === 'string' ? (
-                      new Date(answer).toLocaleString('pt-BR')
-                    ) : (
-                      String(answer)
-                    )}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
-        </div>
-      )}
-    </Panel>
   );
 }
 function failure(e: unknown, onExpired: () => void) {
@@ -1012,78 +928,58 @@ function PlanEditor({
     </DemoDialog>
   );
 }
-type Action = { op: string; activityId?: string; correctionOf?: string };
-type ProjectSection = 'project-plan' | 'project-records';
+type Action = { op: string; activityId?: string };
+type ProjectSection = 'plan' | 'history';
+const sidebarViewport = '(min-width: 1024px) and (min-height: 640px)';
 
 export function ProjectDetailActions({
   workflow: w,
-  role,
+  user,
   busy,
   onEdit,
   onAction,
   onSection,
+  onRefresh,
 }: {
   workflow: ProjectWorkflow;
-  role: PublicUser['role'];
+  user: Pick<PublicUser, 'id' | 'role'>;
   busy: boolean;
   onEdit: () => void;
   onAction: (action: Action) => void;
-  onSection: (section: ProjectSection, versions?: boolean) => void;
+  onSection: (section: ProjectSection) => void;
+  onRefresh: () => void;
 }) {
   const canEdit =
-    w.permissions.manage && ['PLANNING', 'IN_PROGRESS'].includes(w.state);
-  const canPlan = role === 'ADMIN' && w.state === 'REQUESTED' && !!w.owner;
+    w.permissions.manage &&
+    (w.state === 'PLANNING' ||
+      w.state === 'IN_PROGRESS' ||
+      (w.state === 'REQUESTED' && !!w.owner && w.permissions.publish));
   const canStart = w.permissions.execute && w.state === 'PLANNING' && !!w.plan;
-  const canComplete = w.permissions.execute && w.state === 'IN_PROGRESS';
-  const hasSecondary =
-    w.plan ||
-    w.permissions.manage ||
-    w.permissions.setPriority ||
-    w.permissions.retire;
-  if (!canEdit && !canPlan && !canStart && !canComplete && !hasSecondary)
-    return null;
-
+  const canOperateProject =
+    user.role === 'ADMIN' ||
+    (user.role === 'TECHNICIAN' && w.owner?.id === user.id);
+  const canComplete =
+    canOperateProject && w.permissions.execute && w.state === 'IN_PROGRESS';
+  const canTransitionExecution = canStart || canComplete;
+  const canManageStages = w.permissions.execute && w.state === 'IN_PROGRESS';
+  const canDiscard = w.permissions.manage && !!w.draft;
+  const hasPrimary = canEdit || canStart || canComplete || w.permissions.assign;
+  const planLabel = !w.plan
+    ? 'Planejamento'
+    : canManageStages
+      ? 'Gerenciar etapas'
+      : 'Consultar planejamento';
   return (
-    <section className="project-actions" aria-label="Ações do projeto">
-      {(canEdit || w.plan || canPlan || canStart || canComplete) && (
+    <>
+      {hasPrimary && (
         <div
-          className="project-action-group"
+          className="ticket-operational-actions"
           role="group"
           aria-label="Ações principais"
         >
-          {canEdit && (
-            <button className="button-primary" disabled={busy} onClick={onEdit}>
-              {w.draft || w.plan ? 'Editar plano' : 'Criar plano'}
-            </button>
-          )}
-          {w.plan && (
-            <button
-              className="button-secondary"
-              onClick={() => onSection('project-plan')}
-            >
-              Consultar planejamento
-            </button>
-          )}
-          {canEdit && w.plan && (
-            <button
-              className="button-secondary"
-              onClick={() => onSection('project-plan')}
-            >
-              Gerenciar etapas
-            </button>
-          )}
-          {canPlan && (
-            <button
-              className="button-secondary"
-              disabled={busy}
-              onClick={() => onAction({ op: 'planning' })}
-            >
-              Iniciar planejamento
-            </button>
-          )}
           {canStart && (
             <button
-              className="button-secondary"
+              className="button-primary"
               disabled={busy}
               onClick={() => onAction({ op: 'start' })}
             >
@@ -1099,106 +995,174 @@ export function ProjectDetailActions({
               Concluir projeto
             </button>
           )}
+          {canEdit && (
+            <button
+              className={
+                canTransitionExecution
+                  ? w.permissions.assign
+                    ? 'button-secondary'
+                    : 'button-secondary col-span-full'
+                  : 'button-primary'
+              }
+              disabled={busy}
+              onClick={onEdit}
+            >
+              {w.draft || w.plan ? 'Editar plano' : 'Criar plano'}
+            </button>
+          )}
+          {w.permissions.assign && (
+            <button
+              className={
+                w.state === 'REQUESTED' && !w.owner
+                  ? 'button-primary'
+                  : canEdit && canTransitionExecution
+                    ? 'button-secondary'
+                    : 'button-secondary col-span-full'
+              }
+              disabled={busy}
+              onClick={() => onAction({ op: 'assignment' })}
+            >
+              Definir responsável
+            </button>
+          )}
         </div>
       )}
-      {hasSecondary && (
-        <div
-          className="project-action-group"
-          role="group"
-          aria-label="Ações secundárias"
+      <div
+        className="ticket-info-links"
+        role="group"
+        aria-label="Acompanhamento do projeto"
+      >
+        <button
+          className="button-secondary"
+          aria-haspopup="dialog"
+          onClick={() => onSection('plan')}
         >
-          {w.plan && (
-            <button
-              className="button-secondary"
-              onClick={() => onSection('project-records', true)}
-            >
-              Visualizar versões
-            </button>
-          )}
-          {w.permissions.manage && w.draft && (
-            <button
-              className="button-secondary"
-              disabled={busy}
-              onClick={() => onAction({ op: 'draft-delete' })}
-            >
-              Descartar rascunho
-            </button>
-          )}
-          {w.permissions.setPriority && (
-            <button
-              className="button-secondary"
-              disabled={busy}
-              onClick={() => onAction({ op: 'priority' })}
-            >
-              Alterar prioridade
-            </button>
-          )}
-          {w.permissions.manage && (
-            <button
-              className="button-secondary"
-              disabled={busy}
-              onClick={() => onAction({ op: 'updates' })}
-            >
-              Adicionar atualização
-            </button>
-          )}
-          {w.permissions.retire && (
-            <button
-              className="button-secondary"
-              disabled={busy}
-              onClick={() => onAction({ op: 'retire' })}
-            >
-              <Icon name="trash" /> Excluir projeto
-            </button>
-          )}
-        </div>
-      )}
-    </section>
+          {planLabel}
+        </button>
+        <button
+          className="button-secondary"
+          aria-haspopup="dialog"
+          onClick={() => onSection('history')}
+        >
+          Histórico
+        </button>
+        {w.permissions.setPriority && (
+          <button
+            className="button-secondary"
+            disabled={busy}
+            onClick={() => onAction({ op: 'priority' })}
+          >
+            Alterar prioridade
+          </button>
+        )}
+        <button
+          className={
+            w.permissions.setPriority
+              ? 'button-secondary'
+              : 'button-secondary col-span-full'
+          }
+          onClick={onRefresh}
+        >
+          Atualizar consulta
+        </button>
+        {canDiscard && (
+          <button
+            className={
+              w.permissions.cancel
+                ? 'button-secondary'
+                : 'button-secondary col-span-full'
+            }
+            disabled={busy}
+            onClick={() => onAction({ op: 'draft-delete' })}
+          >
+            Descartar rascunho
+          </button>
+        )}
+        {w.permissions.cancel && (
+          <button
+            className={
+              canDiscard ? 'button-secondary' : 'button-secondary col-span-full'
+            }
+            onClick={() => onAction({ op: 'cancel' })}
+          >
+            Cancelar projeto
+          </button>
+        )}
+        {canOperateProject && w.permissions.retire && (
+          <button
+            className="button-secondary col-span-full"
+            disabled={busy}
+            onClick={() => onAction({ op: 'retire' })}
+          >
+            <Icon name="trash" /> Excluir projeto
+          </button>
+        )}
+      </div>
+    </>
   );
 }
 
 export function ProjectSummary({ workflow: w }: { workflow: ProjectWorkflow }) {
+  const dates = [
+    ['Data da solicitação', w.createdAt],
+    ['Data de início', w.startedAt],
+    ['Data de conclusão', w.completedAt],
+    ['Data de cancelamento', w.canceledAt],
+  ];
   return (
-    <Panel title="Resumo do projeto">
-      <div className="form-body space-y-3">
-        <Badge state={w.state} />
-        <p className="wrap-anywhere">
-          Solicitante: {w.requesterName ?? 'Não informado'}
-        </p>
-        <p>Responsável: {w.owner?.name ?? 'Sem responsável'}</p>
-        <p className="flex items-center gap-2">
-          Prioridade <ProjectPriority priority={w.priority} />
-        </p>
-        <p>Solicitado em {date(w.createdAt)}</p>
-        {w.startedAt && <p>Início: {date(w.startedAt)}</p>}
-        {w.completedAt && <p>Conclusão: {date(w.completedAt)}</p>}
-        {w.canceledAt && <p>Cancelamento: {date(w.canceledAt)}</p>}
-        {w.progress ? (
-          <div className="project-progress">
-            <div className="project-progress-heading">
-              <span>Progresso do plano</span>
-              <strong>{w.progress.percent}%</strong>
-            </div>
-            <progress
-              className="project-progress-track"
-              aria-label="Progresso por atividades"
-              value={w.progress.percent}
-              max={100}
-            />
-            <p className="text-xs text-slate-500">
-              {w.progress.done}/{w.progress.total} atividades
-              {w.plan && ` · plano v${w.plan.version}`}
-            </p>
-          </div>
-        ) : (
-          <p>Ainda sem plano</p>
+    <>
+      <dl className="ticket-info-people">
+        <div>
+          <dt>Status e prioridade</dt>
+          <dd className="flex flex-wrap gap-1.5">
+            <Badge state={w.state} />
+            <ProjectPriority priority={w.priority} />
+          </dd>
+        </div>
+        <div>
+          <dt>Solicitante</dt>
+          <dd>{w.requesterName ?? 'Não informado'}</dd>
+        </div>
+        <div>
+          <dt>Responsável técnico</dt>
+          <dd>{w.owner?.name ?? 'Sem responsável'}</dd>
+        </div>
+      </dl>
+      <dl className="ticket-date-summary">
+        {dates.map(
+          ([label, value]) =>
+            value && (
+              <div className="ticket-date-highlight" key={label}>
+                <dt>{label}</dt>
+                <dd>
+                  <time dateTime={value}>{date(value)}</time>
+                </dd>
+              </div>
+            ),
         )}
-        <p className="text-xs text-slate-500">
-          Revisão {w.revision}. Percentual não equivale a SLA ou conclusão
-          automática.
-        </p>
-      </div>
-    </Panel>
+      </dl>
+      {w.progress ? (
+        <div className="project-progress">
+          <div className="project-progress-heading">
+            <span>Progresso do plano</span>
+            <strong>{w.progress.percent}%</strong>
+          </div>
+          <progress
+            className="project-progress-track"
+            aria-label="Progresso por atividades"
+            value={w.progress.percent}
+            max={100}
+          />
+          <p className="text-xs text-slate-500">
+            {w.progress.done}/{w.progress.total} atividades
+            {w.plan && ` · plano v${w.plan.version}`}
+          </p>
+        </div>
+      ) : (
+        <p className="text-sm text-slate-600">Ainda sem plano</p>
+      )}
+      <p className="text-xs text-slate-500">Revisão {w.revision}</p>
+    </>
   );
 }
 
@@ -1223,16 +1187,26 @@ function ProjectDetail({
     [projectPriority, setProjectPriority] = useState<
       'HIGH' | 'MEDIUM' | 'LOW' | null
     >(null),
-    [recordsTab, setRecordsTab] = useState<'updates' | 'history' | 'versions'>(
-      'updates',
+    [section, setSection] = useState<ProjectSection | null>(null),
+    [infoOpen, setInfoOpen] = useState(false),
+    [sidebar, setSidebar] = useState(
+      () =>
+        typeof window !== 'undefined' &&
+        window.matchMedia(sidebarViewport).matches,
     ),
-    [activityState, setActivityState] = useState('TODO'),
-    [selectedVersion, setSelectedVersion] = useState<NonNullable<
-      ProjectWorkflow['plan']
-    > | null>(null);
+    [activityState, setActivityState] = useState('TODO');
   const lock = useRef(false),
     alive = useRef(true),
     pending = useRef<{ signature: string; body: object } | null>(null);
+  useEffect(() => {
+    const query = window.matchMedia(sidebarViewport);
+    const update = () => {
+      setSidebar(query.matches);
+      if (query.matches) setInfoOpen(false);
+    };
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -1268,12 +1242,6 @@ function ProjectDetail({
       .find((v) => v.id === a.activityId);
     setActivityState(activity?.state ?? 'TODO');
   }
-  function goToSection(section: ProjectSection, versions = false) {
-    if (versions) setRecordsTab('versions');
-    const target = document.getElementById(section);
-    target?.focus({ preventScroll: true });
-    target?.scrollIntoView({ block: 'start' });
-  }
   async function write(
     op: string,
     fields: object,
@@ -1294,7 +1262,12 @@ function ProjectDetail({
     setBusy(true);
     setError('');
     try {
-      await authClient.projectWrite(id, op, pending.current.body, method);
+      const updated = await authClient.projectWrite(
+        id,
+        op,
+        pending.current.body,
+        method,
+      );
       if (alive.current) {
         pending.current = null;
         setAction(null);
@@ -1306,6 +1279,7 @@ function ProjectDetail({
           );
           return true;
         }
+        if (op === 'assignment') setW(updated);
         setNotice('Alteração confirmada e registrada no histórico.');
         setRevision((v) => v + 1);
       }
@@ -1347,6 +1321,7 @@ function ProjectDetail({
         'PUT',
       );
       if (!publish) {
+        setW(saved);
         setEditor(false);
         setNotice('Rascunho salvo e registrado no histórico.');
         setRevision((n) => n + 1);
@@ -1399,7 +1374,6 @@ function ProjectDetail({
     if (
       [
         'assignment',
-        'planning',
         'plan-publication',
         'complete',
         'cancel',
@@ -1408,10 +1382,6 @@ function ProjectDetail({
       reason.trim().length < 3
     ) {
       setError('Informe justificativa ou resumo com ao menos 3 caracteres.');
-      return;
-    }
-    if (op === 'updates' && !reason.trim()) {
-      setError('Escreva a atualização.');
       return;
     }
     void write(
@@ -1428,16 +1398,9 @@ function ProjectDetail({
             ? { state: activityState, reason }
             : op === 'draft-delete'
               ? {}
-              : op === 'updates'
-                ? {
-                    content: reason,
-                    ...(action.correctionOf
-                      ? { correctionOf: action.correctionOf }
-                      : {}),
-                  }
-                : op === 'start'
-                  ? {}
-                  : { reason },
+              : op === 'start'
+                ? {}
+                : { reason },
       op === 'activity' ? 'PATCH' : op === 'draft-delete' ? 'DELETE' : 'POST',
     );
   }
@@ -1446,14 +1409,10 @@ function ProjectDetail({
     priority: 'Alterar prioridade',
     'draft-delete': 'Excluir rascunho',
     retire: 'Excluir projeto',
-    planning: 'Iniciar planejamento',
     'plan-publication': 'Publicar plano',
     start: 'Iniciar execução',
     complete: 'Concluir projeto',
     cancel: 'Cancelar projeto',
-    updates: action?.correctionOf
-      ? 'Corrigir atualização'
-      : 'Publicar atualização',
     activity: 'Atualizar atividade',
     'stage-complete': 'Concluir etapa',
   };
@@ -1472,150 +1431,178 @@ function ProjectDetail({
         })),
       })) ?? [],
   };
-  return (
-    <>
-      <a className="back-link" href={'#/' + projectArea(user) + '/projetos'}>
-        ← Voltar aos projetos
-      </a>
-      <PageHeading
-        eyebrow={'PROJETO PR-' + (w?.code ?? '…')}
-        title={w?.title ?? 'Consultando projeto'}
-        description="Solicitação original preservada e acompanhamento versionado."
+  const information = w && (
+    <div className="ticket-info-content">
+      <ProjectSummary workflow={w} />
+      <ProjectDetailActions
+        workflow={w}
+        user={user}
+        busy={busy}
+        onEdit={() => {
+          pending.current = null;
+          setError('');
+          setEditor(true);
+        }}
+        onAction={open}
+        onSection={(section) => {
+          setError('');
+          setSection(section);
+        }}
+        onRefresh={() => setRevision((v) => v + 1)}
       />
-      {w && (
-        <ProjectDetailActions
-          workflow={w}
-          role={user.role}
-          busy={busy}
-          onEdit={() => {
-            pending.current = null;
-            setError('');
-            setEditor(true);
-          }}
-          onAction={open}
-          onSection={goToSection}
-        />
-      )}
-      {error && (
+    </div>
+  );
+  return (
+    <div className="ticket-detail project-detail">
+      <header className="ticket-detail-header">
+        <a className="back-link" href={'#/' + projectArea(user) + '/projetos'}>
+          ← Voltar aos projetos
+        </a>
+        {w ? (
+          <>
+            <div className="ticket-detail-heading">
+              <span className="ticket-detail-code">PR-{w.code}</span>
+              <h1 id="page-title" tabIndex={-1} title={w.title}>
+                {w.title}
+              </h1>
+            </div>
+            <div className="ticket-detail-header-controls">
+              <div className="ticket-header-badges flex flex-wrap gap-1.5">
+                <Badge state={w.state} />
+                {w.priority && <ProjectPriority priority={w.priority} />}
+              </div>
+              {!sidebar && (
+                <button
+                  type="button"
+                  className="button-secondary ticket-info-trigger"
+                  aria-label="Informações do projeto"
+                  aria-haspopup="dialog"
+                  onClick={() => setInfoOpen(true)}
+                >
+                  <Icon name="chevron" />
+                  <span>
+                    Informações
+                    <span className="max-[359px]:sr-only"> do projeto</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="ticket-detail-heading">
+            <h1 id="page-title" tabIndex={-1}>
+              {error ? 'Projeto indisponível' : 'Consultando projeto'}
+            </h1>
+          </div>
+        )}
+      </header>
+      {error && (!w || (!action && !editor && !section)) && (
         <p className="form-error" role="alert">
           {error}
         </p>
       )}
       {notice && (
-        <p className="info-note" role="status">
+        <p className="ticket-created-note" role="status">
           {notice}
         </p>
       )}
-      {!w && !error && <p role="status">Consultando projeto…</p>}
+      {!w && !error && (
+        <p role="status" className="panel p-4">
+          Carregando projeto…
+        </p>
+      )}
       {w && (
-        <MotionRegion motionKey={'workflow-' + id} reveal className="space-y-5">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-            <Panel title="Objetivo e necessidade">
-              <div className="form-body space-y-4">
-                <h2 className="font-semibold">Objetivo</h2>
-                <p className="whitespace-pre-wrap break-words">{w.objective}</p>
-                <h2 className="font-semibold">Necessidade</h2>
-                <p className="whitespace-pre-wrap break-words">{w.need}</p>
-              </div>
-            </Panel>
-            <ProjectSummary workflow={w} />
-          </div>
-          <ProjectFormAnswers id={id} />
-          <section id="project-attachments" className="scroll-mt-24">
-            <ProjectAttachments id={id} onExpired={onExpired} />
-          </section>
-          <TicketConversation
-            id={id}
-            status={w.state}
-            user={user}
-            onExpired={onExpired}
-            onChanged={() => {}}
-            resource="project-conversation"
-            contextLabel="projeto"
-            allowWrite={!['COMPLETED', 'CANCELED'].includes(w.state)}
-            allowSolve={false}
-          />
-          <nav className="dashboard-sections" aria-label="Seções do projeto">
-            <button type="button" onClick={() => goToSection('project-plan')}>
-              Etapas e atividades
-            </button>
-            <button
-              type="button"
-              onClick={() => goToSection('project-records')}
-            >
-              Atualizações e histórico
-            </button>
-          </nav>
-          <div
-            className="flex flex-wrap gap-3"
-            role="group"
-            aria-label="Ações autorizadas do projeto"
-          >
-            {w.permissions.assign && (
-              <button
-                className="button-secondary"
-                disabled={busy}
-                onClick={() => open({ op: 'assignment' })}
-              >
-                Definir responsável
-              </button>
-            )}
-            {w.permissions.cancel && (
-              <button
-                className="text-button"
-                onClick={() => open({ op: 'cancel' })}
-              >
-                Cancelar projeto
-              </button>
-            )}
-            <button
-              className="text-button"
-              onClick={() => setRevision((v) => v + 1)}
-            >
-              Atualizar consulta
-            </button>
-          </div>
-          <section id="project-plan" tabIndex={-1} className="scroll-mt-24">
-            <Panel title="Etapas e atividades publicadas">
-              <div className="form-body">
-                {w.plan ? (
-                  <PlanView
-                    plan={w.plan}
-                    onActivity={
-                      w.permissions.execute && w.state === 'IN_PROGRESS'
-                        ? (id) => open({ op: 'activity', activityId: id })
-                        : undefined
-                    }
-                    onStageComplete={
-                      w.permissions.execute && w.state === 'IN_PROGRESS'
-                        ? (stageId) =>
-                            open({ op: 'stage-complete', activityId: stageId })
-                        : undefined
-                    }
-                  />
-                ) : (
-                  <p>Ainda sem plano publicado.</p>
-                )}
-              </div>
-            </Panel>
-          </section>
-          <section id="project-records" tabIndex={-1} className="scroll-mt-24">
-            <ProjectRecords
-              key={id + ':' + revision + ':' + recordsTab}
+        <div
+          className={
+            sidebar
+              ? 'ticket-detail-grid ticket-detail-with-sidebar'
+              : 'ticket-detail-grid'
+          }
+        >
+          <div className="ticket-detail-conversation">
+            <TicketConversation
               id={id}
-              initialTab={recordsTab}
-              manager={w.permissions.manage}
+              status={w.state}
+              user={user}
               onExpired={onExpired}
-              onCorrect={(key) => open({ op: 'updates', correctionOf: key })}
-              onVersion={(v) => {
-                authClient
-                  .projectVersion(id, v)
-                  .then(setSelectedVersion)
-                  .catch((e) => setError(failure(e, onExpired)));
-              }}
+              onChanged={() => {}}
+              resource="project-conversation"
+              contextLabel="projeto"
+              allowWrite={!['COMPLETED', 'CANCELED'].includes(w.state)}
+              allowSolve={false}
+              projectOpening={
+                <ProjectOpening workflow={w} onExpired={onExpired} />
+              }
             />
-          </section>
-        </MotionRegion>
+          </div>
+          {sidebar ? (
+            <aside
+              className="panel ticket-info-panel"
+              aria-labelledby="project-info-title"
+              tabIndex={0}
+            >
+              <h2 id="project-info-title">Informações do projeto</h2>
+              {information}
+            </aside>
+          ) : (
+            infoOpen && (
+              <DemoDialog
+                title="Informações do projeto"
+                eyebrow=""
+                className="ticket-info-dialog"
+                cancelLabel="Voltar à conversa"
+                onCancel={() => setInfoOpen(false)}
+              >
+                {information}
+              </DemoDialog>
+            )
+          )}
+        </div>
+      )}
+      {section && w && (
+        <DemoDialog
+          title={section === 'plan' ? 'Planejamento' : 'Histórico'}
+          eyebrow=""
+          className="ticket-info-dialog"
+          cancelLabel="Fechar"
+          onCancel={() => {
+            setError('');
+            setSection(null);
+          }}
+        >
+          {section === 'plan' ? (
+            w.plan ? (
+              <PlanView
+                plan={w.plan}
+                onActivity={
+                  w.permissions.execute && w.state === 'IN_PROGRESS'
+                    ? (id) => open({ op: 'activity', activityId: id })
+                    : undefined
+                }
+                onStageComplete={
+                  w.permissions.execute && w.state === 'IN_PROGRESS'
+                    ? (stageId) =>
+                        open({ op: 'stage-complete', activityId: stageId })
+                    : undefined
+                }
+              />
+            ) : (
+              <p>Ainda sem plano publicado.</p>
+            )
+          ) : (
+            <ProjectHistory
+              key={id}
+              id={id}
+              revision={revision}
+              onExpired={onExpired}
+            />
+          )}
+          {error && !action && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+        </DemoDialog>
       )}
       {editor && w && (
         <PlanEditor
@@ -1699,16 +1686,14 @@ function ProjectDetail({
             )}
             {action.op !== 'start' && action.op !== 'stage-complete' && (
               <label className="form-label">
-                {action.op === 'updates'
-                  ? 'Atualização'
-                  : action.op === 'complete'
-                    ? 'Resumo obrigatório da entrega'
-                    : action.op === 'activity'
-                      ? 'Justificativa (obrigatória para retrabalho)'
-                      : 'Justificativa'}
+                {action.op === 'complete'
+                  ? 'Resumo obrigatório da entrega'
+                  : action.op === 'activity'
+                    ? 'Justificativa (obrigatória para retrabalho)'
+                    : 'Justificativa'}
                 <textarea
                   className="field"
-                  maxLength={action.op === 'updates' ? 4000 : 2000}
+                  maxLength={2000}
                   value={reason}
                   disabled={busy}
                   onChange={(e) => setReason(e.target.value)}
@@ -1723,58 +1708,29 @@ function ProjectDetail({
           </div>
         </DemoDialog>
       )}
-      {selectedVersion && (
-        <DemoDialog
-          title={'Plano histórico v' + selectedVersion.version}
-          eyebrow="DEFINIÇÃO IMUTÁVEL"
-          description="A definição é histórica; a situação operacional das atividades é a atual. Consulte os eventos para estados anteriores."
-          confirmLabel="Fechar"
-          onConfirm={() => {
-            setSelectedVersion(null);
-          }}
-          onCancel={() => setSelectedVersion(null)}
-        >
-          <PlanView plan={selectedVersion} />
-        </DemoDialog>
-      )}
-    </>
+    </div>
   );
 }
-function ProjectRecords({
+function ProjectHistory({
   id,
-  initialTab = 'updates',
-  manager,
+  revision,
   onExpired,
-  onCorrect,
-  onVersion,
 }: {
   id: string;
-  initialTab?: 'updates' | 'history' | 'versions';
-  manager: boolean;
+  revision: number;
   onExpired: () => void;
-  onCorrect: (id: string) => void;
-  onVersion: (v: number) => void;
 }) {
-  const [tab, setTab] = useState<'updates' | 'history' | 'versions'>(
-      initialTab,
-    ),
-    [page, setPage] = useState(1),
-    [data, setData] = useState<{
-      items: Record<string, unknown>[];
-      total: number;
-    }>({ items: [], total: 0 }),
+  const [page, setPage] = useState(1),
+    [data, setData] = useState<Awaited<
+      ReturnType<typeof authClient.projectWorkflowHistory>
+    > | null>(null),
     [loaded, setLoaded] = useState(''),
     [error, setError] = useState('');
-  const key = tab + ':' + page;
+  const key = page + ':' + revision;
   useEffect(() => {
     let active = true;
-    const read =
-      tab === 'updates'
-        ? authClient.projectUpdates(id, page)
-        : tab === 'history'
-          ? authClient.projectWorkflowHistory(id, page)
-          : authClient.projectVersions(id, page);
-    read
+    authClient
+      .projectWorkflowHistory(id, page)
       .then((r) => {
         if (active) {
           setData(r);
@@ -1782,7 +1738,10 @@ function ProjectRecords({
         }
       })
       .catch((e) => {
-        if (active) setError(failure(e, onExpired));
+        if (active) {
+          setData(null);
+          setError(failure(e, onExpired));
+        }
       })
       .finally(() => {
         if (active) setLoaded(key);
@@ -1790,81 +1749,39 @@ function ProjectRecords({
     return () => {
       active = false;
     };
-  }, [tab, page, id, key, onExpired]);
+  }, [page, id, key, onExpired]);
   return (
-    <Panel title="Atualizações, versões e histórico">
-      <div className="form-body space-y-4">
-        <div className="flex flex-wrap gap-3" aria-label="Registros do projeto">
-          {(['updates', 'history', 'versions'] as const).map((t) => (
-            <button
-              className={tab === t ? 'button-primary' : 'button-secondary'}
-              key={t}
-              onClick={() => {
-                setTab(t);
-                setPage(1);
-              }}
+    <div className="space-y-4">
+      {loaded === key && error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+      {loaded !== key ? (
+        <p role="status">Consultando registros…</p>
+      ) : (
+        <>
+          {!error && !data?.items.length && <p>Nenhum registro nesta seção.</p>}
+          {data?.items.map((v) => (
+            <article
+              className="border-b border-slate-200 py-3 space-y-2"
+              key={v.id}
             >
-              {
-                {
-                  updates: 'Atualizações',
-                  history: 'Histórico',
-                  versions: 'Versões',
-                }[t]
-              }
-            </button>
+              <p className="whitespace-pre-wrap break-words">{v.summary}</p>
+              <p className="text-xs text-slate-500">
+                {v.actor} · {date(v.createdAt)}
+              </p>
+            </article>
           ))}
-        </div>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        {loaded !== key ? (
-          <p role="status">Consultando registros…</p>
-        ) : (
-          <>
-            {!data.items.length && <p>Nenhum registro nesta seção.</p>}
-            {data.items.map((v, i) => (
-              <article
-                className="border-b border-slate-200 py-3 space-y-2"
-                key={String(v.id ?? v.version ?? i)}
-              >
-                {tab === 'versions' ? (
-                  <button
-                    className="text-button"
-                    onClick={() => onVersion(Number(v.version))}
-                  >
-                    Consultar plano v{String(v.version)}
-                  </button>
-                ) : (
-                  <p className="whitespace-pre-wrap break-words">
-                    {String(v.content ?? v.summary)}
-                  </p>
-                )}
-                <p className="text-xs text-slate-500">
-                  {String(v.author ?? v.actor)} · {date(String(v.createdAt))}
-                  {v.correctionOf ? ' · Correção de registro anterior' : ''}
-                </p>
-                {tab === 'updates' && manager && (
-                  <button
-                    className="text-button"
-                    onClick={() => onCorrect(String(v.id))}
-                  >
-                    Registrar correção
-                  </button>
-                )}
-              </article>
-            ))}
-          </>
-        )}
-        <TicketPagination
-          pageSize={20}
-          page={page}
-          total={data.total}
-          busy={loaded !== key}
-          onPage={setPage}
-        />
-      </div>
-    </Panel>
+        </>
+      )}
+      <TicketPagination
+        pageSize={20}
+        page={page}
+        total={data?.total ?? 0}
+        busy={loaded !== key}
+        onPage={setPage}
+      />
+    </div>
   );
 }

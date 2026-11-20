@@ -64,22 +64,106 @@ it('REQUESTER não consegue definir prioridade diretamente na criação', async 
   ).toBe(400);
 });
 async function planning(f: Context) {
-  expect(
-    (
-      await write(f, 'assignment', f.a.c, {
-        technicianId: f.t.u.id,
-        reason: 'Responsável de teste',
-      })
-    ).status,
-  ).toBe(200);
-  expect(
-    (
-      await write(f, 'planning', f.a.c, {
-        reason: 'Plano de execução sintético',
-      })
-    ).status,
-  ).toBe(200);
+  const result = await write(f, 'assignment', f.a.c, {
+    technicianId: f.t.u.id,
+    reason: 'Responsável de teste',
+  });
+  expect(result.status).toBe(200);
+  expect(result.body).toMatchObject({ state: 'PLANNING', startedAt: null });
 }
+
+it('atribuição abre planejamento na mesma revisão e libera edição e publicação ao responsável', async () => {
+  const f = await context();
+  const initial = await read(f);
+  expect(
+    (
+      await write(
+        f,
+        'assignment',
+        f.t.c,
+        { technicianId: f.t.u.id, reason: 'Atribuição indevida' },
+        initial.revision,
+      )
+    ).status,
+  ).toBe(403);
+  await planning(f);
+  const w = await read(f, f.t.c);
+  expect(w).toMatchObject({
+    state: 'PLANNING',
+    revision: initial.revision + 1,
+    owner: { id: f.t.u.id },
+    startedAt: null,
+    permissions: { manage: true, publish: true },
+  });
+  const history = await f.r.c.agent.get(
+    '/projects/' + f.id + '/workflow/history',
+  );
+  expect(history.body.items[0]).toMatchObject({
+    kind: 'ASSIGNED',
+    revision: w.revision,
+    summary: expect.stringContaining('Em planejamento'),
+  });
+  expect(
+    await d.db.projectWorkflowEvent.count({ where: { projectId: f.id } }),
+  ).toBe(1);
+  expect(
+    (await write(f, 'planning', f.a.c, { reason: 'Operação removida' })).status,
+  ).toBe(404);
+  expect(
+    (await write(f, 'plan-draft', f.r.c, { definition: definition() })).status,
+  ).toBe(403);
+  expect(
+    (await write(f, 'plan-draft', f.t.c, { definition: definition() })).status,
+  ).toBe(200);
+  expect((await read(f, f.r.c)).draft).toBeNull();
+  expect(
+    (
+      await write(f, 'plan-publication', f.t.c, {
+        reason: 'Publicação confirmada',
+      })
+    ).status,
+  ).toBe(200);
+  expect((await read(f, f.r.c)).plan?.version).toBe(1);
+});
+
+it('projeto legado já atribuído muda de estado ao salvar o primeiro plano, sem alterar datas antigas', async () => {
+  const f = await context();
+  await d.db.projectWorkflow.create({
+    data: { projectId: f.id, ownerId: f.t.u.id },
+  });
+  const legacy = await read(f, f.t.c);
+  expect(legacy).toMatchObject({
+    state: 'REQUESTED',
+    permissions: { publish: true },
+  });
+  expect(
+    await d.db.projectWorkflowEvent.count({ where: { projectId: f.id } }),
+  ).toBe(0);
+  const saved = await write(f, 'plan-draft', f.t.c, {
+    definition: definition(),
+  });
+  expect(saved.status).toBe(200);
+  expect(saved.body).toMatchObject({
+    state: 'PLANNING',
+    createdAt: legacy.createdAt,
+    startedAt: null,
+  });
+  const event = await d.db.projectWorkflowEvent.findFirstOrThrow({
+    where: { projectId: f.id },
+  });
+  expect(event).toMatchObject({
+    kind: 'DRAFT_SAVED',
+    revision: legacy.revision + 1,
+    details: { previousState: 'REQUESTED', state: 'PLANNING' },
+  });
+  expect(
+    (
+      await write(f, 'plan-publication', f.t.c, {
+        reason: 'Publicar planejamento legado',
+      })
+    ).status,
+  ).toBe(200);
+});
 async function published(f: Context) {
   await planning(f);
   expect(
@@ -258,8 +342,7 @@ it('ciclo completo não inicia ao atribuir nem conclui automaticamente por100%',
   expect(w.state).toBe('COMPLETED');
   expect(w.completedAt).not.toBeNull();
   expect(
-    (await write(f, 'updates', f.t.c, { content: 'Tentativa após conclusão' }))
-      .status,
+    (await write(f, 'plan-draft', f.t.c, { definition: definition() })).status,
   ).toBe(409);
   expect(
     (await f.r.c.agent.get('/projects/' + f.id + '/workflow')).body.draft,
@@ -356,7 +439,13 @@ it('substituição revoga acesso do técnico anterior e mantém progresso', asyn
   const f = await context();
   await running(f);
   const other = await account('TECHNICIAN');
+  const activity = (await read(f)).plan!.stages[0]!.activities[0]!;
+  expect(
+    (await write(f, 'activities/' + activity.id, f.t.c, { state: 'DONE' }))
+      .status,
+  ).toBe(200);
   const w = await read(f);
+  expect(w.progress).toMatchObject({ done: 1, total: 2, percent: 50 });
   expect(
     (
       await write(f, 'assignment', f.a.c, {
@@ -368,9 +457,13 @@ it('substituição revoga acesso do técnico anterior e mantém progresso', asyn
   expect(
     (await f.t.c.agent.get('/projects/' + f.id + '/workflow')).status,
   ).toBe(404);
-  expect(
-    (await other.c.agent.get('/projects/' + f.id + '/workflow')).body.progress,
-  ).toEqual(w.progress);
+  expect(await read(f, other.c)).toMatchObject({
+    state: w.state,
+    startedAt: w.startedAt,
+    plan: w.plan,
+    progress: w.progress,
+    owner: { id: other.u.id },
+  });
   expect(
     (await f.t.c.agent.get('/projects/workflows/dashboard')).body.total,
   ).toBe(0);
@@ -382,7 +475,7 @@ it('precondições, payload estrito, IDs cruzados e transições proibidas', asy
   const f = await context();
   expect((await write(f, 'start', f.a.c)).status).toBe(409);
   expect(
-    (await write(f, 'planning', f.a.c, { reason: 'Sem responsável' })).status,
+    (await write(f, 'plan-draft', f.a.c, { definition: definition() })).status,
   ).toBe(409);
   await planning(f);
   expect((await write(f, 'start', f.t.c)).status).toBe(409);
@@ -403,8 +496,13 @@ it('precondições, payload estrito, IDs cruzados e transições proibidas', asy
     ).status,
   ).toBe(400);
   expect(
-    (await write(f, 'updates', f.t.c, { content: 'Válido', percent: 100 }))
-      .status,
+    (
+      await write(f, 'priority', f.t.c, {
+        priority: 'HIGH',
+        reason: 'Classificação com campo não permitido',
+        percent: 100,
+      })
+    ).status,
   ).toBe(400);
   const requester = await write(f, 'cancel', f.r.c, {
     reason: 'Cancelamento após planejamento',
@@ -442,20 +540,33 @@ it('idempotência recupera resultado original após revisão avançar; payload d
   await planning(f);
   const key = randomUUID(),
     rev = (await read(f)).revision,
-    body = { content: 'Atualização confirmada' };
-  const a = await write(f, 'updates', f.t.c, body, rev, key);
+    body = { definition: definition() };
+  const a = await write(f, 'plan-draft', f.t.c, body, rev, key);
   expect(a.status).toBe(200);
   expect(
-    (await write(f, 'updates', f.t.c, { content: 'Avançando revisão' })).status,
+    (
+      await write(f, 'priority', f.t.c, {
+        priority: 'HIGH',
+        reason: 'Avançando revisão',
+      })
+    ).status,
   ).toBe(200);
-  const b = await write(f, 'updates', f.t.c, body, rev, key);
+  const b = await write(f, 'plan-draft', f.t.c, body, rev, key);
   expect(b.status).toBe(200);
   expect(b.body).toEqual(a.body);
   expect(
-    (await write(f, 'updates', f.t.c, { content: 'Alterado' }, rev, key))
-      .status,
+    (
+      await write(
+        f,
+        'plan-draft',
+        f.t.c,
+        { definition: { stages: [] } },
+        rev,
+        key,
+      )
+    ).status,
   ).toBe(409);
-  expect(await d.db.projectWorkflowUpdate.count()).toBe(2);
+  expect(await d.db.projectPlanDraft.count()).toBe(1);
 });
 it('concorrência produz um vencedor e409, sem duplicação ou revisão perdida', async () => {
   const f = await context();
@@ -463,12 +574,28 @@ it('concorrência produz um vencedor e409, sem duplicação ou revisão perdida'
   const otherAdmin = await account('ADMIN'),
     rev = (await read(f)).revision;
   const result = await Promise.all([
-    write(f, 'updates', f.a.c, { content: 'Admin A' }, rev),
-    write(f, 'updates', otherAdmin.c, { content: 'Admin B' }, rev),
+    write(
+      f,
+      'priority',
+      f.a.c,
+      { priority: 'HIGH', reason: 'Decisão administrativa A' },
+      rev,
+    ),
+    write(
+      f,
+      'priority',
+      otherAdmin.c,
+      { priority: 'LOW', reason: 'Decisão administrativa B' },
+      rev,
+    ),
   ]);
   expect(result.map((x) => x.status).sort()).toEqual([200, 409]);
   expect((await read(f)).revision).toBe(rev + 1);
-  expect(await d.db.projectWorkflowUpdate.count()).toBe(1);
+  expect(
+    await d.db.projectWorkflowEvent.count({
+      where: { kind: 'PRIORITY_CHANGED' },
+    }),
+  ).toBe(1);
 });
 it('falha de auditoria desfaz estado, revisão, rascunho e idempotência', async () => {
   const f = await context();
@@ -485,33 +612,91 @@ it('falha de auditoria desfaz estado, revisão, rascunho e idempotência', async
   ).toBe(500);
   expect((await read(f)).revision).toBe(rev);
   expect(await d.db.projectPlanDraft.count()).toBe(0);
-  expect(await d.db.projectOperation.count()).toBe(3);
+  expect(await d.db.projectOperation.count()).toBe(2);
+  const unassigned = await context();
+  const assignment = await write(unassigned, 'assignment', unassigned.a.c, {
+    technicianId: unassigned.t.u.id,
+    reason: 'Atribuição com falha de auditoria',
+  });
+  expect(assignment.status).toBe(500);
+  expect(await read(unassigned)).toMatchObject({
+    state: 'REQUESTED',
+    owner: null,
+    revision: 1,
+  });
 });
-it('histórico seguro, correções append-only e agregações respeitam ownership', async () => {
+it('histórico unificado preserva cada atualização antiga uma vez e respeita ownership', async () => {
   const f = await context(),
     other = await account('REQUESTER');
   await running(f);
+  const before = await read(f);
+  const originals = await d.db.$transaction(async (tx) => {
+    const records: { id: string; createdAt: Date }[] = [];
+    for (const content of [
+      'Andamento público autorizado',
+      'Correção registrada',
+    ]) {
+      const { revision } = await tx.projectWorkflow.update({
+        where: { projectId: f.id },
+        data: { revision: { increment: 1 } },
+      });
+      const createdAt = new Date();
+      const original = await tx.projectWorkflowUpdate.create({
+        data: {
+          projectId: f.id,
+          actorId: f.t.u.id,
+          createdAt,
+          revision,
+          content,
+          correctionOf: records[0]?.id,
+        },
+      });
+      records.push(original);
+      await tx.projectWorkflowEvent.create({
+        data: {
+          projectId: f.id,
+          actorId: f.t.u.id,
+          createdAt,
+          revision,
+          kind: 'UPDATE_ADDED',
+          summary: 'Registro anterior.',
+        },
+      });
+    }
+    return records;
+  });
+  for (const c of [f.r.c, f.t.c, f.a.c]) {
+    const history = await c.agent.get(
+      '/projects/' + f.id + '/workflow/history',
+    );
+    expect(history.status).toBe(200);
+    expect(history.body.total).toBe(before.revision + 2);
+    const records = history.body.items.filter(
+      (item: { kind: string }) => item.kind === 'UPDATE_ADDED',
+    );
+    expect(records).toHaveLength(2);
+    expect(records[0]).toMatchObject({
+      id: originals[1]!.id,
+      summary: 'Correção de atualização publicada.\nCorreção registrada',
+      actor: f.t.u.name,
+      createdAt: originals[1]!.createdAt.toISOString(),
+    });
+    expect(records[1]).toMatchObject({
+      id: originals[0]!.id,
+      summary: 'Atualização publicada.\nAndamento público autorizado',
+    });
+    expect(records[0]).not.toHaveProperty('details');
+  }
   expect(
-    (
-      await write(f, 'updates', f.t.c, {
-        content: 'Andamento público autorizado',
-      })
-    ).status,
-  ).toBe(200);
-  const updates = await f.r.c.agent.get('/projects/' + f.id + '/updates');
-  expect(updates.body.items).toHaveLength(1);
-  expect(
-    (
-      await write(f, 'updates', f.t.c, {
-        content: 'Correção registrada',
-        correctionOf: updates.body.items[0].id,
-      })
-    ).status,
-  ).toBe(200);
-  expect(
-    (await f.r.c.agent.get('/projects/' + f.id + '/workflow/history')).body
-      .items[0],
-  ).not.toHaveProperty('details');
+    (await other.c.agent.get('/projects/' + f.id + '/workflow/history')).status,
+  ).toBe(404);
+  for (const c of [f.a.c, f.t.c])
+    expect(
+      (await write(f, 'updates', c, { content: 'Nova atualização bloqueada' }))
+        .status,
+    ).toBe(404);
+  expect(await d.db.projectWorkflowUpdate.count()).toBe(2);
+  expect((await read(f)).revision).toBe(before.revision + 2);
   expect(
     (await other.c.agent.get('/projects/' + f.id + '/workflow')).status,
   ).toBe(404);
@@ -544,7 +729,7 @@ it('técnicos inelegíveis, CSRF e sessão revogada bloqueiam mutações', async
   expect(
     (
       await f.a.c.agent
-        .post('/projects/' + f.id + '/planning')
+        .post('/projects/' + f.id + '/assignment')
         .set('Origin', origin)
         .send({})
     ).status,
@@ -586,24 +771,28 @@ it('retrabalho exige motivo e publicação/conclusão concorrentes não duplicam
   const result = await Promise.all([
     write(
       f,
-      'updates',
+      'priority',
       f.t.c,
-      { content: 'Mesmo envio confirmado' },
+      { priority: 'HIGH', reason: 'Mesmo envio confirmado' },
       current.revision,
       key,
     ),
     write(
       f,
-      'updates',
+      'priority',
       f.t.c,
-      { content: 'Mesmo envio confirmado' },
+      { priority: 'HIGH', reason: 'Mesmo envio confirmado' },
       current.revision,
       key,
     ),
   ]);
   expect(result.map((r) => r.status)).toEqual([200, 200]);
   expect(result[0]!.body).toEqual(result[1]!.body);
-  expect(await d.db.projectWorkflowUpdate.count()).toBe(1);
+  expect(
+    await d.db.projectWorkflowEvent.count({
+      where: { kind: 'PRIORITY_CHANGED' },
+    }),
+  ).toBe(1);
 });
 it('FKs e publicação vazia/imutável são protegidas no PostgreSQL', async () => {
   const f = await context();
@@ -674,6 +863,7 @@ it('publicações concorrentes preservam versão única e identificadores de out
 });
 it('cancelamento com revisão anterior ao planejamento retorna conflito, sem cancelar', async () => {
   const f = await context();
+  const revision = (await read(f, f.r.c)).revision;
   expect(
     (
       await write(f, 'assignment', f.a.c, {
@@ -681,11 +871,6 @@ it('cancelamento com revisão anterior ao planejamento retorna conflito, sem can
         reason: 'Responsável definido',
       })
     ).status,
-  ).toBe(200);
-  const revision = (await read(f, f.r.c)).revision;
-  expect(
-    (await write(f, 'planning', f.a.c, { reason: 'Planejamento confirmado' }))
-      .status,
   ).toBe(200);
   expect(
     (
@@ -716,4 +901,31 @@ it('responsáveis homônimos mantêm identidade própria nas agregações', asyn
   expect(
     result.body.byOwner.every((v: { count: number }) => v.count === 1),
   ).toBe(true);
+});
+it('leitura do detalhe respeita a projeção operacional do técnico responsável', async () => {
+  const f = await context(),
+    outsider = await account('TECHNICIAN'),
+    foreign = await account('REQUESTER');
+  await running(f);
+  const get = (c: Context['a']['c'], path: string) =>
+    c.agent.get('/projects/' + f.id + path);
+  // Projeção operacional usada pela tela de detalhe: liberada ao responsável.
+  for (const path of [
+    '/workflow',
+    '/workflow/history',
+    '/submission',
+    '/attachments',
+    '/conversation',
+  ])
+    expect((await get(f.t.c, path)).status).toBe(200);
+  // Leitura antiga projects.read permanece restrita a REQUESTER e ADMIN.
+  for (const path of ['', '/history'])
+    expect((await get(f.t.c, path)).status).toBe(403);
+  for (const c of [f.r.c, f.a.c])
+    for (const path of ['', '/history', '/workflow'])
+      expect((await get(c, path)).status).toBe(200);
+  // Técnico não atribuído e solicitante alheio não enxergam o projeto.
+  for (const c of [outsider.c, foreign.c])
+    for (const path of ['/workflow', '/workflow/history', '/conversation'])
+      expect((await get(c, path)).status).toBe(404);
 });

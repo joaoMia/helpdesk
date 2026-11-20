@@ -14,7 +14,6 @@ import {
   projectReasonSchema,
   projectDraftSchema,
   projectActivitySchema,
-  projectUpdateSchema,
   projectPrioritySchema,
   projectRetireSchema,
 } from '@helpdesk/contracts';
@@ -110,9 +109,7 @@ export class ProjectWorkflowService {
               ? 'projects.cancel'
               : op === 'draft' || op === 'publish'
                 ? 'projects.plan'
-                : op === 'update'
-                  ? 'projects.update'
-                  : 'projects.transition',
+                : 'projects.transition',
     );
     parse(z.strictObject({}), q);
     const schema =
@@ -130,11 +127,9 @@ export class ProjectWorkflowService {
                   ? projectActivitySchema
                   : op === 'stage-complete'
                     ? projectMutationSchema
-                    : op === 'update'
-                      ? projectUpdateSchema
-                      : op === 'start'
-                        ? projectMutationSchema
-                        : projectReasonSchema;
+                    : op === 'start'
+                      ? projectMutationSchema
+                      : projectReasonSchema;
     const value = parse(schema, body);
     try {
       return projectWorkflowSchema.parse(
